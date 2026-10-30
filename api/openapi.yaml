@@ -21,6 +21,8 @@ info:
     - **Derived values are computed by clients:** tax rate, percent of income, month-over-month and
       year-over-year changes, and better/worse colours. The API returns the raw cent totals and the
       `is_saving` flag (for Saving, going up is better).
+      - Tax rate = `(gross_taxable_cents - net_cents) / gross_taxable_cents`; show nothing when gross taxable is 0.
+      - Percent of income = category `total_cents / income.combined.net_cents` for the same month.
     - **Partial updates** use `PATCH` with only the fields being changed. Sending `null` clears a nullable field.
     - **Errors** always use the `Error` body: a stable machine-readable `code` and a human `message`.
     - **Lists** return `{ "items": [...] }`. Lists that can grow large are cursor-paginated and also
@@ -168,7 +170,7 @@ paths:
       summary: Update a category
       description: |
         On the protected "Other" category only `color` may change; any other field returns
-        `409 protected_resource`.
+        `409 protected_resource`. It can also be reordered with `PUT /v1/categories/order`.
       requestBody:
         required: true
         content:
@@ -613,7 +615,13 @@ paths:
         the item's `day_of_month`, clamped to the month's last day when that day doesn't exist
         (31 in April → April 30; 29–31 in February → Feb 28 or 29). Returns the apply so it can be undone.
 
-        If the month already has an apply, returns `409 month_already_applied` unless `allow_repeat` is true.
+        **Months that already have data.** If any expense or income entry is dated in the month, returns
+        `409 month_not_empty` unless `reset_month` is true. Clients must then ask the user to confirm that
+        **all** of the month's data will be deleted (the monthly summary has the counts to show), and retry
+        with `reset_month: true`. That deletes every expense and income entry dated in the month (confirmed
+        or not) and the month's earlier applies, then applies the template, all in one transaction. Refunds
+        in other months that pointed at deleted expenses are unlinked, not deleted. Undo afterwards removes
+        only the new copies; deleted data cannot be recovered through the API.
       requestBody:
         required: true
         content:
@@ -623,15 +631,16 @@ paths:
               required: [template_id]
               properties:
                 template_id: { $ref: '#/components/schemas/Id' }
-                allow_repeat:
+                reset_month:
                   type: boolean
                   default: false
+                  description: The user confirmed deleting all of this month's existing data first.
       responses:
         '201':
           description: Applied
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/TemplateApply' }
+              schema: { $ref: '#/components/schemas/TemplateApplyResult' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -1367,7 +1376,7 @@ components:
     Conflict:
       description: |
         A business rule blocked the request. Codes: `protected_resource`, `source_has_entries`,
-        `name_taken`, `has_linked_refunds`, `month_already_applied`, `backup_in_progress`, `backup_not_ready`.
+        `name_taken`, `has_linked_refunds`, `month_not_empty`, `backup_in_progress`, `backup_not_ready`.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
@@ -1460,7 +1469,7 @@ components:
                 - source_has_entries
                 - name_taken
                 - has_linked_refunds
-                - month_already_applied
+                - month_not_empty
                 - backup_in_progress
                 - backup_not_ready
                 - internal
@@ -1837,6 +1846,20 @@ components:
           minimum: 0
           readOnly: true
           description: Entries from this apply still unconfirmed, i.e. what Undo would remove. Hide Undo at 0.
+    TemplateApplyResult:
+      allOf:
+        - $ref: '#/components/schemas/TemplateApply'
+        - type: object
+          required: [removed_expense_count, removed_income_entry_count]
+          properties:
+            removed_expense_count:
+              type: integer
+              minimum: 0
+              description: Expenses deleted by `reset_month` (0 when the month was empty).
+            removed_income_entry_count:
+              type: integer
+              minimum: 0
+              description: Income entries deleted by `reset_month` (0 when the month was empty).
 
     # ---- Summaries ----------------------------------------------------------
     IncomeTotals:
@@ -2039,7 +2062,7 @@ components:
         year: { $ref: '#/components/schemas/Year' }
         all_spending:
           $ref: '#/components/schemas/CategoryTrendSeries'
-          description: Every category combined, Saving included.
+          description: Every category combined, Saving included (for now; see root AGENTS.md).
         categories:
           type: array
           description: Every category, in `sort_order`.
