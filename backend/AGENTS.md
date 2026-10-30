@@ -28,6 +28,7 @@ migrations/       numbered SQL migrations
 - **SQLite:** enable `PRAGMA foreign_keys=ON` and WAL mode at startup. Prefer a pure-Go driver (no CGO) so Docker builds stay simple, unless there is a reason not to.
 - **Migrations:** every schema change is a new numbered migration. Never edit an applied one.
 - **Aggregations** (monthly/yearly totals, trends) are done in SQL, not in application loops.
+- **Categories:** "Other" cannot be deleted (reject with a clear error). Deleting any other category must, in one transaction, move its expenses and template items to the user's "Other" category before removing it. Test both paths.
 - **Refunds:** deleting an expense sets `refunded_expense_id` to NULL on any refund pointing at it; it never deletes the refund.
 - **Logging:** never log amounts, merchants, notes, or tokens.
 - **Config** comes from environment variables. Never commit secrets.
