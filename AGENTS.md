@@ -32,31 +32,41 @@ docker-compose.yml
 
 - v1: a single user. Later: roughly 3–5 users, each with fully private data and their own templates. No sharing between users.
 - Every table has `user_id`, and every query is scoped to the authenticated user. Build this in from day one.
-- Sign-ups are disabled or allowlisted. Accounts are created by an admin.
+- Sign-ups are disabled or allowlisted. Accounts are created by an admin. In v1 that happens outside the app: in the Firebase console plus an admin-only step that adds the user to the local users table (for example a backend CLI command). In-app account management is v2.
+- Users have a role: `admin` or `member`. Only admins can open the admin panel.
+- **New accounts are seeded** with:
+  - the default categories (Saving flagged as saving; Other protected)
+  - an "Other" income source (protected)
+  - an empty template
 
 ## 5. Domain model
 
 All money is stored as **integer cents**. Never use floats.
 
-- **User**: id, auth provider uid
-- **IncomeSource**: user, name, active
+- **User**: id, auth provider uid, role (`admin` | `member`)
+- **IncomeSource**: user, name, sort order, active. Seeded: Other (protected)
 - **IncomeEntry**: user, source, date, gross, gross taxable, net, optional note. One row per paycheck or one-off job.
-- **Category**: user, name, sort order. Seeded: Saving, Housing, Utilities, Food, Transportation, Entertainment, Debt, Other
+- **Category**: user, name, sort order, `is_saving` flag. Seeded: Saving (`is_saving`), Housing, Utilities, Food, Transportation, Entertainment, Debt, Other (protected)
 - **Expense**: user, category, date, merchant, amount, optional note, type (`expense` | `refund`), optional `refunded_expense_id`, `confirmed` flag
 - **Template**: user, name. A template is a full filled-out month (like a spreadsheet "Example Month" tab). A user may have several.
-- **TemplateItem**: template, kind (expense | income), category or source, label/merchant, default amount
+- **TemplateItem**: template, kind (expense | income), category or source, label/merchant, **day of month** (1–31). Expense items have a default amount; income items have default gross, gross taxable and net.
+- **SavedTrend**: user, name, match type (`merchant` | `category` | `note`), match value, measure (`amount` | `count`)
 
 Rules:
 - Months are derived from dates; there is no month table.
 - Tax rate is derived from gross, gross taxable, and net; do not store it.
 - Saving **counts as an expense** in totals. Reports still show Saving as its own line.
 - A refund is a negative amount, styled distinctly, and may optionally link to the original expense. Deleting the original unlinks the refund; it does not delete it.
+- **Refunds count in the month they are logged**, even when the original purchase was in an earlier month. They lower that month's spending in the refund's own category.
+- An expense may have several linked refunds (partial refunds). Clients may show the original's net (amount minus linked refunds) for display only; never store it.
 - Merchant is a free-text field with autocomplete from previously used merchants, so spellings stay consistent for trends.
-- **"Other" is a protected category:** it is seeded for every user and can never be deleted (whether it can be renamed is undecided; do not allow it until the user decides). Deleting any other category reassigns all of its expenses, and any template items in it, to "Other" in the same transaction. Nothing is orphaned and no expense is deleted.
+- **"Other" is a protected category:** it is seeded for every user and **can never be renamed, edited, or deleted**. Deleting any other category reassigns all of its expenses, and any template items in it, to "Other" in the same transaction. Nothing is orphaned and no expense is deleted.
+- The **"Other" income source** follows the same rule. Deleting any other source moves its income entries and template items to "Other" in one transaction.
+- Saving is identified by the `is_saving` flag, not by its name, so renaming it keeps its special treatment.
 
 ## 6. v1 use cases
 
-1. Sign in / sign out.
+1. Sign in / sign out with Firebase: Google or email and password. "Forgot password" sends Firebase's reset email. There is no sign-up screen.
 2. Add expenses, singly or in batches, as they happen or later.
 3. Add income entries (several per month, by source, including one-offs).
 4. Land on the **current month** summary:
@@ -66,24 +76,43 @@ Rules:
 6. Browse any past month.
 7. Edit and delete expenses and income entries.
 8. Manage categories, income sources, and templates.
-9. Start a month from a template: copies every template item into the month as real entries, dated the 1st, marked **not yet confirmed** (visibly flagged until the user edits or confirms them). Editing a month never changes the template. "Save this month as a template" is supported.
+9. Start a month from a template:
+   - Every template item is copied into the month as a real entry, dated on the item's **day of month**.
+   - If that day doesn't exist in the month (29, 30 or 31 in a shorter month), the entry is dated on the **last day of the month** instead.
+   - Copies are marked **not yet confirmed** and stay visibly flagged until the user edits or confirms them. "Confirm all as-is" confirms them in one step.
+   - Right after copying, the user can **undo**. This deletes the entries that copy created that are still unconfirmed.
+   - Editing a month never changes the template. "Save this month as a template" is supported.
+   - An empty new month offers to copy the template or start blank.
 10. Summaries (totals only; budgets and what-if are v2):
     - **Monthly:** laid out vertically like the user's spreadsheet. Income shows gross, gross taxable, and net per source, plus the **calculated tax rate** (derived, never stored), followed by an **"All sources combined"** block with the same four figures totaled across sources. Spending shows each category with its total, its **percent of income**, and a **comparison to the previous month**.
     - **Yearly:** all three of (a) a month-by-month table (income, spent, left over per month), (b) category totals for the year, and (c) monthly averages. **Tapping a month's row** opens that month's summary, read-only. There is no separate column or button for this.
     - **Saving** is counted as an expense in totals but is **presented differently** from ordinary spending (its own visual treatment and its own line), because the user uses it to see where post-paycheck savings and investments go. A savings rate is not required in v1.
-11. Custom trends: the user picks a filter (category, merchant, text, date range) **and the measure** (total amount or number of transactions) and sees it charted per month or year (for example, one merchant each month).
-    - **Approved chart types** (from the stats mockup; use only these):
+11. Trends, in two views:
+    - **Custom trends:** the user picks a filter (category, merchant, text, date range) **and the measure** (total amount or number of transactions) and sees it charted per month or year (for example, one merchant each month). Trends can be saved (SavedTrend) and reopened.
+    - **By category:** for any category, or all spending, show:
+      - how spend changed **month over month** (January compares with the previous December)
+      - how it changed **year over year** (same month last year, and year to date vs. last year)
+      - a "biggest movers" ranking of every category's year-over-year change for the selected month
+    - **Change indicators:** orange means spending went up (worse), blue means it went down (better). For **Saving the meaning flips**: saving more is shown as positive (blue). An arrow and a +/− sign always accompany the colour.
+    - **Approved chart types** (use only these):
       - Category spending as **ranked horizontal bars**
       - Category share as a **donut**
       - **Income vs. spent per month** as paired vertical bars
-      - Custom trend as **vertical bars per period**
+      - Custom trend as **vertical bars per period** (including small sparkline bars in lists)
+      - **This year vs. last year per month** as paired vertical bars
+      - **Biggest movers** as **diverging horizontal bars** around a zero line
     - Not approved: stacked bars, line charts.
     - Saving keeps its own distinct color in every chart.
     - **Chart placement:**
       - **Monthly summary:** ranked category bars by default, with a toggle to switch to the category donut. Both show the same month's data.
       - **Yearly view:** income vs. spent paired bars per month, placed above the month-by-month table. Also ranked category bars showing each category's **monthly average** for the year.
       - **Custom trends:** vertical bars per month or year, for whichever measure the user picked (amount or count).
-12. Export to CSV/Excel. **This is the last v1 item**, built after the UI and backend for everything above are complete.
+      - **Trends by category:** this-year vs. last-year paired bars per month, with the biggest-movers diverging bars beside them.
+12. **Admin panel** (admins only, web only), limited in v1 to app status and backups:
+    - Status: API health and version (from `/healthz`), database size and last write, backup schedule and last run, sign-in provider connectivity.
+    - Backups: a list of snapshots, "Back up now", and download of the encrypted snapshot.
+    - **Not in v1:** account-specific tiles and actions (user list, user counts, create account, invites, password reset, disable/enable). Those stay in the Firebase console until v2.
+13. Export to CSV/Excel. **This is the last v1 item**, built after the UI and backend for everything above are complete.
 
 ## 7. Scope
 
@@ -97,14 +126,15 @@ Rules:
 - Receipt scanning, multi-currency
 - Sharing between users or household budgets
 - Offline mode (planned later: cached read-only; add/edit must show an error when offline)
-- In-app admin dashboard (v2)
+- In-app account management in the admin panel: user list, create account, invites, password resets, disable/enable (v2)
 
 ## 8. Non-functional requirements
 
 - HTTPS only, via reverse proxy with automatic certificates
 - Token verification on every API request; all data access scoped by `user_id`
-- Admin tasks in v1 (list users, create accounts, password resets) use the Firebase console. Expose a `/healthz` endpoint for app status.
-- Backups: weekly and monthly snapshots of the SQLite database, encrypted, stored off the server. Restore must be tested.
+- Account admin tasks in v1 (list users, create accounts, password resets) use the Firebase console. Expose a `/healthz` endpoint for app status, which the admin panel also reads.
+- Backups: weekly (Sundays) and monthly (the 1st) snapshots of the SQLite database, encrypted, stored off the server. Keep the last 8 weekly and 12 monthly. Admins can also start one manually from the admin panel. Restore must be tested.
+- Admins never see other users' entries through the app. Backup downloads are the encrypted archive only.
 - Secrets in environment files, never committed
 - No financial data in logs
 - Performance is not a concern at this scale; favor simplicity

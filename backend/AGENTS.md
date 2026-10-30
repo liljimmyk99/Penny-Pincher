@@ -25,11 +25,35 @@ migrations/       numbered SQL migrations
 - **Dates** are calendar dates stored as `YYYY-MM-DD` text, with no time zone. Months are derived from them.
 - **Tenancy:** every query in `internal/store` takes the authenticated `user_id` and filters on it. A handler must never be able to read or write another user's rows. Add a test for this on every new query.
 - **Auth:** verify the Firebase ID token on every route except `/healthz`, keeping the verifier behind an interface in `internal/auth`. A valid token is not enough: the Firebase uid must match a row in the local users table, otherwise return 403. This is the allowlist, so people who sign up through Firebase get no access.
+- **Roles:** users are `admin` or `member`. Admin routes (`/v1/admin/...`) require `admin` and return 403 otherwise. Provide an admin-only way outside the HTTP API to add a user row (for example a `cmd/` CLI subcommand), since v1 has no in-app account management.
+- **New user seeding:** when a user row is created, seed in one transaction:
+  - the default categories, in order, with Saving's `is_saving=true` and Other protected
+  - a protected "Other" income source
+  - an empty template
 - **SQLite:** enable `PRAGMA foreign_keys=ON` and WAL mode at startup. Prefer a pure-Go driver (no CGO) so Docker builds stay simple, unless there is a reason not to.
 - **Migrations:** every schema change is a new numbered migration. Never edit an applied one.
 - **Aggregations** (monthly/yearly totals, trends) are done in SQL, not in application loops.
-- **Categories:** "Other" cannot be deleted (reject with a clear error). Deleting any other category must, in one transaction, move its expenses and template items to the user's "Other" category before removing it. Test both paths.
-- **Refunds:** deleting an expense sets `refunded_expense_id` to NULL on any refund pointing at it; it never deletes the refund.
+- **Categories:**
+  - "Other" can never be renamed, edited, or deleted. Reject those requests with a clear error.
+  - Deleting any other category must, in one transaction, move its expenses and template items to the user's "Other" category before removing it.
+  - Reordering updates `sort_order` for the whole list in one request.
+  - Saving is identified by `is_saving`, never by name.
+  - Test every path.
+- **Income sources:** the same protection and reassignment rules apply. "Other" is locked, and deleting a source moves its income entries and template items to "Other" in one transaction. Sources have a `sort_order`.
+- **Refunds:**
+  - A refund counts in the month of **its own date**, in its own category, even when the original was in an earlier month. Summaries and trends subtract it there.
+  - Several refunds may point at the same expense (partial refunds). Do not store a "net" on the original.
+  - Deleting an expense sets `refunded_expense_id` to NULL on any refund pointing at it; it never deletes the refund.
+- **Templates:**
+  - Template items have a `day_of_month` (1–31). Expense items have an amount; income items have gross, gross taxable and net.
+  - Applying a template to a month dates each copy on its day of month, **clamped to the last day of the month** when the day doesn't exist (for example 31 in April → April 30; 29, 30 or 31 in February → Feb 28 or 29). Use real calendar maths, including leap years.
+  - Copies are `confirmed=false`.
+  - Tag the rows a single apply creates (for example a `template_apply_id`). "Undo" then deletes only that apply's rows that are still unconfirmed.
+  - Provide a "confirm all" action for a month.
+- **Trends:**
+  - Saved trends (match type `merchant` | `category` | `note`, match value, measure `amount` | `count`) are per-user CRUD.
+  - The by-category view needs monthly totals per category for the selected year **and the previous year**, so month-over-month (January compares with the previous December) and year-over-year changes can be computed. Compute totals in SQL; clients compute percentages and colours.
+  - Whether a change counts as better or worse depends on `is_saving` (for Saving, up is better). Expose the flag rather than encoding colours in the API.
 - **Logging:** never log amounts, merchants, notes, or tokens.
 - **Config** comes from environment variables. Never commit secrets.
 - Errors are returned in the format defined in `/api`; do not leak internals.
@@ -37,9 +61,35 @@ migrations/       numbered SQL migrations
 ## Testing
 
 - Use a temporary SQLite database per test; do not mock the store.
-- Cover: tenancy isolation, refund linking and unlinking, template-to-month copy (dated the 1st, `confirmed=false`), summaries, and trend filters.
+- Cover:
+  - tenancy isolation
+  - refund linking and unlinking, including partial refunds and refunds counted in a later month
+  - template-to-month copy: day-of-month dating, clamping for 29/30/31 including February in leap and non-leap years, `confirmed=false`, and undo removing only unconfirmed rows from that apply
+  - protected "Other" category and income source: rename, edit and delete are rejected; reassignment on delete
+  - new-user seeding
+  - admin-route authorization (members get 403)
+  - summaries, trend filters, and month-over-month and year-over-year totals across a year boundary
 - Run `go vet ./...` and `go test ./...` before finishing.
 
 ## Endpoints to implement (v1)
 
-Income sources, income entries, categories, expenses, templates (including "start month from template" and "save month as template"), monthly/yearly summaries, trends, `/healthz`, and export (last).
+- Income sources and categories, including reorder
+- Income entries
+- Expenses, including refund linking and "confirm all" for a month
+- Templates:
+  - "start month from template", with undo
+  - "save month as template"
+- Monthly and yearly summaries
+- Trends:
+  - custom trend queries
+  - saved trends
+  - by-category monthly totals for this year and last
+- `/healthz`
+- **Admin (admins only):**
+  - status: version, uptime, database size and last write, backup schedule and last run, sign-in provider connectivity
+  - list backup snapshots
+  - start a backup now
+  - download an encrypted snapshot
+- Export (last)
+
+**Not in v1:** any user or account management endpoints (list users, create, invite, reset password, disable). Those stay in the Firebase console until v2.
