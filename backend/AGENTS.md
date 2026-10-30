@@ -26,9 +26,12 @@ migrations/       numbered SQL migrations
 - **Tenancy:** every query in `internal/store` takes the authenticated `user_id` and filters on it. A handler must never be able to read or write another user's rows. Add a test for this on every new query.
 - **Auth:** verify the Firebase ID token on every route except `/healthz`, keeping the verifier behind an interface in `internal/auth`. A valid token is not enough: the Firebase uid must match a row in the local users table, otherwise return 403. This is the allowlist, so people who sign up through Firebase get no access.
 - **Roles:** users are `admin` or `member`. Admin routes (`/v1/admin/...`) require `admin` and return 403 otherwise. Provide an admin-only way outside the HTTP API to add a user row (for example a `cmd/` CLI subcommand), since v1 has no in-app account management.
-- **New user seeding:** when a user row is created, seed in one transaction:
-  - the default categories, in order, with Saving's `is_saving=true` and Other protected
-  - a protected "Other" income source
+- **Schema:** `migrations/0001_init.sql` defines every table, index, trigger and view. Read its header comment before writing store code.
+  - Composite foreign keys `(x_id, user_id)` stop a row from referencing another user's category, merchant, income source or template. The store must still filter every query on `user_id`.
+  - Triggers enforce the protected "Other" rows, reassignment on delete, the income-source delete rule, and refund links. The store should check these rules first and return a clear API error; the triggers are the safety net. Trigger failures arrive as SQLite `RAISE(ABORT, ...)` errors.
+  - Views `v_monthly_category_spend`, `v_monthly_income_by_source`, `v_monthly_totals` and `v_monthly_merchant_spend` are the building blocks for summaries and trends.
+- **New user seeding:** when a user row is inserted, a trigger creates the protected "Other" category and "Other" income source. In the same transaction, the store seeds:
+  - the remaining default categories, in order, with Saving's `is_saving=1`
   - an empty template
 - **SQLite:** enable `PRAGMA foreign_keys=ON` and WAL mode at startup. Prefer a pure-Go driver (no CGO) so Docker builds stay simple, unless there is a reason not to.
 - **Migrations:** every schema change is a new numbered migration. Never edit an applied one.
@@ -39,7 +42,14 @@ migrations/       numbered SQL migrations
   - Reordering updates `sort_order` for the whole list in one request.
   - Saving is identified by `is_saving`, never by name.
   - Test every path.
-- **Income sources:** the same protection and reassignment rules apply. "Other" is locked, and deleting a source moves its income entries and template items to "Other" in one transaction. Sources have a `sort_order`.
+- **Income sources:**
+  - "Other" can never be renamed or deleted.
+  - Any other source can be renamed.
+  - A source that has income entries can **never be deleted**. Reject the request with a clear error that suggests renaming instead.
+  - A source with no entries can be deleted; its template items move to "Other" in the same transaction.
+  - Sources have a `sort_order`.
+  - Test every path.
+- **Merchants:** expenses and template expense items reference a `merchants` row. Creating or editing an expense with a merchant name looks the name up case-insensitively for that user and creates it if missing. Autocomplete is a prefix search on that table.
 - **Refunds:**
   - A refund counts in the month of **its own date**, in its own category, even when the original was in an earlier month. Summaries and trends subtract it there.
   - Several refunds may point at the same expense (partial refunds). Do not store a "net" on the original.
@@ -47,8 +57,8 @@ migrations/       numbered SQL migrations
 - **Templates:**
   - Template items have a `day_of_month` (1–31). Expense items have an amount; income items have gross, gross taxable and net.
   - Applying a template to a month dates each copy on its day of month, **clamped to the last day of the month** when the day doesn't exist (for example 31 in April → April 30; 29, 30 or 31 in February → Feb 28 or 29). Use real calendar maths, including leap years.
-  - Copies are `confirmed=false`.
-  - Tag the rows a single apply creates (for example a `template_apply_id`). "Undo" then deletes only that apply's rows that are still unconfirmed.
+  - Copies are `confirmed=0`.
+  - Each apply inserts a `template_applies` row, and every entry it creates stores that row's id in `template_apply_id`. "Undo" deletes only that apply's rows that are still unconfirmed.
   - Provide a "confirm all" action for a month.
 - **Trends:**
   - Saved trends (match type `merchant` | `category` | `note`, match value, measure `amount` | `count`) are per-user CRUD.
@@ -66,6 +76,7 @@ migrations/       numbered SQL migrations
   - refund linking and unlinking, including partial refunds and refunds counted in a later month
   - template-to-month copy: day-of-month dating, clamping for 29/30/31 including February in leap and non-leap years, `confirmed=false`, and undo removing only unconfirmed rows from that apply
   - protected "Other" category and income source: rename, edit and delete are rejected; reassignment on delete
+  - income sources: renaming works; deleting a source with entries is rejected; deleting one without entries moves its template items to "Other"
   - new-user seeding
   - admin-route authorization (members get 403)
   - summaries, trend filters, and month-over-month and year-over-year totals across a year boundary
