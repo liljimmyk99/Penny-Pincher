@@ -105,11 +105,12 @@ Define these as tokens (CSS custom properties or the UI library's theme) in one 
 - **Filter chips:** All, Refunds, Not linked.
 - **Linking dialog:** for an unlinked refund, "Link…" opens a dialog that searches recent expenses, shows a **Suggested** match (same category, close before the refund date), and links on confirm. Linking is optional.
 - **Tiles:** refunds this month, spent before refunds, spent after refunds. Summary and Trends use the after-refunds figure.
+- **Refund month:** a refund lowers spending in the month it is logged, in its own category, even when the original was in an earlier month.
 
 ### Templates
 - Template list ("Your templates") and an editor for one template.
 - Expense items take name, category, amount and day of month. Income items take source, label, gross, gross taxable and net.
-- Apply a template to a chosen month.
+- Apply a template to a chosen month. Copies land on each item's day of month; days that don't exist in that month (29–31) land on the month's last day (the backend does this, so don't recompute it in the client).
 
 ### Yearly
 - Year switcher.
@@ -142,22 +143,25 @@ Two tabs at the top: **Custom trends** and **By category**.
   - Columns: drag handle to reorder (the order is used everywhere), name, entries, spent year to date.
   - Inline rename and delete.
   - Saving carries a "Counted as savings" badge.
-  - **Other** carries a "Default" badge, a lock and no rename/delete actions.
+  - **Other** carries a "Default" badge and a lock. It can never be renamed, edited or deleted, so it shows no actions and no drag handle.
 - **Deleting a category:** a confirmation dialog states how many expenses (and how much) move to Other, and that templates using it switch to Other. Then Other's totals update.
 - **Income sources:** entries, gross YTD, net YTD, calculated tax rate. An "Other" source is the default target when a source is deleted.
 - An "Add category" / "Add source" field sits under each table.
 
-### Admin dashboard (admins only)
-Reached from the account menu. See "Pending decisions": the root file currently lists this as v2.
+### Admin panel (admins only)
+Reached from the account menu; hidden from members. **v1 builds only app status and backups** (root §6.12).
 
-- **Status tiles:** API server (from `/healthz`: version, uptime), database (size, last write), backups (last and next run), sign-in (Firebase connected, active users).
-- **Users table:** name, email, role (Admin / Member), status (Active / Invited / Disabled), last sign-in.
-  - Actions: Reset password, Disable/Enable, Resend or cancel invite.
-  - An admin cannot disable or demote themselves.
-- **Create account:** name, email, role. Sends a set-password email. New accounts start with the default categories, an "Other" income source and an empty template.
-- **Backups:** list of weekly, monthly and manual snapshots with size and Download, plus "Back up now".
-- States plainly that admins cannot see other users' entries; the API must enforce this.
-- Confirm actions with a toast.
+- **Status tiles (v1):**
+  - API server (from `/healthz`: version, uptime)
+  - database (size, last write)
+  - backups (last and next run)
+  - sign-in (Firebase connected; no user counts)
+- **Backups (v1):** list of weekly, monthly and manual snapshots with size and Download (encrypted archive), plus "Back up now". Confirm with a toast.
+- **Not in v1 — do not build:** everything account-specific shown on the canvas. That means:
+  - the users table, user counts, and Create account
+  - Reset password, Disable/Enable, and Resend/Cancel invite
+  - these stay in the Firebase console until v2; the canvas shows the v2 direction (admins cannot disable or demote themselves; admins never see other users' entries)
+- Keep a "Firebase console" link in the header for account tasks.
 
 ### Empty states
 - **New account** (first sign-in, no data)
@@ -176,15 +180,6 @@ Reached from the account menu. See "Pending decisions": the root file currently 
 - Toasts confirm background actions (invite sent, backup finished, refund linked). Use `role="status"` and make them dismissible.
 - Segmented toggles and chips expose `aria-pressed`. Radio-style pickers use `role="radiogroup"`/`role="radio"`.
 - Charts get a text alternative (an `aria-label` per bar or a data table nearby).
-
-## Pending decisions (confirm with the user before building)
-
-- **Admin dashboard scope:** designed as v1 at the user's request, but root `AGENTS.md` §7 and §8 still say "In-app admin dashboard (v2)" and "use the Firebase console". Update the root file first.
-- **Other category rename:** the design locks rename as well as delete. Root §5 says rename is undecided.
-- **Refund month:** the design assumes a refund lowers spending in the month it is logged, even if the purchase was in an earlier month.
-- **New chart types:** year-over-year paired bars and the diverging "biggest movers" bars are not yet on root §6's approved chart list.
-- **Template day of month:** template items carry a day of month. Root §6.9 says copies are dated the 1st.
-- **Backup retention** shown in the admin design (8 weekly, 12 monthly) is a placeholder.
 
 ## Quality
 

@@ -71,7 +71,7 @@ Behavior for each screen is defined in `/web/AGENTS.md`. Native equivalents:
   - Tags: Full refund, Partial refund, From <Month>, or Not linked.
   - Originals show "Refunded in full" (amount struck through) or "Partly refunded · net …".
   - "Link…" opens a sheet with search and a suggested match.
-- **Templates:** list plus editor. Expense items take name, category, amount and day of month; income items take source, label, gross, gross taxable and net. Apply to a chosen month.
+- **Templates:** list plus editor. Expense items take name, category, amount and day of month; income items take source, label, gross, gross taxable and net. Apply to a chosen month; the backend moves days 29–31 to the month's last day when needed.
 - **Yearly:**
   - Income vs. spent paired bars per month (Swift Charts). Clicking a month opens its Summary.
   - Ranked bars of monthly category averages.
@@ -82,23 +82,13 @@ Behavior for each screen is defined in `/web/AGENTS.md`. Native equivalents:
 - **Categories & sources:**
   - Reorder with drag; rename inline.
   - Delete with a confirmation stating how many entries move to Other.
-  - Other is locked; Saving is badged "Counted as savings".
+  - Other can never be renamed, edited or deleted, so show it locked with no actions. Saving is badged "Counted as savings".
   - Income sources show entries, gross, net and tax rate.
 - **Empty states** (use `ContentUnavailableView` where available):
   - **New account:** a welcome checklist (categories, template, first entry).
   - **New month:** offers to copy the template, with a preview of its items and totals and Start blank as the alternative. After copying, show a banner with Review and Undo.
 
 Use `.confirmationDialog`/alerts for destructive actions, sheets for multi-field tasks, and a brief inline status message for background confirmations.
-
-## Pending decisions
-
-These are open in the design (see `/web/AGENTS.md` "Pending decisions"):
-- whether Other can be renamed
-- which month a refund counts against
-- whether the new chart types (year-over-year bars, biggest movers) are approved
-- whether template items use a day of month or the 1st
-
-Confirm with the user before building them.
 
 ## Quality
 
