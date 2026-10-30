@@ -19,10 +19,14 @@ Read the root `AGENTS.md` first. This folder holds the OpenAPI spec, the single 
 
 ## Resources (v1)
 
-- `income-sources`, `income-entries` (sources have sort order; "Other" is protected)
+- `income-sources`, `income-entries`:
+  - sources have sort order; "Other" is protected, so rename and delete return an error
+  - other sources can be renamed; deleting a source that has income entries returns an error
 - `categories` (sort order, `is_saving`; "Other" is protected, so rename and delete return an error)
 - `expenses`:
-  - type `expense` | `refund`, optional `refunded_expense_id`, `confirmed`
+  - type `expense` | `refund` is read-only, derived from the amount's sign (refunds are negative)
+  - optional `refunded_expense_id`, `confirmed`
+  - merchant is sent as a name; the backend matches or creates the merchant
   - several refunds may link to one expense
   - a "confirm all" action for a month
 - `templates` and template items:

@@ -83,7 +83,7 @@ Behavior for each screen is defined in `/web/AGENTS.md`. Native equivalents:
   - Reorder with drag; rename inline.
   - Delete with a confirmation stating how many entries move to Other.
   - Other can never be renamed, edited or deleted, so show it locked with no actions. Saving is badged "Counted as savings".
-  - Income sources show entries, gross, net and tax rate.
+  - Income sources show entries, gross, net and tax rate. Every source except "Other" can be renamed. Delete is available only for a source with no entries (its template items move to "Other"); a source with entries can only be renamed.
 - **Empty states** (use `ContentUnavailableView` where available):
   - **New account:** a welcome checklist (categories, template, first entry).
   - **New month:** offers to copy the template, with a preview of its items and totals and Start blank as the alternative. After copying, show a banner with Review and Undo.

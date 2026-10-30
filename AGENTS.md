@@ -38,30 +38,41 @@ docker-compose.yml
   - the default categories (Saving flagged as saving; Other protected)
   - an "Other" income source (protected)
   - an empty template
+- The protected "Other" category and "Other" income source are created by a database trigger when the user row is inserted; the backend seeds the rest.
 
 ## 5. Domain model
 
 All money is stored as **integer cents**. Never use floats.
 
-- **User**: id, auth provider uid, role (`admin` | `member`)
-- **IncomeSource**: user, name, sort order, active. Seeded: Other (protected)
-- **IncomeEntry**: user, source, date, gross, gross taxable, net, optional note. One row per paycheck or one-off job.
-- **Category**: user, name, sort order, `is_saving` flag. Seeded: Saving (`is_saving`), Housing, Utilities, Food, Transportation, Entertainment, Debt, Other (protected)
-- **Expense**: user, category, date, merchant, amount, optional note, type (`expense` | `refund`), optional `refunded_expense_id`, `confirmed` flag
+The schema is defined in `backend/migrations/0001_init.sql` (SQLite). That file is the reference for table and column names.
+
+- **User**: id, Firebase uid, role (`admin` | `member`)
+- **IncomeSource**: user, name, sort order, `is_protected`. Seeded: Other (protected)
+- **IncomeEntry**: user, source, date, gross, gross taxable, net, optional note, `confirmed` flag, optional template apply. One row per paycheck or one-off job.
+- **Category**: user, name, sort order, color, `is_saving` flag, `is_protected`. Seeded: Saving (`is_saving`), Housing, Utilities, Food, Transportation, Entertainment, Debt, Other (protected)
+- **Merchant**: user, name (case-insensitive, unique per user). Expenses reference a merchant row; autocomplete reads from this table.
+- **Expense**: user, category, merchant, date, amount, optional note, type (`expense` | `refund`, derived from the amount's sign), optional `refunded_expense_id`, `confirmed` flag, optional template apply
 - **Template**: user, name. A template is a full filled-out month (like a spreadsheet "Example Month" tab). A user may have several.
-- **TemplateItem**: template, kind (expense | income), category or source, label/merchant, **day of month** (1–31). Expense items have a default amount; income items have default gross, gross taxable and net.
-- **SavedTrend**: user, name, match type (`merchant` | `category` | `note`), match value, measure (`amount` | `count`)
+- **TemplateExpenseItem**: template, category, merchant, **day of month** (1–31), amount, optional note, sort order
+- **TemplateIncomeItem**: template, income source, **day of month** (1–31), gross, gross taxable, net, optional note, sort order
+- **TemplateApply**: user, template, month (`YYYY-MM`), applied at. One row per "start month from template"; the entries it creates point at it so it can be undone.
+- **SavedTrend**: user, name, match type (`merchant` | `category` | `note`), the matched merchant, category or note text, measure (`amount` | `count`)
 
 Rules:
-- Months are derived from dates; there is no month table.
+- Months are derived from dates; there is no month table. (TemplateApply is a log of applies, not a month table.)
 - Tax rate is derived from gross, gross taxable, and net; do not store it.
 - Saving **counts as an expense** in totals. Reports still show Saving as its own line.
 - A refund is a negative amount, styled distinctly, and may optionally link to the original expense. Deleting the original unlinks the refund; it does not delete it.
 - **Refunds count in the month they are logged**, even when the original purchase was in an earlier month. They lower that month's spending in the refund's own category.
 - An expense may have several linked refunds (partial refunds). Clients may show the original's net (amount minus linked refunds) for display only; never store it.
-- Merchant is a free-text field with autocomplete from previously used merchants, so spellings stay consistent for trends.
-- **"Other" is a protected category:** it is seeded for every user and **can never be renamed, edited, or deleted**. Deleting any other category reassigns all of its expenses, and any template items in it, to "Other" in the same transaction. Nothing is orphaned and no expense is deleted.
-- The **"Other" income source** follows the same rule. Deleting any other source moves its income entries and template items to "Other" in one transaction.
+- Merchants are stored per user and matched case-insensitively. Entering a new merchant name creates the merchant; autocomplete suggests existing ones, so spellings stay consistent for trends.
+- **"Other" is a protected category:** it is seeded for every user and **can never be renamed, edited, or deleted**. Deleting any other category reassigns all of its expenses, and any template items in it, to "Other" in the same transaction. Nothing is orphaned and no expense is deleted. Saved trends that match the deleted category are removed.
+- **Income sources:**
+  - The **"Other" income source** is protected: it can never be renamed or deleted.
+  - Any other source can be renamed at any time.
+  - **Once a source has income entries, it can never be deleted**, only renamed.
+  - A source with no income entries can be deleted; any template items that use it move to "Other".
+- These rules are enforced by database triggers as well as by the backend.
 - Saving is identified by the `is_saving` flag, not by its name, so renaming it keeps its special treatment.
 
 ## 6. v1 use cases
@@ -75,7 +86,7 @@ Rules:
 5. Details view: every expense for the month. Refunds look visually different. Unconfirmed items are flagged.
 6. Browse any past month.
 7. Edit and delete expenses and income entries.
-8. Manage categories, income sources, and templates.
+8. Manage categories, income sources, and templates. (Income sources with entries can be renamed but not deleted; see section 5.)
 9. Start a month from a template:
    - Every template item is copied into the month as a real entry, dated on the item's **day of month**.
    - If that day doesn't exist in the month (29, 30 or 31 in a shorter month), the entry is dated on the **last day of the month** instead.

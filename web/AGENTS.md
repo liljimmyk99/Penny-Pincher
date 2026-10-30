@@ -145,7 +145,9 @@ Two tabs at the top: **Custom trends** and **By category**.
   - Saving carries a "Counted as savings" badge.
   - **Other** carries a "Default" badge and a lock. It can never be renamed, edited or deleted, so it shows no actions and no drag handle.
 - **Deleting a category:** a confirmation dialog states how many expenses (and how much) move to Other, and that templates using it switch to Other. Then Other's totals update.
-- **Income sources:** entries, gross YTD, net YTD, calculated tax rate. An "Other" source is the default target when a source is deleted.
+- **Income sources:** entries, gross YTD, net YTD, calculated tax rate.
+  - Inline rename for every source except "Other", which is locked like the Other category.
+  - Delete is offered only for sources with no entries; its template items move to "Other". A source with entries shows no delete action (a tooltip explains it can be renamed but not deleted).
 - An "Add category" / "Add source" field sits under each table.
 
 ### Admin panel (admins only)
