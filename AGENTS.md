@@ -52,6 +52,7 @@ Rules:
 - Saving **counts as an expense** in totals. Reports still show Saving as its own line.
 - A refund is a negative amount, styled distinctly, and may optionally link to the original expense. Deleting the original unlinks the refund; it does not delete it.
 - Merchant is a free-text field with autocomplete from previously used merchants, so spellings stay consistent for trends.
+- **"Other" is a protected category:** it is seeded for every user and can never be deleted (whether it can be renamed is undecided; do not allow it until the user decides). Deleting any other category reassigns all of its expenses, and any template items in it, to "Other" in the same transaction. Nothing is orphaned and no expense is deleted.
 
 ## 6. v1 use cases
 
@@ -66,8 +67,22 @@ Rules:
 7. Edit and delete expenses and income entries.
 8. Manage categories, income sources, and templates.
 9. Start a month from a template: copies every template item into the month as real entries, dated the 1st, marked **not yet confirmed** (visibly flagged until the user edits or confirms them). Editing a month never changes the template. "Save this month as a template" is supported.
-10. Summaries: total spending across categories, and across months and years.
-11. Custom trends: the user picks a filter (category, merchant, text, date range) and sees it charted per month or year (for example, one merchant each month).
+10. Summaries (totals only; budgets and what-if are v2):
+    - **Monthly:** laid out vertically like the user's spreadsheet. Income shows gross, gross taxable, and net per source, plus the **calculated tax rate** (derived, never stored), followed by an **"All sources combined"** block with the same four figures totaled across sources. Spending shows each category with its total, its **percent of income**, and a **comparison to the previous month**.
+    - **Yearly:** all three of (a) a month-by-month table (income, spent, left over per month), (b) category totals for the year, and (c) monthly averages. **Tapping a month's row** opens that month's summary, read-only. There is no separate column or button for this.
+    - **Saving** is counted as an expense in totals but is **presented differently** from ordinary spending (its own visual treatment and its own line), because the user uses it to see where post-paycheck savings and investments go. A savings rate is not required in v1.
+11. Custom trends: the user picks a filter (category, merchant, text, date range) **and the measure** (total amount or number of transactions) and sees it charted per month or year (for example, one merchant each month).
+    - **Approved chart types** (from the stats mockup; use only these):
+      - Category spending as **ranked horizontal bars**
+      - Category share as a **donut**
+      - **Income vs. spent per month** as paired vertical bars
+      - Custom trend as **vertical bars per period**
+    - Not approved: stacked bars, line charts.
+    - Saving keeps its own distinct color in every chart.
+    - **Chart placement:**
+      - **Monthly summary:** ranked category bars by default, with a toggle to switch to the category donut. Both show the same month's data.
+      - **Yearly view:** income vs. spent paired bars per month, placed above the month-by-month table. Also ranked category bars showing each category's **monthly average** for the year.
+      - **Custom trends:** vertical bars per month or year, for whichever measure the user picked (amount or count).
 12. Export to CSV/Excel. **This is the last v1 item**, built after the UI and backend for everything above are complete.
 
 ## 7. Scope
@@ -75,7 +90,7 @@ Rules:
 **In v1:** everything in section 6; web + Mac clients; online-only; Dockerized backend.
 
 **Out of v1 (do not build):**
-- Bank/card syncing, CSV/statement import
+- Bank/card syncing, CSV/statement import, importing the user's old spreadsheet (the app starts empty)
 - Budgets, budget-vs-actual, recommended percentages, what-if calculations (v2)
 - Debt tracking, net worth
 - Recurring-item automation (users copy a template instead)
