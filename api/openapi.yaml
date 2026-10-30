@@ -1,0 +1,2161 @@
+openapi: 3.1.0
+info:
+  title: Penny Pincher API
+  version: 0.1.0
+  summary: The contract between the Go backend, the React web app, and the SwiftUI Mac app.
+  description: |
+    Read `/AGENTS.md` and `/api/AGENTS.md` first. This file is the single source of truth
+    for request and response shapes. Change it first, then the backend, then the clients.
+
+    ## Conventions
+
+    - **Money** is always an integer number of cents (`int64`). `$12.34` is `1234`. Never decimals or strings.
+      A negative expense amount is a refund.
+    - **Dates** are calendar dates, `YYYY-MM-DD`, with no time zone. **Months** are `YYYY-MM`.
+      An entry belongs to the month of its own date (refunds included).
+    - **Timestamps** (`created_at`, `updated_at`, ...) are ISO-8601 UTC and read-only.
+    - **IDs** are opaque strings. Clients must not parse them or assume they are numeric.
+    - **Auth:** every route except `/healthz` needs `Authorization: Bearer <Firebase ID token>`.
+      A valid token whose Firebase uid is not in the local users table gets `403 not_allowlisted`.
+      All data is scoped to the authenticated user; `user_id` is never accepted from the client.
+    - **Derived values are computed by clients:** tax rate, percent of income, month-over-month and
+      year-over-year changes, and better/worse colours. The API returns the raw cent totals and the
+      `is_saving` flag (for Saving, going up is better).
+    - **Partial updates** use `PATCH` with only the fields being changed. Sending `null` clears a nullable field.
+    - **Errors** always use the `Error` body: a stable machine-readable `code` and a human `message`.
+    - **Lists** return `{ "items": [...] }`. Lists that can grow large are cursor-paginated and also
+      return `next_cursor` (null on the last page).
+servers:
+  - url: http://localhost:8080
+    description: Local development
+security:
+  - firebase: []
+
+tags:
+  - name: system
+  - name: me
+  - name: categories
+  - name: income-sources
+  - name: merchants
+  - name: expenses
+  - name: income-entries
+  - name: months
+    description: Month-level actions (template apply, confirm all, save as template).
+  - name: templates
+  - name: summaries
+  - name: trends
+  - name: saved-trends
+  - name: admin
+    description: Admins only. Members get `403 admin_required`. No user-management routes in v1.
+  - name: export
+
+paths:
+  # ---------------------------------------------------------------------------
+  # System
+  # ---------------------------------------------------------------------------
+  /healthz:
+    get:
+      tags: [system]
+      operationId: getHealth
+      summary: Liveness and version
+      description: No auth. Also read by the admin panel.
+      security: []
+      responses:
+        '200':
+          description: The API is up.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+        '503':
+          description: The API is up but the database is unreachable.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+
+  /v1/me:
+    get:
+      tags: [me]
+      operationId: getMe
+      summary: The signed-in user
+      description: Clients use `role` to decide whether to show the admin panel.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ---------------------------------------------------------------------------
+  # Categories
+  # ---------------------------------------------------------------------------
+  /v1/categories:
+    get:
+      tags: [categories]
+      operationId: listCategories
+      summary: List categories
+      description: Every category, sorted by `sort_order`. Not paginated.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Category' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [categories]
+      operationId: createCategory
+      summary: Create a category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /v1/categories/order:
+    put:
+      tags: [categories]
+      operationId: reorderCategories
+      summary: Reorder all categories
+      description: |
+        `ids` must list every category exactly once, in the new order (the protected "Other"
+        category included). Sets `sort_order` for the whole list in one transaction.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReorderRequest' }
+      responses:
+        '200':
+          description: The reordered list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Category' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1/categories/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    patch:
+      tags: [categories]
+      operationId: updateCategory
+      summary: Update a category
+      description: |
+        On the protected "Other" category only `color` may change; any other field returns
+        `409 protected_resource`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryUpdate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [categories]
+      operationId: deleteCategory
+      summary: Delete a category
+      description: |
+        In one transaction, moves the category's expenses and template items to "Other", deletes
+        saved trends that match it, then deletes it. Deleting "Other" returns `409 protected_resource`.
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  # ---------------------------------------------------------------------------
+  # Income sources
+  # ---------------------------------------------------------------------------
+  /v1/income-sources:
+    get:
+      tags: [income-sources]
+      operationId: listIncomeSources
+      summary: List income sources
+      description: Every income source, sorted by `sort_order`. Not paginated.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/IncomeSource' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [income-sources]
+      operationId: createIncomeSource
+      summary: Create an income source
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IncomeSourceCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IncomeSource' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /v1/income-sources/order:
+    put:
+      tags: [income-sources]
+      operationId: reorderIncomeSources
+      summary: Reorder all income sources
+      description: '`ids` must list every income source exactly once, in the new order.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReorderRequest' }
+      responses:
+        '200':
+          description: The reordered list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/IncomeSource' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1/income-sources/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    patch:
+      tags: [income-sources]
+      operationId: updateIncomeSource
+      summary: Rename an income source
+      description: Renaming "Other" returns `409 protected_resource`. Any other source can be renamed at any time.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IncomeSourceUpdate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IncomeSource' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [income-sources]
+      operationId: deleteIncomeSource
+      summary: Delete an income source
+      description: |
+        - "Other" → `409 protected_resource`.
+        - A source with income entries → `409 source_has_entries` (rename it instead).
+        - A source with no entries is deleted; its template items move to "Other" in the same transaction.
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  # ---------------------------------------------------------------------------
+  # Merchants
+  # ---------------------------------------------------------------------------
+  /v1/merchants:
+    get:
+      tags: [merchants]
+      operationId: listMerchants
+      summary: Merchant autocomplete and list
+      description: |
+        Case-insensitive prefix search when `q` is given; otherwise every merchant. Sorted by name.
+        Merchants are created implicitly when an expense or template item uses a new `merchant_name`.
+      parameters:
+        - name: q
+          in: query
+          description: Name prefix, matched case-insensitively.
+          schema: { type: string, minLength: 1 }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Merchant' }
+                  next_cursor: { $ref: '#/components/schemas/NextCursor' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ---------------------------------------------------------------------------
+  # Expenses
+  # ---------------------------------------------------------------------------
+  /v1/expenses:
+    get:
+      tags: [expenses]
+      operationId: listExpenses
+      summary: List expenses
+      description: |
+        Give either `month`, or `from` and/or `to`; not both. Sorted by `date` descending, then
+        newest first. The month's details view is `GET /v1/expenses?month=YYYY-MM`.
+      parameters:
+        - $ref: '#/components/parameters/MonthQuery'
+        - $ref: '#/components/parameters/FromQuery'
+        - $ref: '#/components/parameters/ToQuery'
+        - name: category_id
+          in: query
+          schema: { $ref: '#/components/schemas/Id' }
+        - name: merchant_id
+          in: query
+          schema: { $ref: '#/components/schemas/Id' }
+        - name: type
+          in: query
+          schema: { $ref: '#/components/schemas/ExpenseType' }
+        - name: confirmed
+          in: query
+          schema: { type: boolean }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Expense' }
+                  next_cursor: { $ref: '#/components/schemas/NextCursor' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [expenses]
+      operationId: createExpense
+      summary: Add one expense or refund
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExpenseCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Expense' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1/expenses/batch:
+    post:
+      tags: [expenses]
+      operationId: createExpensesBatch
+      summary: Add several expenses at once
+      description: |
+        All or nothing: if any item is invalid, nothing is saved and the error's `details` point at
+        the failing item (for example `items[3].amount_cents`). Returned in request order.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items: { $ref: '#/components/schemas/ExpenseCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Expense' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1/expenses/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [expenses]
+      operationId: getExpense
+      summary: Get an expense
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Expense' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [expenses]
+      operationId: updateExpense
+      summary: Edit an expense
+      description: |
+        Editing an unconfirmed entry also confirms it, unless the body sets `confirmed: false`.
+        Making the amount negative on an expense that refunds point at returns `409 has_linked_refunds`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExpenseUpdate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Expense' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [expenses]
+      operationId: deleteExpense
+      summary: Delete an expense
+      description: Refunds that pointed at this expense are unlinked, never deleted.
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ---------------------------------------------------------------------------
+  # Income entries
+  # ---------------------------------------------------------------------------
+  /v1/income-entries:
+    get:
+      tags: [income-entries]
+      operationId: listIncomeEntries
+      summary: List income entries
+      description: |
+        Give either `month`, or `from` and/or `to`; not both. Sorted by `date` descending.
+        The landing view's per-source modal is `GET /v1/income-entries?month=YYYY-MM&income_source_id=...`.
+      parameters:
+        - $ref: '#/components/parameters/MonthQuery'
+        - $ref: '#/components/parameters/FromQuery'
+        - $ref: '#/components/parameters/ToQuery'
+        - name: income_source_id
+          in: query
+          schema: { $ref: '#/components/schemas/Id' }
+        - name: confirmed
+          in: query
+          schema: { type: boolean }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/IncomeEntry' }
+                  next_cursor: { $ref: '#/components/schemas/NextCursor' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [income-entries]
+      operationId: createIncomeEntry
+      summary: Add an income entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IncomeEntryCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IncomeEntry' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1/income-entries/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [income-entries]
+      operationId: getIncomeEntry
+      summary: Get an income entry
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IncomeEntry' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [income-entries]
+      operationId: updateIncomeEntry
+      summary: Edit an income entry
+      description: 'Editing an unconfirmed entry also confirms it, unless the body sets `confirmed: false`.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IncomeEntryUpdate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IncomeEntry' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [income-entries]
+      operationId: deleteIncomeEntry
+      summary: Delete an income entry
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ---------------------------------------------------------------------------
+  # Month actions
+  # ---------------------------------------------------------------------------
+  /v1/months/{month}/apply-template:
+    parameters:
+      - $ref: '#/components/parameters/MonthPath'
+    post:
+      tags: [months]
+      operationId: applyTemplateToMonth
+      summary: Start a month from a template
+      description: |
+        Copies every template item into the month as a real entry with `confirmed: false`, dated on
+        the item's `day_of_month`, clamped to the month's last day when that day doesn't exist
+        (31 in April → April 30; 29–31 in February → Feb 28 or 29). Returns the apply so it can be undone.
+
+        If the month already has an apply, returns `409 month_already_applied` unless `allow_repeat` is true.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [template_id]
+              properties:
+                template_id: { $ref: '#/components/schemas/Id' }
+                allow_repeat:
+                  type: boolean
+                  default: false
+      responses:
+        '201':
+          description: Applied
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TemplateApply' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /v1/months/{month}/confirm-all:
+    parameters:
+      - $ref: '#/components/parameters/MonthPath'
+    post:
+      tags: [months]
+      operationId: confirmAllInMonth
+      summary: Confirm every unconfirmed entry in a month as-is
+      description: Confirms both expenses and income entries dated in the month.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [confirmed_expense_count, confirmed_income_entry_count]
+                properties:
+                  confirmed_expense_count: { type: integer, minimum: 0 }
+                  confirmed_income_entry_count: { type: integer, minimum: 0 }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1/months/{month}/save-as-template:
+    parameters:
+      - $ref: '#/components/parameters/MonthPath'
+    post:
+      tags: [months]
+      operationId: saveMonthAsTemplate
+      summary: Save a month as a new template
+      description: |
+        Creates a template from the month's expenses and income entries (confirmed or not). Each
+        item's `day_of_month` is the day of the entry's date. Refunds (negative amounts) are skipped.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { $ref: '#/components/schemas/Name' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Template' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /v1/template-applies:
+    get:
+      tags: [months]
+      operationId: listTemplateApplies
+      summary: List template applies for a month
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/YearMonth' }
+      responses:
+        '200':
+          description: OK, newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/TemplateApply' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1/template-applies/{id}/undo:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [months]
+      operationId: undoTemplateApply
+      summary: Undo a template apply
+      description: |
+        Deletes only the entries this apply created that are **still unconfirmed**. Entries the user
+        has since edited or confirmed stay. Safe to call twice (the second call removes nothing).
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [removed_expense_count, removed_income_entry_count]
+                properties:
+                  removed_expense_count: { type: integer, minimum: 0 }
+                  removed_income_entry_count: { type: integer, minimum: 0 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ---------------------------------------------------------------------------
+  # Templates
+  # ---------------------------------------------------------------------------
+  /v1/templates:
+    get:
+      tags: [templates]
+      operationId: listTemplates
+      summary: List templates
+      description: Sorted by name. Items are not included; fetch one template for its items.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/TemplateSummary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [templates]
+      operationId: createTemplate
+      summary: Create an empty template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { $ref: '#/components/schemas/Name' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Template' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /v1/templates/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [templates]
+      operationId: getTemplate
+      summary: Get a template with its items
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Template' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [templates]
+      operationId: renameTemplate
+      summary: Rename a template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { $ref: '#/components/schemas/Name' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Template' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [templates]
+      operationId: deleteTemplate
+      summary: Delete a template
+      description: 'Entries already copied into months are untouched. Past applies keep `template_id: null`.'
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/templates/{id}/expense-items:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [templates]
+      operationId: createTemplateExpenseItem
+      summary: Add an expense item to a template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TemplateExpenseItemCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TemplateExpenseItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/templates/{id}/expense-items/{item_id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/ItemId'
+    patch:
+      tags: [templates]
+      operationId: updateTemplateExpenseItem
+      summary: Edit a template expense item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TemplateExpenseItemUpdate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TemplateExpenseItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [templates]
+      operationId: deleteTemplateExpenseItem
+      summary: Remove a template expense item
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/templates/{id}/income-items:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [templates]
+      operationId: createTemplateIncomeItem
+      summary: Add an income item to a template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TemplateIncomeItemCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TemplateIncomeItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/templates/{id}/income-items/{item_id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/ItemId'
+    patch:
+      tags: [templates]
+      operationId: updateTemplateIncomeItem
+      summary: Edit a template income item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TemplateIncomeItemUpdate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TemplateIncomeItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [templates]
+      operationId: deleteTemplateIncomeItem
+      summary: Remove a template income item
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ---------------------------------------------------------------------------
+  # Summaries
+  # ---------------------------------------------------------------------------
+  /v1/summaries/monthly/{month}:
+    parameters:
+      - $ref: '#/components/parameters/MonthPath'
+    get:
+      tags: [summaries]
+      operationId: getMonthlySummary
+      summary: Monthly summary (landing view)
+      description: |
+        Every income source and category is listed, zero-filled, in `sort_order`, so the layout is
+        stable month to month. Clients compute tax rate, percent of income and the previous-month comparison.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MonthlySummary' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1/summaries/yearly/{year}:
+    parameters:
+      - $ref: '#/components/parameters/YearPath'
+    get:
+      tags: [summaries]
+      operationId: getYearlySummary
+      summary: Yearly summary
+      description: All twelve months are returned, zero-filled. Tapping a month opens `/v1/summaries/monthly/{month}`.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/YearlySummary' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ---------------------------------------------------------------------------
+  # Trends
+  # ---------------------------------------------------------------------------
+  /v1/trends/custom:
+    get:
+      tags: [trends]
+      operationId: getCustomTrend
+      summary: Custom trend
+      description: |
+        Filters combine with AND; at least one of `category_id`, `merchant_id`, `text` is required.
+        Every period in the range is returned, zero-filled. Both measures are returned; the client
+        charts whichever the user picked.
+
+        `total_cents` is net of refunds. `count` counts expenses only (refunds are not transactions).
+      parameters:
+        - name: category_id
+          in: query
+          schema: { $ref: '#/components/schemas/Id' }
+        - name: merchant_id
+          in: query
+          schema: { $ref: '#/components/schemas/Id' }
+        - name: text
+          in: query
+          description: Case-insensitive substring match on the expense note.
+          schema: { type: string, minLength: 1, maxLength: 200 }
+        - name: from
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/Date' }
+        - name: to
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/Date' }
+        - name: group_by
+          in: query
+          schema:
+            type: string
+            enum: [month, year]
+            default: month
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomTrend' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1/trends/by-category:
+    get:
+      tags: [trends]
+      operationId: getCategoryTrends
+      summary: Monthly totals per category, this year and last
+      description: |
+        Returns 12 monthly totals for `year` and 12 for `year - 1`, for every category plus an
+        "all spending" series. That covers month-over-month (January vs. last year's December),
+        year-over-year, year-to-date and the biggest-movers ranking; clients compute those.
+      parameters:
+        - name: year
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/Year' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CategoryTrends' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ---------------------------------------------------------------------------
+  # Saved trends
+  # ---------------------------------------------------------------------------
+  /v1/saved-trends:
+    get:
+      tags: [saved-trends]
+      operationId: listSavedTrends
+      summary: List saved trends
+      description: Sorted by `sort_order`. Not paginated.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/SavedTrend' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [saved-trends]
+      operationId: createSavedTrend
+      summary: Save a trend
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SavedTrendCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavedTrend' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /v1/saved-trends/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [saved-trends]
+      operationId: getSavedTrend
+      summary: Get a saved trend
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavedTrend' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [saved-trends]
+      operationId: updateSavedTrend
+      summary: Edit a saved trend
+      description: Changing `match_type` requires sending the matching field for the new type.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SavedTrendUpdate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavedTrend' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [saved-trends]
+      operationId: deleteSavedTrend
+      summary: Delete a saved trend
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ---------------------------------------------------------------------------
+  # Admin (admins only)
+  # ---------------------------------------------------------------------------
+  /v1/admin/status:
+    get:
+      tags: [admin]
+      operationId: getAdminStatus
+      summary: App status for the admin panel
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStatus' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1/admin/backups:
+    get:
+      tags: [admin]
+      operationId: listBackups
+      summary: List backup snapshots
+      description: Newest first. Includes failed and running backups.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Backup' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [admin]
+      operationId: startBackup
+      summary: Back up now
+      description: Starts a manual backup and returns immediately. Poll the list for its status.
+      responses:
+        '202':
+          description: Started
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Backup' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /v1/admin/backups/{id}/download:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [admin]
+      operationId: downloadBackup
+      summary: Download an encrypted snapshot
+      description: Returns the encrypted archive only, never decrypted data. `409 backup_not_ready` unless the backup succeeded.
+      responses:
+        '200':
+          description: The encrypted archive.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              example: attachment; filename="penny-pincher-2026-10-25-weekly.enc"
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                contentMediaType: application/octet-stream
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  # ---------------------------------------------------------------------------
+  # Export (built last in v1)
+  # ---------------------------------------------------------------------------
+  /v1/export:
+    get:
+      tags: [export]
+      operationId: exportData
+      summary: Export expenses and income
+      description: |
+        **Built last in v1; shape may change before then.**
+
+        - `xlsx`: one workbook with an Expenses sheet and an Income sheet.
+        - `csv`: a zip holding `expenses.csv` and `income.csv`.
+
+        Amounts are integer cents, as everywhere else. With no range, exports everything.
+      parameters:
+        - name: format
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [csv, xlsx]
+        - $ref: '#/components/parameters/FromQuery'
+        - $ref: '#/components/parameters/ToQuery'
+      responses:
+        '200':
+          description: The export file.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+          content:
+            application/zip:
+              schema: { type: string, contentMediaType: application/zip }
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                contentMediaType: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+# =============================================================================
+components:
+  securitySchemes:
+    firebase:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        A Firebase Authentication ID token. The backend verifies it on every request, then requires
+        the Firebase uid to exist in its own users table (the allowlist).
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/Id' }
+    ItemId:
+      name: item_id
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/Id' }
+    MonthPath:
+      name: month
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/YearMonth' }
+    YearPath:
+      name: year
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/Year' }
+    MonthQuery:
+      name: month
+      in: query
+      description: Only entries dated in this month. Cannot be combined with `from`/`to`.
+      schema: { $ref: '#/components/schemas/YearMonth' }
+    FromQuery:
+      name: from
+      in: query
+      description: Inclusive start date.
+      schema: { $ref: '#/components/schemas/Date' }
+    ToQuery:
+      name: to
+      in: query
+      description: Inclusive end date.
+      schema: { $ref: '#/components/schemas/Date' }
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 1000
+        default: 200
+    Cursor:
+      name: cursor
+      in: query
+      description: The `next_cursor` from the previous page.
+      schema: { type: string }
+
+  responses:
+    BadRequest:
+      description: Malformed JSON or a value that fails validation (`invalid_request`, `invalid_refund_link`).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            error:
+              code: invalid_request
+              message: gross_taxable_cents cannot exceed gross_cents
+              details:
+                - field: gross_taxable_cents
+                  issue: must be <= gross_cents
+    Unauthorized:
+      description: Missing, expired or invalid token (`unauthenticated`).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: |
+        `not_allowlisted` (valid token, but no local user row) or `admin_required` (member on an admin route).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: No such resource for this user (`not_found`). Another user's rows are also reported as not found.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: |
+        A business rule blocked the request. Codes: `protected_resource`, `source_has_entries`,
+        `name_taken`, `has_linked_refunds`, `month_already_applied`, `backup_in_progress`, `backup_not_ready`.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            error:
+              code: source_has_entries
+              message: This income source has income entries and cannot be deleted. Rename it instead.
+
+  schemas:
+    # ---- Primitives ---------------------------------------------------------
+    Id:
+      type: string
+      description: Opaque identifier.
+      examples: ['42']
+    Cents:
+      type: integer
+      format: int64
+      description: Integer cents. `$12.34` is `1234`.
+    NonNegativeCents:
+      type: integer
+      format: int64
+      minimum: 0
+    Date:
+      type: string
+      format: date
+      description: Calendar date, `YYYY-MM-DD`, no time zone.
+      examples: ['2026-10-30']
+    YearMonth:
+      type: string
+      pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
+      examples: ['2026-10']
+    Year:
+      type: integer
+      minimum: 2000
+      maximum: 2100
+    Timestamp:
+      type: string
+      format: date-time
+      readOnly: true
+    Name:
+      type: string
+      minLength: 1
+      maxLength: 100
+      description: Trimmed; unique per user, case-insensitively, within its kind.
+    Note:
+      type: [string, 'null']
+      maxLength: 500
+    Color:
+      type: [string, 'null']
+      pattern: '^#[0-9A-Fa-f]{6}$'
+      examples: ['#2F80ED']
+    DayOfMonth:
+      type: integer
+      minimum: 1
+      maximum: 31
+      description: 29, 30 or 31 are clamped to the last day of shorter months when applied.
+    NextCursor:
+      type: [string, 'null']
+      description: Pass as `cursor` to get the next page; null on the last page.
+    ReorderRequest:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Id' }
+
+    # ---- Errors -------------------------------------------------------------
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Stable, machine-readable. Clients branch on this, never on `message`.
+              enum:
+                - invalid_request
+                - invalid_refund_link
+                - unauthenticated
+                - not_allowlisted
+                - admin_required
+                - not_found
+                - protected_resource
+                - source_has_entries
+                - name_taken
+                - has_linked_refunds
+                - month_already_applied
+                - backup_in_progress
+                - backup_not_ready
+                - internal
+            message:
+              type: string
+              description: Human-readable; safe to show. Never contains internals.
+            details:
+              type: array
+              items:
+                type: object
+                required: [field, issue]
+                properties:
+                  field:
+                    type: string
+                    examples: ['items[3].amount_cents']
+                  issue: { type: string }
+
+    # ---- System / me --------------------------------------------------------
+    Health:
+      type: object
+      required: [status, version, uptime_seconds]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        version:
+          type: string
+          examples: ['0.1.0+9b006e3']
+        uptime_seconds: { type: integer, minimum: 0 }
+    Me:
+      type: object
+      required: [id, role]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        email: { type: [string, 'null'] }
+        display_name: { type: [string, 'null'] }
+        role:
+          type: string
+          enum: [admin, member]
+
+    # ---- Categories ---------------------------------------------------------
+    Category:
+      type: object
+      required: [id, name, color, is_saving, is_protected, sort_order, created_at, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        name: { $ref: '#/components/schemas/Name' }
+        color: { $ref: '#/components/schemas/Color' }
+        is_saving:
+          type: boolean
+          description: Saving counts as an expense but is presented differently; going up is good.
+        is_protected:
+          type: boolean
+          readOnly: true
+          description: True only for "Other", which can never be renamed or deleted.
+        sort_order: { type: integer }
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+        updated_at: { $ref: '#/components/schemas/Timestamp' }
+    CategoryCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { $ref: '#/components/schemas/Name' }
+        color: { $ref: '#/components/schemas/Color' }
+        is_saving: { type: boolean, default: false }
+    CategoryUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name: { $ref: '#/components/schemas/Name' }
+        color: { $ref: '#/components/schemas/Color' }
+        is_saving: { type: boolean }
+
+    # ---- Income sources -----------------------------------------------------
+    IncomeSource:
+      type: object
+      required: [id, name, is_protected, has_entries, sort_order, created_at, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        name: { $ref: '#/components/schemas/Name' }
+        is_protected:
+          type: boolean
+          readOnly: true
+        has_entries:
+          type: boolean
+          readOnly: true
+          description: When true the source can only be renamed, never deleted. Clients hide Delete.
+        sort_order: { type: integer }
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+        updated_at: { $ref: '#/components/schemas/Timestamp' }
+    IncomeSourceCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { $ref: '#/components/schemas/Name' }
+    IncomeSourceUpdate:
+      type: object
+      required: [name]
+      properties:
+        name: { $ref: '#/components/schemas/Name' }
+
+    # ---- Merchants ----------------------------------------------------------
+    Merchant:
+      type: object
+      required: [id, name]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        name: { type: string }
+
+    # ---- Expenses -----------------------------------------------------------
+    ExpenseType:
+      type: string
+      enum: [expense, refund]
+      description: Derived from the sign of `amount_cents`; refunds are negative.
+    Expense:
+      type: object
+      required:
+        - id
+        - date
+        - amount_cents
+        - type
+        - category_id
+        - merchant
+        - note
+        - refunded_expense_id
+        - refunded_total_cents
+        - confirmed
+        - template_apply_id
+        - created_at
+        - updated_at
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        date: { $ref: '#/components/schemas/Date' }
+        amount_cents: { $ref: '#/components/schemas/Cents' }
+        type:
+          $ref: '#/components/schemas/ExpenseType'
+          readOnly: true
+        category_id: { $ref: '#/components/schemas/Id' }
+        merchant: { $ref: '#/components/schemas/Merchant' }
+        note: { $ref: '#/components/schemas/Note' }
+        refunded_expense_id:
+          type: [string, 'null']
+          description: On a refund, the expense it refunds (optional).
+        refunded_total_cents:
+          allOf: [{ $ref: '#/components/schemas/Cents' }]
+          readOnly: true
+          description: |
+            On an expense, the sum of linked refunds (zero or negative), computed at read time and
+            never stored. Display net = `amount_cents + refunded_total_cents`. Always 0 on a refund.
+        confirmed:
+          type: boolean
+          description: False for entries copied from a template that the user hasn't reviewed yet.
+        template_apply_id:
+          type: [string, 'null']
+          readOnly: true
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+        updated_at: { $ref: '#/components/schemas/Timestamp' }
+    ExpenseCreate:
+      type: object
+      required: [date, amount_cents, category_id, merchant_name]
+      properties:
+        date: { $ref: '#/components/schemas/Date' }
+        amount_cents:
+          allOf: [{ $ref: '#/components/schemas/Cents' }]
+          not: { const: 0 }
+          description: Non-zero. Negative means refund.
+        category_id: { $ref: '#/components/schemas/Id' }
+        merchant_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Matched case-insensitively to an existing merchant, or creates one.
+        note: { $ref: '#/components/schemas/Note' }
+        refunded_expense_id:
+          type: [string, 'null']
+          description: Only allowed when `amount_cents` is negative; must be a positive expense of yours.
+        confirmed: { type: boolean, default: true }
+    ExpenseUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        date: { $ref: '#/components/schemas/Date' }
+        amount_cents:
+          allOf: [{ $ref: '#/components/schemas/Cents' }]
+          not: { const: 0 }
+        category_id: { $ref: '#/components/schemas/Id' }
+        merchant_name: { type: string, minLength: 1, maxLength: 100 }
+        note: { $ref: '#/components/schemas/Note' }
+        refunded_expense_id: { type: [string, 'null'] }
+        confirmed: { type: boolean }
+
+    # ---- Income entries -----------------------------------------------------
+    IncomeEntry:
+      type: object
+      required:
+        - id
+        - date
+        - income_source_id
+        - gross_cents
+        - gross_taxable_cents
+        - net_cents
+        - note
+        - confirmed
+        - template_apply_id
+        - created_at
+        - updated_at
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        date: { $ref: '#/components/schemas/Date' }
+        income_source_id: { $ref: '#/components/schemas/Id' }
+        gross_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        gross_taxable_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        net_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        note: { $ref: '#/components/schemas/Note' }
+        confirmed: { type: boolean }
+        template_apply_id:
+          type: [string, 'null']
+          readOnly: true
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+        updated_at: { $ref: '#/components/schemas/Timestamp' }
+    IncomeEntryCreate:
+      type: object
+      description: '`gross_taxable_cents` and `net_cents` must each be <= `gross_cents`.'
+      required: [date, income_source_id, gross_cents, gross_taxable_cents, net_cents]
+      properties:
+        date: { $ref: '#/components/schemas/Date' }
+        income_source_id: { $ref: '#/components/schemas/Id' }
+        gross_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        gross_taxable_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        net_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        note: { $ref: '#/components/schemas/Note' }
+        confirmed: { type: boolean, default: true }
+    IncomeEntryUpdate:
+      type: object
+      minProperties: 1
+      description: The resulting entry must still satisfy taxable <= gross and net <= gross.
+      properties:
+        date: { $ref: '#/components/schemas/Date' }
+        income_source_id: { $ref: '#/components/schemas/Id' }
+        gross_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        gross_taxable_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        net_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        note: { $ref: '#/components/schemas/Note' }
+        confirmed: { type: boolean }
+
+    # ---- Templates ----------------------------------------------------------
+    TemplateSummary:
+      type: object
+      required: [id, name, expense_item_count, income_item_count, created_at, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        name: { $ref: '#/components/schemas/Name' }
+        expense_item_count: { type: integer, minimum: 0 }
+        income_item_count: { type: integer, minimum: 0 }
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+        updated_at: { $ref: '#/components/schemas/Timestamp' }
+    Template:
+      type: object
+      required: [id, name, expense_items, income_items, created_at, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        name: { $ref: '#/components/schemas/Name' }
+        expense_items:
+          type: array
+          description: Sorted by `sort_order`.
+          items: { $ref: '#/components/schemas/TemplateExpenseItem' }
+        income_items:
+          type: array
+          description: Sorted by `sort_order`.
+          items: { $ref: '#/components/schemas/TemplateIncomeItem' }
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+        updated_at: { $ref: '#/components/schemas/Timestamp' }
+    TemplateExpenseItem:
+      type: object
+      required: [id, category_id, merchant, day_of_month, amount_cents, note, sort_order]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        category_id: { $ref: '#/components/schemas/Id' }
+        merchant: { $ref: '#/components/schemas/Merchant' }
+        day_of_month: { $ref: '#/components/schemas/DayOfMonth' }
+        amount_cents:
+          type: integer
+          format: int64
+          minimum: 1
+        note: { $ref: '#/components/schemas/Note' }
+        sort_order: { type: integer }
+    TemplateExpenseItemCreate:
+      type: object
+      required: [category_id, merchant_name, day_of_month, amount_cents]
+      properties:
+        category_id: { $ref: '#/components/schemas/Id' }
+        merchant_name: { type: string, minLength: 1, maxLength: 100 }
+        day_of_month: { $ref: '#/components/schemas/DayOfMonth' }
+        amount_cents:
+          type: integer
+          format: int64
+          minimum: 1
+        note: { $ref: '#/components/schemas/Note' }
+        sort_order:
+          type: integer
+          description: Defaults to the end of the list.
+    TemplateExpenseItemUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        category_id: { $ref: '#/components/schemas/Id' }
+        merchant_name: { type: string, minLength: 1, maxLength: 100 }
+        day_of_month: { $ref: '#/components/schemas/DayOfMonth' }
+        amount_cents:
+          type: integer
+          format: int64
+          minimum: 1
+        note: { $ref: '#/components/schemas/Note' }
+        sort_order: { type: integer }
+    TemplateIncomeItem:
+      type: object
+      required: [id, income_source_id, day_of_month, gross_cents, gross_taxable_cents, net_cents, note, sort_order]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        income_source_id: { $ref: '#/components/schemas/Id' }
+        day_of_month: { $ref: '#/components/schemas/DayOfMonth' }
+        gross_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        gross_taxable_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        net_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        note: { $ref: '#/components/schemas/Note' }
+        sort_order: { type: integer }
+    TemplateIncomeItemCreate:
+      type: object
+      description: '`gross_taxable_cents` and `net_cents` must each be <= `gross_cents`.'
+      required: [income_source_id, day_of_month, gross_cents, gross_taxable_cents, net_cents]
+      properties:
+        income_source_id: { $ref: '#/components/schemas/Id' }
+        day_of_month: { $ref: '#/components/schemas/DayOfMonth' }
+        gross_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        gross_taxable_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        net_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        note: { $ref: '#/components/schemas/Note' }
+        sort_order: { type: integer }
+    TemplateIncomeItemUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        income_source_id: { $ref: '#/components/schemas/Id' }
+        day_of_month: { $ref: '#/components/schemas/DayOfMonth' }
+        gross_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        gross_taxable_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        net_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        note: { $ref: '#/components/schemas/Note' }
+        sort_order: { type: integer }
+    TemplateApply:
+      type: object
+      required:
+        - id
+        - template_id
+        - template_name
+        - month
+        - applied_at
+        - created_expense_count
+        - created_income_entry_count
+        - unconfirmed_count
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        template_id:
+          type: [string, 'null']
+          description: Null if the template was deleted since.
+        template_name:
+          type: [string, 'null']
+        month: { $ref: '#/components/schemas/YearMonth' }
+        applied_at: { $ref: '#/components/schemas/Timestamp' }
+        created_expense_count: { type: integer, minimum: 0, readOnly: true }
+        created_income_entry_count: { type: integer, minimum: 0, readOnly: true }
+        unconfirmed_count:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: Entries from this apply still unconfirmed, i.e. what Undo would remove. Hide Undo at 0.
+
+    # ---- Summaries ----------------------------------------------------------
+    IncomeTotals:
+      type: object
+      required: [gross_cents, gross_taxable_cents, net_cents, entry_count]
+      properties:
+        gross_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        gross_taxable_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        net_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        entry_count: { type: integer, minimum: 0 }
+    MonthlySummary:
+      type: object
+      required: [month, income, spending, left_over_cents, unconfirmed, template_applies, is_empty]
+      properties:
+        month: { $ref: '#/components/schemas/YearMonth' }
+        income:
+          type: object
+          required: [sources, combined]
+          properties:
+            sources:
+              type: array
+              description: Every income source, zero-filled, in `sort_order`.
+              items:
+                allOf:
+                  - $ref: '#/components/schemas/IncomeTotals'
+                  - type: object
+                    required: [income_source_id, name, is_protected]
+                    properties:
+                      income_source_id: { $ref: '#/components/schemas/Id' }
+                      name: { type: string }
+                      is_protected: { type: boolean }
+            combined:
+              $ref: '#/components/schemas/IncomeTotals'
+              description: All sources combined.
+        spending:
+          type: object
+          required: [categories, total_cents, saving_cents, previous_month_total_cents]
+          properties:
+            categories:
+              type: array
+              description: Every category, zero-filled, in `sort_order`.
+              items:
+                type: object
+                required:
+                  - category_id
+                  - name
+                  - color
+                  - is_saving
+                  - is_protected
+                  - total_cents
+                  - expense_count
+                  - refund_count
+                  - previous_month_total_cents
+                properties:
+                  category_id: { $ref: '#/components/schemas/Id' }
+                  name: { type: string }
+                  color: { $ref: '#/components/schemas/Color' }
+                  is_saving: { type: boolean }
+                  is_protected: { type: boolean }
+                  total_cents:
+                    allOf: [{ $ref: '#/components/schemas/Cents' }]
+                    description: Net of refunds logged this month. Can be negative.
+                  expense_count: { type: integer, minimum: 0 }
+                  refund_count: { type: integer, minimum: 0 }
+                  previous_month_total_cents: { $ref: '#/components/schemas/Cents' }
+            total_cents:
+              allOf: [{ $ref: '#/components/schemas/Cents' }]
+              description: All spending, Saving included.
+            saving_cents:
+              allOf: [{ $ref: '#/components/schemas/Cents' }]
+              description: The Saving part of `total_cents`, broken out.
+            previous_month_total_cents: { $ref: '#/components/schemas/Cents' }
+        left_over_cents:
+          allOf: [{ $ref: '#/components/schemas/Cents' }]
+          description: '`income.combined.net_cents - spending.total_cents`. Can be negative.'
+        unconfirmed:
+          type: object
+          required: [expense_count, income_entry_count]
+          properties:
+            expense_count: { type: integer, minimum: 0 }
+            income_entry_count: { type: integer, minimum: 0 }
+        template_applies:
+          type: array
+          description: Applies for this month, newest first (to offer Undo).
+          items: { $ref: '#/components/schemas/TemplateApply' }
+        is_empty:
+          type: boolean
+          description: No expenses or income entries yet. Clients offer "copy a template or start blank".
+    MonthTotals:
+      type: object
+      required:
+        - month
+        - gross_cents
+        - gross_taxable_cents
+        - net_cents
+        - spent_cents
+        - saving_cents
+        - left_over_cents
+        - has_entries
+      properties:
+        month: { $ref: '#/components/schemas/YearMonth' }
+        gross_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        gross_taxable_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        net_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        spent_cents: { $ref: '#/components/schemas/Cents' }
+        saving_cents: { $ref: '#/components/schemas/Cents' }
+        left_over_cents: { $ref: '#/components/schemas/Cents' }
+        has_entries: { type: boolean }
+    YearlySummary:
+      type: object
+      required: [year, months, categories, totals, average_month_count]
+      properties:
+        year: { $ref: '#/components/schemas/Year' }
+        months:
+          type: array
+          minItems: 12
+          maxItems: 12
+          description: January to December, zero-filled.
+          items: { $ref: '#/components/schemas/MonthTotals' }
+        categories:
+          type: array
+          description: Every category, in `sort_order`.
+          items:
+            type: object
+            required: [category_id, name, color, is_saving, is_protected, total_cents, monthly_average_cents]
+            properties:
+              category_id: { $ref: '#/components/schemas/Id' }
+              name: { type: string }
+              color: { $ref: '#/components/schemas/Color' }
+              is_saving: { type: boolean }
+              is_protected: { type: boolean }
+              total_cents: { $ref: '#/components/schemas/Cents' }
+              monthly_average_cents:
+                allOf: [{ $ref: '#/components/schemas/Cents' }]
+                description: '`total_cents / average_month_count`, rounded half away from zero.'
+        totals:
+          type: object
+          required: [gross_cents, gross_taxable_cents, net_cents, spent_cents, saving_cents, left_over_cents]
+          properties:
+            gross_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+            gross_taxable_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+            net_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+            spent_cents: { $ref: '#/components/schemas/Cents' }
+            saving_cents: { $ref: '#/components/schemas/Cents' }
+            left_over_cents: { $ref: '#/components/schemas/Cents' }
+        average_month_count:
+          type: integer
+          minimum: 0
+          description: Months in the year with any entries; the divisor for monthly averages (0 means all averages are 0).
+
+    # ---- Trends -------------------------------------------------------------
+    CustomTrend:
+      type: object
+      required: [group_by, buckets]
+      properties:
+        group_by:
+          type: string
+          enum: [month, year]
+        buckets:
+          type: array
+          description: Every period in the range, oldest first, zero-filled.
+          items:
+            type: object
+            required: [period, total_cents, count]
+            properties:
+              period:
+                type: string
+                description: '`YYYY-MM` when grouped by month, `YYYY` when grouped by year.'
+                examples: ['2026-03', '2026']
+              total_cents: { $ref: '#/components/schemas/Cents' }
+              count: { type: integer, minimum: 0 }
+    CategoryTrendSeries:
+      type: object
+      required: [category_id, name, color, is_saving, this_year_cents, last_year_cents]
+      properties:
+        category_id:
+          type: [string, 'null']
+          description: Null for the "all spending" series.
+        name: { type: string }
+        color: { $ref: '#/components/schemas/Color' }
+        is_saving:
+          type: boolean
+          description: When true, an increase is better (blue) rather than worse (orange).
+        this_year_cents:
+          type: array
+          minItems: 12
+          maxItems: 12
+          description: Index 0 is January of `year`.
+          items: { $ref: '#/components/schemas/Cents' }
+        last_year_cents:
+          type: array
+          minItems: 12
+          maxItems: 12
+          description: Index 0 is January of `year - 1`. Index 11 is the December used for January's month-over-month.
+          items: { $ref: '#/components/schemas/Cents' }
+    CategoryTrends:
+      type: object
+      required: [year, all_spending, categories]
+      properties:
+        year: { $ref: '#/components/schemas/Year' }
+        all_spending:
+          $ref: '#/components/schemas/CategoryTrendSeries'
+          description: Every category combined, Saving included.
+        categories:
+          type: array
+          description: Every category, in `sort_order`.
+          items: { $ref: '#/components/schemas/CategoryTrendSeries' }
+
+    # ---- Saved trends -------------------------------------------------------
+    TrendMatchType:
+      type: string
+      enum: [merchant, category, note]
+    TrendMeasure:
+      type: string
+      enum: [amount, count]
+    SavedTrend:
+      type: object
+      description: |
+        Exactly one of `merchant_id`, `category_id`, `match_text` is set, matching `match_type`.
+        Deleting the matched merchant or category deletes the saved trend.
+      required: [id, name, match_type, merchant_id, category_id, match_text, measure, sort_order, created_at, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        name: { $ref: '#/components/schemas/Name' }
+        match_type: { $ref: '#/components/schemas/TrendMatchType' }
+        merchant_id: { type: [string, 'null'] }
+        category_id: { type: [string, 'null'] }
+        match_text: { type: [string, 'null'] }
+        measure: { $ref: '#/components/schemas/TrendMeasure' }
+        sort_order: { type: integer }
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+        updated_at: { $ref: '#/components/schemas/Timestamp' }
+    SavedTrendCreate:
+      type: object
+      description: Send only the field that matches `match_type` (`merchant_id`, `category_id` or `match_text`).
+      required: [name, match_type, measure]
+      properties:
+        name: { $ref: '#/components/schemas/Name' }
+        match_type: { $ref: '#/components/schemas/TrendMatchType' }
+        merchant_id: { $ref: '#/components/schemas/Id' }
+        category_id: { $ref: '#/components/schemas/Id' }
+        match_text: { type: string, minLength: 1, maxLength: 200 }
+        measure: { $ref: '#/components/schemas/TrendMeasure' }
+        sort_order: { type: integer }
+    SavedTrendUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name: { $ref: '#/components/schemas/Name' }
+        match_type: { $ref: '#/components/schemas/TrendMatchType' }
+        merchant_id: { type: [string, 'null'] }
+        category_id: { type: [string, 'null'] }
+        match_text: { type: [string, 'null'], minLength: 1, maxLength: 200 }
+        measure: { $ref: '#/components/schemas/TrendMeasure' }
+        sort_order: { type: integer }
+
+    # ---- Admin --------------------------------------------------------------
+    BackupKind:
+      type: string
+      enum: [weekly, monthly, manual]
+    Backup:
+      type: object
+      required: [id, kind, status, started_at, finished_at, size_bytes, error_message]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        kind: { $ref: '#/components/schemas/BackupKind' }
+        status:
+          type: string
+          enum: [running, succeeded, failed]
+        started_at: { $ref: '#/components/schemas/Timestamp' }
+        finished_at:
+          type: [string, 'null']
+          format: date-time
+        size_bytes:
+          type: [integer, 'null']
+          format: int64
+        error_message:
+          type: [string, 'null']
+          description: Short, safe reason when `status` is failed.
+    AdminStatus:
+      type: object
+      required: [version, started_at, uptime_seconds, database, backups, auth_provider]
+      properties:
+        version: { type: string }
+        started_at: { $ref: '#/components/schemas/Timestamp' }
+        uptime_seconds: { type: integer, minimum: 0 }
+        database:
+          type: object
+          required: [size_bytes, last_write_at]
+          properties:
+            size_bytes: { type: integer, format: int64, minimum: 0 }
+            last_write_at:
+              type: [string, 'null']
+              format: date-time
+              description: Latest `updated_at` across user data.
+        backups:
+          type: object
+          required: [schedule, retention, last_run, next_weekly_at, next_monthly_at]
+          properties:
+            schedule:
+              type: string
+              description: Human-readable, e.g. "Weekly on Sundays, monthly on the 1st".
+            retention:
+              type: object
+              required: [weekly, monthly]
+              properties:
+                weekly: { type: integer, examples: [8] }
+                monthly: { type: integer, examples: [12] }
+            last_run:
+              oneOf:
+                - $ref: '#/components/schemas/Backup'
+                - type: 'null'
+            next_weekly_at: { type: string, format: date-time }
+            next_monthly_at: { type: string, format: date-time }
+        auth_provider:
+          type: object
+          required: [status, checked_at]
+          properties:
+            status:
+              type: string
+              enum: [ok, unreachable]
+            checked_at: { type: string, format: date-time }
