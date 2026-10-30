@@ -60,13 +60,13 @@ The schema is defined in `backend/migrations/0001_init.sql` (SQLite). That file 
 
 Rules:
 - Months are derived from dates; there is no month table. (TemplateApply is a log of applies, not a month table.)
-- Tax rate is derived from gross, gross taxable, and net; do not store it.
+- Tax rate is derived, never stored: **(gross taxable − net) ÷ gross taxable**. Show nothing when gross taxable is 0.
 - Saving **counts as an expense** in totals. Reports still show Saving as its own line.
 - A refund is a negative amount, styled distinctly, and may optionally link to the original expense. Deleting the original unlinks the refund; it does not delete it.
 - **Refunds count in the month they are logged**, even when the original purchase was in an earlier month. They lower that month's spending in the refund's own category.
 - An expense may have several linked refunds (partial refunds). Clients may show the original's net (amount minus linked refunds) for display only; never store it.
 - Merchants are stored per user and matched case-insensitively. Entering a new merchant name creates the merchant; autocomplete suggests existing ones, so spellings stay consistent for trends.
-- **"Other" is a protected category:** it is seeded for every user and **can never be renamed, edited, or deleted**. Deleting any other category reassigns all of its expenses, and any template items in it, to "Other" in the same transaction. Nothing is orphaned and no expense is deleted. Saved trends that match the deleted category are removed.
+- **"Other" is a protected category:** it is seeded for every user and **can never be renamed or deleted**, and its flags (`is_saving`, `is_protected`) never change. It **may be recolored and reordered**. Deleting any other category reassigns all of its expenses, and any template items in it, to "Other" in the same transaction. Nothing is orphaned and no expense is deleted. Saved trends that match the deleted category are removed.
 - **Income sources:**
   - The **"Other" income source** is protected: it can never be renamed or deleted.
   - Any other source can be renamed at any time.
@@ -92,11 +92,12 @@ Rules:
    - If that day doesn't exist in the month (29, 30 or 31 in a shorter month), the entry is dated on the **last day of the month** instead.
    - Copies are marked **not yet confirmed** and stay visibly flagged until the user edits or confirms them. "Confirm all as-is" confirms them in one step.
    - Right after copying, the user can **undo**. This deletes the entries that copy created that are still unconfirmed.
-   - Editing a month never changes the template. "Save this month as a template" is supported.
+   - Editing a month never changes the template. "Save this month as a template" is supported; it copies the month's expenses and income entries and **skips refunds**.
    - An empty new month offers to copy the template or start blank.
+   - **Applying a template to a month that already has data resets the month.** The user must first confirm that **all** of that month's expenses and income entries (confirmed or not) will be deleted and replaced by the template's copies. Undo afterwards removes only the new copies; it cannot bring back the deleted data.
 10. Summaries (totals only; budgets and what-if are v2):
-    - **Monthly:** laid out vertically like the user's spreadsheet. Income shows gross, gross taxable, and net per source, plus the **calculated tax rate** (derived, never stored), followed by an **"All sources combined"** block with the same four figures totaled across sources. Spending shows each category with its total, its **percent of income**, and a **comparison to the previous month**.
-    - **Yearly:** all three of (a) a month-by-month table (income, spent, left over per month), (b) category totals for the year, and (c) monthly averages. **Tapping a month's row** opens that month's summary, read-only. There is no separate column or button for this.
+    - **Monthly:** laid out vertically like the user's spreadsheet. Income shows gross, gross taxable, and net per source, plus the **calculated tax rate** (derived, never stored), followed by an **"All sources combined"** block with the same four figures totaled across sources. Spending shows each category with its total, its **percent of income** (of combined **net** income), and a **comparison to the previous month**. Left over = combined net income − total spent.
+    - **Yearly:** all three of (a) a month-by-month table (income, spent, left over per month), (b) category totals for the year, and (c) monthly averages. Averages divide by the number of months in that year that have any entries, so a year in progress isn't pulled down. **Tapping a month's row** opens that month's summary, read-only. There is no separate column or button for this.
     - **Saving** is counted as an expense in totals but is **presented differently** from ordinary spending (its own visual treatment and its own line), because the user uses it to see where post-paycheck savings and investments go. A savings rate is not required in v1.
 11. Trends, in two views:
     - **Custom trends:** the user picks a filter (category, merchant, text, date range) **and the measure** (total amount or number of transactions) and sees it charted per month or year (for example, one merchant each month). Trends can be saved (SavedTrend) and reopened.
@@ -104,6 +105,7 @@ Rules:
       - how spend changed **month over month** (January compares with the previous December)
       - how it changed **year over year** (same month last year, and year to date vs. last year)
       - a "biggest movers" ranking of every category's year-over-year change for the selected month
+    - **"All spending" includes Saving for now**, matching the totals elsewhere. This may change, since Saving's better/worse direction is the opposite of other spending.
     - **Change indicators:** orange means spending went up (worse), blue means it went down (better). For **Saving the meaning flips**: saving more is shown as positive (blue). An arrow and a +/− sign always accompany the colour.
     - **Approved chart types** (use only these):
       - Category spending as **ranked horizontal bars**

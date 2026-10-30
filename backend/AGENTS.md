@@ -37,7 +37,7 @@ migrations/       numbered SQL migrations
 - **Migrations:** every schema change is a new numbered migration. Never edit an applied one.
 - **Aggregations** (monthly/yearly totals, trends) are done in SQL, not in application loops.
 - **Categories:**
-  - "Other" can never be renamed, edited, or deleted. Reject those requests with a clear error.
+  - "Other" can never be renamed or deleted, and its `is_saving`/`is_protected` flags never change. Reject those requests with a clear error. It may be recolored and reordered.
   - Deleting any other category must, in one transaction, move its expenses and template items to the user's "Other" category before removing it.
   - Reordering updates `sort_order` for the whole list in one request.
   - Saving is identified by `is_saving`, never by name.
@@ -59,6 +59,8 @@ migrations/       numbered SQL migrations
   - Applying a template to a month dates each copy on its day of month, **clamped to the last day of the month** when the day doesn't exist (for example 31 in April → April 30; 29, 30 or 31 in February → Feb 28 or 29). Use real calendar maths, including leap years.
   - Copies are `confirmed=0`.
   - Each apply inserts a `template_applies` row, and every entry it creates stores that row's id in `template_apply_id`. "Undo" deletes only that apply's rows that are still unconfirmed.
+  - **Applying to a month that already has data** (any expense or income entry dated in it) is rejected with `month_not_empty` unless the request sets `reset_month: true`. With it, in one transaction: delete every expense and income entry dated in that month (confirmed or not; refunds elsewhere that pointed at deleted expenses are unlinked), delete that month's earlier `template_applies` rows, then apply as normal.
+  - "Save month as template" copies the month's expenses and income entries, with `day_of_month` taken from each date, and **skips refunds**.
   - Provide a "confirm all" action for a month.
 - **Trends:**
   - Saved trends (match type `merchant` | `category` | `note`, match value, measure `amount` | `count`) are per-user CRUD.
@@ -75,6 +77,8 @@ migrations/       numbered SQL migrations
   - tenancy isolation
   - refund linking and unlinking, including partial refunds and refunds counted in a later month
   - template-to-month copy: day-of-month dating, clamping for 29/30/31 including February in leap and non-leap years, `confirmed=false`, and undo removing only unconfirmed rows from that apply
+  - applying to a non-empty month: rejected without `reset_month`; with it, the month's old entries are gone, other months are untouched, and refunds in other months are unlinked rather than deleted
+  - save month as template skips refunds
   - protected "Other" category and income source: rename, edit and delete are rejected; reassignment on delete
   - income sources: renaming works; deleting a source with entries is rejected; deleting one without entries moves its template items to "Other"
   - new-user seeding
