@@ -5,7 +5,8 @@ Read the root `AGENTS.md` first. This folder holds the OpenAPI spec (`openapi.ya
 ## Rules
 
 - **Spec first:** any change to request/response shapes starts here. Then update the backend, then the clients, ideally in one commit.
-- Keep the spec valid (lint it) and in one source of truth; clients generate or mirror their types from it.
+- Keep the spec valid and in one source of truth; clients generate or mirror their types from it.
+- Lint from this folder with `npx @redocly/cli lint` (config in `redocly.yaml`). It must pass with no errors or warnings; an intentional exception goes in `.redocly.lint-ignore.yaml` with a comment saying why.
 - Version routes under `/v1`.
 
 ## Conventions

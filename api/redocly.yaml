@@ -1,0 +1,7 @@
+# Redocly CLI config. From this folder, run: npx @redocly/cli lint
+extends:
+  - recommended
+
+apis:
+  main:
+    root: ./openapi.yaml

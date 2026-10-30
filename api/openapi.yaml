@@ -2,6 +2,8 @@ openapi: 3.1.0
 info:
   title: Penny Pincher API
   version: 0.1.0
+  license:
+    name: Proprietary
   summary: The contract between the Go backend, the React web app, and the SwiftUI Mac app.
   description: |
     Read `/AGENTS.md` and `/api/AGENTS.md` first. This file is the single source of truth
@@ -28,28 +30,47 @@ info:
     - **Lists** return `{ "items": [...] }`. Lists that can grow large are cursor-paginated and also
       return `next_cursor` (null on the last page).
 servers:
-  - url: http://localhost:8080
-    description: Local development
+  - url: '{scheme}://{host}'
+    description: The self-hosted API. Locally, use `http` and `localhost:8080`; deployed, `https` and your domain.
+    variables:
+      scheme:
+        enum: [https, http]
+        default: https
+      host:
+        default: localhost:8080
+        description: Host and port of the API.
 security:
   - firebase: []
 
 tags:
   - name: system
+    description: Health check. No auth.
   - name: me
+    description: The signed-in user and their role.
   - name: categories
+    description: Expense categories. "Other" is protected; Saving is flagged with `is_saving`.
   - name: income-sources
+    description: Where income comes from. "Other" is protected; a source with entries can only be renamed.
   - name: merchants
+    description: Per-user merchants for autocomplete. Created implicitly from `merchant_name`.
   - name: expenses
+    description: Expenses and refunds (negative amounts), singly or in batches.
   - name: income-entries
+    description: Income entries with gross, gross taxable and net amounts.
   - name: months
     description: Month-level actions (template apply, confirm all, save as template).
   - name: templates
+    description: Template months and their expense and income items.
   - name: summaries
+    description: Monthly and yearly totals.
   - name: trends
+    description: Custom trends and per-category monthly totals for this year and last.
   - name: saved-trends
+    description: Trends the user saved to reopen later.
   - name: admin
     description: Admins only. Members get `403 admin_required`. No user-management routes in v1.
   - name: export
+    description: CSV and Excel export. Built last in v1.
 
 paths:
   # ---------------------------------------------------------------------------

@@ -1,0 +1,5 @@
+# Lint warnings intentionally ignored. Keep each one explained.
+openapi.yaml:
+  # /healthz takes no input and no auth, so it has no meaningful 4xx response.
+  operation-4xx-response:
+    - '#/paths/~1healthz/get/responses'
