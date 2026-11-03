@@ -6,7 +6,14 @@ Read the root `AGENTS.md` first. This file adds rules specific to the React web 
 
 - React (TypeScript recommended)
 - Talks only to the backend API described in `/api`. Generate the API client/types from the OpenAPI spec rather than hand-writing them.
-- Auth uses the Firebase JS SDK. UI library and charting library are open decisions (see root file). Do not add a major dependency without noting it there.
+- Auth uses the Firebase JS SDK.
+- **No UI component library.** Build our own small components on the design tokens below. Radix UI primitives (unstyled) may be used for behavior that is hard to get right accessibly: dialogs, alert dialogs, popovers, menus, toggles and tooltips. All styling stays ours.
+- **No charting library.** The approved charts (root §6.11) are hand-built React components, the same way the design canvas draws them:
+  - ranked, paired, diverging and sparkline bars are elements sized as a percentage of the largest value (HTML or SVG)
+  - the donut is a CSS `conic-gradient` ring (or SVG arcs)
+  - one component per chart type (e.g. `RankedBars`, `PairedBars`, `DivergingBars`, `Donut`), shared by every screen
+  - every chart has a text alternative (see Interaction patterns)
+- Do not add a major dependency without noting it in the root file.
 
 ## Rules
 

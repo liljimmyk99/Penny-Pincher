@@ -23,7 +23,7 @@ docker-compose.yml
 
 - Backend: Go, SQLite (WAL mode, single API container, DB file on a Docker volume)
 - API: REST/JSON, described by OpenAPI in `/api`. Change the spec first, then backend, then clients.
-- Web: React
+- Web: React. No component or charting library: UI components are our own, styled with the design tokens in `web/AGENTS.md`. Charts are hand-built React components (HTML/SVG, donut via CSS `conic-gradient`), matching the design canvas. Radix UI primitives may be used for accessible behavior (dialogs, popovers, toggles), unstyled.
 - Mac: SwiftUI (native)
 - Auth: Firebase Authentication (v1). Backend verifies Firebase ID tokens on every request, and only accepts users that exist in its own users table (an allowlist, regardless of provider sign-up settings).
 - Deployment: Docker Compose (API, reverse proxy with automatic HTTPS), self-hosted, possibly on a cloud VPS
@@ -165,5 +165,4 @@ Rules:
 ## 10. Open decisions
 
 - Go SQLite driver and migration tool
-- Web UI library and charting library
 - Backup tooling and destination (e.g. restic to object storage)
