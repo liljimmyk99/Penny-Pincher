@@ -1,0 +1,10 @@
+{
+	# ACME_EMAIL is only meaningful in prod; the default keeps dev parsing.
+	email {$ACME_EMAIL:admin@localhost}
+}
+
+# localhost gets a certificate from Caddy's internal CA automatically;
+# a real domain gets one from Let's Encrypt.
+{$DOMAIN} {
+	reverse_proxy api:8080
+}
