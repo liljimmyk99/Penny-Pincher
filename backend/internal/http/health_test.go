@@ -8,19 +8,21 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/liljimmyk99/penny-pincher/backend/internal/api"
 )
 
 type pinger struct{ err error }
 
 func (p pinger) PingContext(context.Context) error { return p.err }
 
-func get(t *testing.T, db Pinger) (*httptest.ResponseRecorder, Health) {
+func get(t *testing.T, db Pinger) (*httptest.ResponseRecorder, api.Health) {
 	t.Helper()
 	clock := time.Unix(1000, 0)
 	h := NewRouter("1.2.3", db, func() time.Time { c := clock; clock = clock.Add(5 * time.Second); return c })
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest("GET", "/healthz", nil))
-	var body Health
+	var body api.Health
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
