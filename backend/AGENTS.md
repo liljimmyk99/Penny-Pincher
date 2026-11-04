@@ -34,7 +34,7 @@ migrations/       numbered SQL migrations
   - the remaining default categories, in order, with Saving's `is_saving=1`
   - an empty template
 - **SQLite:** enable `PRAGMA foreign_keys=ON` and WAL mode at startup. Prefer a pure-Go driver (no CGO) so Docker builds stay simple, unless there is a reason not to.
-- **Migrations:** every schema change is a new numbered migration. Never edit an applied one.
+- **Migrations:** every schema change is a new numbered migration. Never edit an applied one. Driver is `modernc.org/sqlite`; a small embedded runner applies them on API startup (and via a `migrate` subcommand). See root `AGENTS.md` §10.
 - **Aggregations** (monthly/yearly totals, trends) are done in SQL, not in application loops.
 - **Categories:**
   - "Other" can never be renamed or deleted, and its `is_saving`/`is_protected` flags never change. Reject those requests with a clear error. It may be recolored and reordered.
