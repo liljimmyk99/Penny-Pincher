@@ -162,8 +162,18 @@ Rules:
 - Do not hard-code personal data (names, amounts, employers) in code, seeds, or tests; use generic fixtures.
 - When requirements are ambiguous, ask rather than guess, then record the answer here.
 
-## 10. Open decisions
+## 10. Decisions and open decisions
 
-- Go SQLite driver and migration tool
+### Decided
+
+- **Go SQLite driver and migration tool** (decided 2026-11-04)
+  - **Driver: `modernc.org/sqlite`** (pure Go, no CGO), so Docker builds need no C toolchain. Spiked against `0001_init.sql` (SQLite 3.54 bundled): STRICT tables, generated columns, `COLLATE NOCASE` uniqueness, partial indexes, views, `RAISE(ABORT)` triggers, composite-FK tenancy, and WAL all behave as the schema expects. `mattn/go-sqlite3` was rejected: it needs CGO, and speed is irrelevant at this scale.
+  - **Per-connection pragmas go in the DSN**, because `database/sql` pools connections: `_pragma=foreign_keys(1)`, `busy_timeout(5000)`, `synchronous(NORMAL)`, `journal_mode(WAL)`. The spike confirmed every pooled connection gets them. The `PRAGMA foreign_keys = ON` line inside 0001 is a no-op in a transaction; the DSN is what counts.
+  - **Migration tool: none, a small in-house runner** in `backend/` using `embed.FS` and a `schema_migrations` table. It applies each numbered `.sql` file in its own transaction via `Exec`, in order, once. It runs 0001 unchanged. `goose` was rejected because it needs `-- +goose` markers and `StatementBegin/End` around every trigger, which means editing 0001. `golang-migrate` would work but adds dependencies for about 40 lines of logic.
+  - **When migrations run: on API startup**, before the server listens; a failure stops the API. The same binary also gets a `migrate` subcommand to run them by hand. One container and one process, so there is nothing to coordinate.
+  - **Toolchain note:** the current `modernc.org/sqlite` (v1.61) requires Go 1.26. Use a matching Go version in `go.mod` and the Dockerfile build image, or pin an older `modernc` release.
+
+### Open
+
 - Web UI library and charting library
 - Backup tooling and destination (e.g. restic to object storage)
