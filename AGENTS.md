@@ -23,7 +23,7 @@ docker-compose.yml
 
 - Backend: Go, SQLite (WAL mode, single API container, DB file on a Docker volume)
 - API: REST/JSON, described by OpenAPI in `/api`. Change the spec first, then backend, then clients.
-- Web: React
+- Web: React, built with Vite and tested with Vitest and Testing Library. No component or charting library: UI components are our own, styled with the design tokens in `web/AGENTS.md`. Charts are hand-built React components (HTML/SVG, donut via CSS `conic-gradient`), matching the design canvas. Radix UI primitives may be used for accessible behavior (dialogs, popovers, toggles), unstyled.
 - Mac: SwiftUI (native)
 - Auth: Firebase Authentication (v1). Backend verifies Firebase ID tokens on every request, and only accepts users that exist in its own users table (an allowlist, regardless of provider sign-up settings).
 - Deployment: Docker Compose (API, reverse proxy with automatic HTTPS), self-hosted, possibly on a cloud VPS
@@ -173,7 +173,10 @@ Rules:
   - **When migrations run: on API startup**, before the server listens; a failure stops the API. The same binary also gets a `migrate` subcommand to run them by hand. One container and one process, so there is nothing to coordinate.
   - **Toolchain note:** the current `modernc.org/sqlite` (v1.61) requires Go 1.26. Use a matching Go version in `go.mod` and the Dockerfile build image, or pin an older `modernc` release.
 
+- **Web UI, charts, build tool and tests** (decided 2026-11-04)
+  - **No component library and no charting library.** UI components are our own on the design tokens; Radix UI primitives (unstyled) may be used for dialogs, popovers, menus, toggles and tooltips. Charts are hand-built React components (`RankedBars`, `PairedBars`, `DivergingBars`, `Donut`).
+  - **Build tool: Vite. Test runner: Vitest with Testing Library.**
+
 ### Open
 
-- Web UI library and charting library
 - Backup tooling and destination (e.g. restic to object storage)
