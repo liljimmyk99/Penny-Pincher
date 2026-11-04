@@ -173,11 +173,10 @@ Rules:
   - **When migrations run: on API startup**, before the server listens; a failure stops the API. The same binary also gets a `migrate` subcommand to run them by hand. One container and one process, so there is nothing to coordinate.
   - **Toolchain note:** the current `modernc.org/sqlite` (v1.61) requires Go 1.26. Use a matching Go version in `go.mod` and the Dockerfile build image, or pin an older `modernc` release.
 
+- **Web UI, charts, build tool and tests** (decided 2026-11-04)
+  - **No component library and no charting library.** UI components are our own on the design tokens; Radix UI primitives (unstyled) may be used for dialogs, popovers, menus, toggles and tooltips. Charts are hand-built React components (`RankedBars`, `PairedBars`, `DivergingBars`, `Donut`).
+  - **Build tool: Vite. Test runner: Vitest with Testing Library.**
+
 ### Open
 
-<<<<<<< HEAD
-- Go SQLite driver and migration tool
-=======
-- Web UI library and charting library
->>>>>>> origin/master
 - Backup tooling and destination (e.g. restic to object storage)
