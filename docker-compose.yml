@@ -1,0 +1,61 @@
+# Whole-app stack. Pick a profile via COMPOSE_PROFILES in .env (see .env.example):
+#   dev  - localhost, Caddy's internal CA, ports 8080/8443
+#   prod - real DOMAIN, automatic Let's Encrypt, ports 80/443
+services:
+  # TEMPORARY STUB: serves a static /healthz so the proxy path can be verified.
+  # Issue #8 replaces this with the real Go API image (build: ./backend).
+  api:
+    image: busybox:1.36
+    command: ["httpd", "-f", "-v", "-p", "8080", "-h", "/www"]
+    volumes:
+      - ./deploy/stub-api:/www:ro
+      - api-data:/data # SQLite file lives here (DB_PATH=/data/spend.db)
+    environment:
+      PORT: "8080"
+      DB_PATH: ${DB_PATH:-/data/spend.db}
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  proxy-dev:
+    profiles: ["dev"]
+    image: caddy:2
+    environment:
+      DOMAIN: localhost
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-dev-data:/data
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  proxy:
+    profiles: ["prod"]
+    image: caddy:2
+    environment:
+      DOMAIN: ${DOMAIN:-}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data # keeps certificates across restarts
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  api-data:
+  caddy-data:
+  caddy-dev-data:
