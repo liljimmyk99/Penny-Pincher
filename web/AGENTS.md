@@ -5,6 +5,7 @@ Read the root `AGENTS.md` first. This file adds rules specific to the React web 
 ## Stack
 
 - React (TypeScript recommended)
+- **Build tool: Vite. Test runner: Vitest with Testing Library** (React Testing Library and `jest-dom` matchers). Component and screen tests run in Vitest's jsdom environment.
 - Talks only to the backend API described in `/api`. Generate the API client/types from the OpenAPI spec rather than hand-writing them.
 - Auth uses the Firebase JS SDK.
 - **No UI component library.** Build our own small components on the design tokens below. Radix UI primitives (unstyled) may be used for behavior that is hard to get right accessibly: dialogs, alert dialogs, popovers, menus, toggles and tooltips. All styling stays ours.
