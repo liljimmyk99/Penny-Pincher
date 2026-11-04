@@ -108,3 +108,9 @@ migrations/       numbered SQL migrations
 - Export (last)
 
 **Not in v1:** any user or account management endpoints (list users, create, invite, reset password, disable). Those stay in the Firebase console until v2.
+
+## Generated API code
+
+- `internal/api/*.gen.go` is generated from `/api/openapi.yaml` (oapi-codegen, pinned as a `tool` in `go.mod`). Never edit it by hand; run `make generate` after any spec change. `make check-generate` fails if the committed output is stale.
+- `internal/http.Server` implements the generated `StrictServerInterface` and embeds `api.Unimplemented`; any operation it does not override answers `501 not_implemented` with the standard error body. To build an endpoint, add a method on `Server`.
+- All error responses (decode errors, 501, 500) use the spec's `Error` body via `internal/http/errors.go`.

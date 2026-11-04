@@ -14,6 +14,7 @@ import (
 	"github.com/liljimmyk99/penny-pincher/backend/internal/config"
 	apihttp "github.com/liljimmyk99/penny-pincher/backend/internal/http"
 	"github.com/liljimmyk99/penny-pincher/backend/internal/logging"
+	"github.com/liljimmyk99/penny-pincher/backend/internal/store"
 )
 
 func main() {
@@ -33,10 +34,26 @@ func run() error {
 	}
 	log := logging.New(os.Stdout, cfg.LogLevel)
 
-	// TODO(store issue): open SQLite, run migrations, pass the *sql.DB as the Pinger.
+	if len(os.Args) > 1 && os.Args[1] == "migrate" {
+		db, err := store.Open(cfg.DBPath)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		return store.Migrate(context.Background(), db)
+	}
+
+	db, err := store.Open(cfg.DBPath)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	if err := store.Migrate(context.Background(), db); err != nil {
+		return err
+	}
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
-		Handler:           apihttp.NewRouter(cfg.Version, nil, time.Now),
+		Handler:           apihttp.NewRouter(cfg.Version, db, time.Now),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
