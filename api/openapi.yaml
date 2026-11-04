@@ -28,6 +28,7 @@ info:
       - Percent of income = category `total_cents / income.combined.net_cents` for the same month.
     - **Partial updates** use `PATCH` with only the fields being changed. Sending `null` clears a nullable field.
     - **Errors** always use the `Error` body: a stable machine-readable `code` and a human `message`.
+      A route that is in this spec but not built yet returns `501 not_implemented` with that body.
     - **Lists** return `{ "items": [...] }`. Lists that can grow large are cursor-paginated and also
       return `next_cursor` (null on the last page).
 servers:
@@ -1494,6 +1495,7 @@ components:
                 - month_not_empty
                 - backup_in_progress
                 - backup_not_ready
+                - not_implemented
                 - internal
             message:
               type: string
