@@ -150,6 +150,12 @@ Define these as tokens (CSS custom properties or the UI library's theme) in one 
 - Template list ("Your templates") and an editor for one template.
 - Expense items take name, category, amount and day of month. Income items take source, label, gross, gross taxable and net.
 - Apply a template to a chosen month. Copies land on each item's day of month; days that don't exist in that month (29–31) land on the month's last day (the backend does this, so don't recompute it in the client).
+- As built (`src/pages/templates`):
+  - The chosen template is in the address (`?template=<id>`); without one, the first by name. "Your templates" shows each with its item count, plus "New template" (an inline name field; it is open from the start when there are none). Rename (dialog) and Delete (`DeleteDialog`, noting copied entries stay) sit beside the title.
+  - Tiles: net income, planned spending (Saving included, with the saved amount noted) and left over, summed in the client from the template's items (`totals.ts`).
+  - Income items first (source, label = the item's note, day, gross, gross taxable, net; with an "All sources" line and tax rate), then expense items grouped under every category in category order, empty ones included. Saving's group has its own tint and badge. Expense items take name (merchant, with autocomplete), category (changing it moves the row), day and amount; there is no note column.
+  - Rows edit in place. A saved row sends only its changed fields (`PATCH`) when focus leaves the row or on Enter. "Add item" / "Add income" open a draft row that is created on Enter or Save (Enter then clears it for the next item, keeping category and day), or when focus leaves it complete. Remove deletes at once (items are cheap to re-add).
+  - **Canvas differences:** the canvas's "Duplicate" button and "Default" badge have no backing in the spec or model, so they are not built. "Apply to <month>" lives with the template-copy flow (issue #30).
 
 ### Yearly
 - Year switcher.

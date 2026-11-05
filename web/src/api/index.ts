@@ -30,6 +30,14 @@ export {
   useIncomeSourceStats,
 } from "./manage";
 export {
+  templateQueryKey,
+  templatesQueryKey,
+  useTemplate,
+  useTemplateItemMutations,
+  useTemplateMutations,
+  useTemplates,
+} from "./templates";
+export {
   expenseQueryKey,
   expensesBetweenQueryKey,
   findMerchant,
