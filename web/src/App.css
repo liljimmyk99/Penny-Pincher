@@ -1,0 +1,16 @@
+.app {
+  padding: var(--space-8) var(--space-10);
+}
+
+.app__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.app__card {
+  padding: var(--space-6);
+}

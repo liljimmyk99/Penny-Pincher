@@ -17,4 +17,15 @@ docker compose up
   ```
 - **Production** (`COMPOSE_PROFILES=prod`): set `DOMAIN` and `ACME_EMAIL` in `.env`, point DNS at the server, and open ports 80/443. Caddy obtains and renews certificates automatically.
 
-The SQLite file lives on the `api-data` volume; certificates on `caddy-data`/`caddy-dev-data`. The `api` service is built from `backend/` (currently only `/healthz`).
+The SQLite file lives on the `api-data` volume; certificates on `caddy-data`/`caddy-dev-data`. The `api` service is built from `backend/`. The `web` service is built from `web/` (static files served by Caddy); the proxy sends `/v1/*` and `/healthz` to the API and everything else to the web app.
+
+## Web app
+
+```bash
+cd web
+npm ci
+npm run dev        # Vite dev server, proxies /v1 and /healthz to localhost:8080
+npm run lint && npm run typecheck && npm test
+```
+
+`web/.npmrc` sets `legacy-peer-deps` because npm's peer resolver currently crashes on the Vitest 4 peer set.

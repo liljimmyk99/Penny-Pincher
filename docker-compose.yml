@@ -19,6 +19,12 @@ services:
       retries: 5
     restart: unless-stopped
 
+  web:
+    build: ./web
+    expose:
+      - "80"
+    restart: unless-stopped
+
   proxy-dev:
     profiles: ["dev"]
     image: caddy:2
@@ -33,6 +39,8 @@ services:
     depends_on:
       api:
         condition: service_healthy
+      web:
+        condition: service_started
     restart: unless-stopped
 
   proxy:
@@ -50,6 +58,8 @@ services:
     depends_on:
       api:
         condition: service_healthy
+      web:
+        condition: service_started
     restart: unless-stopped
 
 volumes:

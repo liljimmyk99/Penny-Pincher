@@ -6,5 +6,12 @@
 # localhost gets a certificate from Caddy's internal CA automatically;
 # a real domain gets one from Let's Encrypt.
 {$DOMAIN} {
-	reverse_proxy api:8080
+	# API and health check go to the backend; everything else is the web app.
+	@api path /v1/* /healthz
+	handle @api {
+		reverse_proxy api:8080
+	}
+	handle {
+		reverse_proxy web:80
+	}
 }
