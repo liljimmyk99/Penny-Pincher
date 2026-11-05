@@ -1,6 +1,7 @@
 # Redocly CLI config. From this folder, run: npx @redocly/cli lint
+# recommended-strict reports every rule as an error, so warnings fail the lint too.
 extends:
-  - recommended
+  - recommended-strict
 
 apis:
   main:
