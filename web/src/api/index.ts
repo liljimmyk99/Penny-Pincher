@@ -1,0 +1,19 @@
+/**
+ * The web app's API layer. Types come from `schema.gen.ts`, generated from
+ * `api/openapi.yaml` with `npm run gen:api`; never edit that file or hand-write
+ * request/response types.
+ */
+export type { Schemas } from "./types";
+export { ApiProvider } from "./ApiProvider";
+export { createApiClient, unwrap, type ApiClient, type TokenGetter } from "./client";
+export { useApi } from "./context";
+export {
+  ApiError,
+  errorMessage,
+  fieldErrors,
+  isSessionError,
+  type ApiErrorCode,
+  type ServerErrorCode,
+} from "./errors";
+export { useMe, meQueryKey } from "./me";
+export { createQueryClient } from "./queryClient";

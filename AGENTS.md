@@ -177,6 +177,10 @@ Rules:
   - **No component library and no charting library.** UI components are our own on the design tokens; Radix UI primitives (unstyled) may be used for dialogs, popovers, menus, toggles and tooltips. Charts are hand-built React components (`RankedBars`, `PairedBars`, `DivergingBars`, `Donut`).
   - **Build tool: Vite. Test runner: Vitest with Testing Library.**
 
+- **Web API client and data fetching** (decided 2026-11-05)
+  - **Types: `openapi-typescript`**, generated from `api/openapi.yaml` into `web/src/api/schema.gen.ts` (committed; `npm run gen:api`, and `npm run check:api` fails if it is out of date). **Client: `openapi-fetch`** (tiny, typed by those generated paths).
+  - **Server state: TanStack Query**, in memory only (nothing persisted). Queries and mutations use `networkMode: "always"` so offline requests fail visibly instead of pausing.
+
 ### Open
 
 - Backup tooling and destination (e.g. restic to object storage)
