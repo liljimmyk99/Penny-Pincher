@@ -25,3 +25,16 @@ func TestInvalid(t *testing.T) {
 		}
 	}
 }
+
+func TestAuthEmulatorOnlyForDemoProjects(t *testing.T) {
+	c, err := Load(env(map[string]string{"FIREBASE_PROJECT_ID": "demo-e2e", "FIREBASE_AUTH_EMULATOR_HOST": "auth:9099"}))
+	if err != nil || c.AuthEmulatorHost != "auth:9099" {
+		t.Fatalf("demo project: got %+v, %v", c, err)
+	}
+	if _, err := Load(env(map[string]string{"FIREBASE_PROJECT_ID": "real-project", "FIREBASE_AUTH_EMULATOR_HOST": "auth:9099"})); err == nil {
+		t.Fatal("expected an error for the emulator with a real project")
+	}
+	if _, err := Load(env(map[string]string{"FIREBASE_AUTH_EMULATOR_HOST": "auth:9099"})); err == nil {
+		t.Fatal("expected an error for the emulator with no project")
+	}
+}

@@ -13,6 +13,7 @@ const fakeAuthInstance = {
 
 vi.mock("firebase/auth", () => ({
   getAuth: vi.fn(() => fakeAuthInstance),
+  connectAuthEmulator: vi.fn(),
   GoogleAuthProvider: class {
     setCustomParameters = vi.fn();
   },
@@ -31,6 +32,16 @@ beforeEach(() => {
 });
 
 describe("createFirebaseAuth", () => {
+  it("connects to the auth emulator only when the config names one", () => {
+    vi.mocked(sdk.connectAuthEmulator).mockClear();
+    createFirebaseAuth(config);
+    expect(sdk.connectAuthEmulator).not.toHaveBeenCalled();
+    createFirebaseAuth({ ...config, emulatorUrl: "http://localhost:9099" });
+    expect(sdk.connectAuthEmulator).toHaveBeenCalledWith(fakeAuthInstance, "http://localhost:9099", {
+      disableWarnings: true,
+    });
+  });
+
   it("returns no token when signed out, after the session is restored", async () => {
     const auth = createFirebaseAuth(config);
     await expect(auth.getToken({ forceRefresh: false })).resolves.toBeNull();

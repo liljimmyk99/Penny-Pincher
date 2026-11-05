@@ -1,0 +1,19 @@
+{
+  "name": "penny-pincher-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "report": "playwright show-report",
+    "stack:up": "docker compose up -d --build --wait",
+    "stack:down": "docker compose down -v",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.65.0",
+    "@types/node": "^26.6.6",
+    "typescript": "~6.0.3"
+  }
+}

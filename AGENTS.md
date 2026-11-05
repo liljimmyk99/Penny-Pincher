@@ -14,6 +14,7 @@ A manual-entry personal spend tracker. The user records monthly income by source
 /web        React app
 /mac        SwiftUI macOS app
 /api        OpenAPI spec — the contract all clients build against
+/e2e        Playwright end-to-end suite on the Docker stack (milestone testing gates)
 /docs       supporting notes
 AGENTS.md   this file (each folder may add a short AGENTS.md with local rules)
 docker-compose.yml
@@ -193,6 +194,11 @@ Rules:
   - The Categories & sources screen reads `GET /v1/categories/stats?year=` and `GET /v1/income-sources/stats?year=`: one zero-filled row per category or source, aggregated in SQL.
   - **"Entries" counts all time** (every expense and refund in a category; every income entry for a source), so the delete dialog's count and amount are exactly what moves to Other. The money columns (spent, gross, net, and the tax rate from them) are **year to date**.
   - Web uses `@radix-ui/react-alert-dialog` (destructive confirmations) and `@radix-ui/react-tooltip`, unstyled, per the Radix rule above.
+
+- **End-to-end tests** (decided 2026-11-05)
+  - **Playwright** (`@playwright/test`, Chromium) in its own `/e2e` package, with `@axe-core/playwright` for the dark-mode colour-contrast check. It drives `e2e/compose.yml`: the real API and web images and Caddyfile.
+  - **Sign-in uses the Firebase Auth emulator**, not the real project. It is enabled by `FIREBASE_AUTH_EMULATOR_HOST` (API) and `VITE_FIREBASE_AUTH_EMULATOR_URL` (web build). **Both are honored only for a `demo-` project id**, and the API refuses to start otherwise, so a production deployment can't accept emulator tokens by mistake.
+  - Each test creates its own allowlisted user with the real `api user add` CLI. It runs in CI as the `e2e` job. `e2e/AGENTS.md` maps each gate item to its test and lists what stays manual.
 
 ### Open
 

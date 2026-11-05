@@ -5,6 +5,7 @@
 import { initializeApp } from "firebase/app";
 import {
   GoogleAuthProvider,
+  connectAuthEmulator,
   getAuth,
   onAuthStateChanged,
   sendPasswordResetEmail,
@@ -25,7 +26,10 @@ async function mapped<T>(run: () => Promise<T>): Promise<T> {
 }
 
 export function createFirebaseAuth(config: FirebaseWebConfig): AuthService {
-  const auth = getAuth(initializeApp(config));
+  const { emulatorUrl, ...appConfig } = config;
+  const auth = getAuth(initializeApp(appConfig));
+  // End-to-end tests only (see config.ts): sign in against the local emulator.
+  if (emulatorUrl) connectAuthEmulator(auth, emulatorUrl, { disableWarnings: true });
   // Reset emails go out in the browser's language.
   auth.useDeviceLanguage();
 
