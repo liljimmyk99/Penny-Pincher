@@ -14,3 +14,15 @@
 .app__card {
   padding: var(--space-6);
 }
+
+.app__account {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.app__email {
+  margin: var(--space-2) 0 0;
+  font: var(--text-section-title);
+}

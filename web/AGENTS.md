@@ -11,7 +11,10 @@ Read the root `AGENTS.md` first. This file adds rules specific to the React web 
   - Calls go through the `openapi-fetch` client in `src/api` (`useApi()`), wrapped in `unwrap()` inside TanStack Query `queryFn`/`mutationFn`. Use `Schemas["Category"]` etc. for types.
   - The client adds the Firebase ID token as a bearer header, retries a 401 once with a refreshed token, and reports `unauthenticated` / `not_allowlisted` to one `onSessionError` handler (the app signs out there). `admin_required` is left to the caller.
   - Failures throw `ApiError` (`status`, `code`, `details`). Show `errorMessage(err)` to users and `fieldErrors(err)` next to form fields; branch on `code`, never on `message`.
-- Auth uses the Firebase JS SDK.
+- Auth uses the Firebase JS SDK (`firebase`, imports from `firebase/app` and `firebase/auth` only).
+  - `src/auth/firebase.ts` is the only module that imports it (ESLint enforces this); everything else uses the `AuthService` interface. `main.tsx` imports the wrapper directly, so tests never load the SDK and use a fake (`src/test/fakeAuth.ts`).
+  - The session store (`createSession`) is the API client's `onSessionError`: a 403 `not_allowlisted` signs out and the sign-in screen shows "No access" with the refused email.
+  - The web config is public and baked in at build time: `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_PROJECT_ID`, optional `VITE_FIREBASE_AUTH_DOMAIN` (`web/.env.local` for `npm run dev`; Compose build args from the root `.env`).
 - **No UI component library.** Build our own small components on the design tokens below. Radix UI primitives (unstyled) may be used for behavior that is hard to get right accessibly: dialogs, alert dialogs, popovers, menus, toggles and tooltips. All styling stays ours.
 - **No charting library.** The approved charts (root §6.11) are hand-built React components, the same way the design canvas draws them:
   - ranked, paired, diverging and sparkline bars are elements sized as a percentage of the largest value (HTML or SVG)
@@ -63,6 +66,10 @@ Define these as tokens (CSS custom properties or the UI library's theme) in one 
 | refund | row `#F0FDF4`, text `#166534` | row `#0F2A1C`, text `#6EE7A0` | refund rows and amounts |
 | unconfirmed | tint `#FFF7ED`, pill `#FFEDD5`, text `#9A3412` | tint `#2B1D12`, pill `#4A2A10`, text `#FDBA74` | template copies not yet confirmed |
 | danger | `#B91C1C` | `#DC2626` | destructive buttons |
+| danger alert | bg `#FEF2F2`, border `#FECACA`, text `#991B1B`, invalid field `#DC2626` | bg `#3A1518`, border `#7F1D1D`, text `#FCA5A5`, invalid field `#F87171` | inline error alerts, invalid inputs |
+| success alert | bg `#F0FDF4`, border `#BBF7D0`, text `#166534` | bg `#0F2A1C`, border `#1E4D33`, text `#86EFAC` | confirmations (e.g. reset email sent) |
+| link | `#1D4ED8`, hover `#1E3A8A` | `#8AB4FF`, hover `#B9D0FF` | links and text buttons |
+| field | bg `#FFFFFF`, border `#D5DBE3` | bg `#0F1726`, border `#2E3B54` | text inputs, ghost-button borders |
 
 - Orange, blue and green are the action/accent colors; white is an accent only, never a primary color.
 - Text must meet 4.5:1 contrast (3:1 for large text). Colors that must be told apart also differ in lightness, not hue alone.

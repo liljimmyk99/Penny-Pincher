@@ -4,6 +4,10 @@ WORKDIR /src
 COPY package.json package-lock.json .npmrc ./
 RUN npm ci
 COPY . .
+# Public Firebase web config, baked into the bundle at build time (see .env.example).
+ARG VITE_FIREBASE_API_KEY
+ARG VITE_FIREBASE_PROJECT_ID
+ARG VITE_FIREBASE_AUTH_DOMAIN
 RUN npm run build
 
 # Static files served by a tiny Caddy; the public reverse proxy forwards non-API paths here.

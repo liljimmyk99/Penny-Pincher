@@ -181,6 +181,10 @@ Rules:
   - **Types: `openapi-typescript`**, generated from `api/openapi.yaml` into `web/src/api/schema.gen.ts` (committed; `npm run gen:api`, and `npm run check:api` fails if it is out of date). **Client: `openapi-fetch`** (tiny, typed by those generated paths).
   - **Server state: TanStack Query**, in memory only (nothing persisted). Queries and mutations use `networkMode: "always"` so offline requests fail visibly instead of pausing.
 
+- **Web auth: Firebase JS SDK** (decided 2026-11-05)
+  - The `firebase` package (modular v13), used only through `web/src/auth/firebase.ts`. Session persistence is Firebase's default (IndexedDB); it holds auth tokens only, no financial data.
+  - Google sign-in uses a popup with the account chooser. The web config (API key, project id) is public and passed to the web build as `FIREBASE_WEB_API_KEY` / `FIREBASE_PROJECT_ID` in `.env`.
+
 ### Open
 
 - Backup tooling and destination (e.g. restic to object storage)

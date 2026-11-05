@@ -1,0 +1,41 @@
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--color-on-sidebar);
+}
+
+.brand__mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-control);
+  background: var(--color-brand);
+  color: var(--color-on-brand);
+  font-weight: 800;
+  font-size: 20px;
+}
+
+.brand__name {
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+}
+
+.brand--lg {
+  gap: 14px;
+}
+
+.brand--lg .brand__mark {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-card);
+  font-size: 30px;
+}
+
+.brand--lg .brand__name {
+  font-size: 30px;
+  letter-spacing: -0.02em;
+}
