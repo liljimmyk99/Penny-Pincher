@@ -81,8 +81,8 @@ func wantError(t *testing.T, rec *httptest.ResponseRecorder, status int, code ap
 
 func TestUnimplementedRoutesReturnStandard501(t *testing.T) {
 	for _, r := range [][2]string{
-		{"POST", "/v1/expenses"},
-		{"DELETE", "/v1/expenses/abc"},
+		{"POST", "/v1/income-entries"},
+		{"DELETE", "/v1/templates/abc"},
 		{"GET", "/v1/summaries/monthly/2026-01"},
 		{"GET", "/v1/admin/status"},
 	} {
