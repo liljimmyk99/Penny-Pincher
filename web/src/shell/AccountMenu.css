@@ -1,0 +1,233 @@
+/* The account button sits on the dark sidebar; the menu is a light/dark surface. */
+
+.account-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: var(--space-2) 10px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-on-sidebar);
+  text-align: left;
+  cursor: pointer;
+}
+
+.account-button:hover {
+  background: var(--color-sidebar-hover);
+}
+
+.account-button[data-state="open"] {
+  background: var(--color-sidebar-pressed);
+}
+
+.account-button__who {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.account-button__name {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-button__role {
+  color: var(--color-on-sidebar-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.account-button__chevron {
+  flex: none;
+  color: var(--color-on-sidebar-muted);
+}
+
+@media (min-width: 721px) {
+  .sidebar--collapsed .account-button {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .sidebar--collapsed .account-button__who {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .sidebar--collapsed .account-button__chevron {
+    display: none;
+  }
+}
+
+/* On phones the button sits in the top bar: just the avatar. */
+@media (max-width: 720px) {
+  .account-button {
+    width: auto;
+    min-height: var(--control-height);
+    padding: 6px;
+  }
+
+  .account-button__who {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .account-button__chevron {
+    display: none;
+  }
+}
+
+.account-menu {
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 300px;
+  max-width: calc(100vw - 24px);
+  padding: var(--space-2);
+  border: 1px solid var(--color-menu-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-menu);
+  color: var(--color-text);
+  font: var(--text-body);
+}
+
+.account-menu__who {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px var(--space-3) var(--space-3);
+}
+
+.account-menu__identity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.account-menu__name {
+  font-size: 15px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.account-menu__email {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.account-menu__separator {
+  height: 1px;
+  margin: var(--space-1) 0;
+  background: var(--color-menu-divider);
+}
+
+.account-menu__label {
+  padding: 6px var(--space-2) var(--space-2);
+  font: var(--text-eyebrow);
+  letter-spacing: var(--eyebrow-spacing);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.account-menu__themes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 0 var(--space-1) 6px;
+}
+
+.account-menu__theme {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: 56px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-field);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+}
+
+.account-menu__theme[data-highlighted] {
+  background: var(--color-surface-soft);
+}
+
+.account-menu__theme[data-state="checked"] {
+  border-color: var(--color-selected-line);
+  background: var(--color-selected-bg);
+  box-shadow: inset 0 0 0 1px var(--color-selected-line);
+  color: var(--color-selected-text);
+}
+
+.account-menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border-radius: 8px;
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.account-menu__item:hover,
+.account-menu__item[data-highlighted] {
+  background: var(--color-menu-hover);
+  color: var(--color-text);
+}
+
+.account-menu__item svg {
+  flex: none;
+  color: var(--color-text-muted);
+}
+
+.account-menu__theme:focus-visible,
+.account-menu__item:focus-visible {
+  outline-offset: -2px;
+}
+
+.account-menu__hint {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.account-menu__tag {
+  margin-left: auto;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-unconfirmed-pill);
+  color: var(--color-unconfirmed-text);
+  font-size: 12px;
+  font-weight: 800;
+}

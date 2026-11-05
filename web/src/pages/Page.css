@@ -1,0 +1,38 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+.page__header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.page__eyebrow {
+  margin: 0;
+}
+
+.page__title {
+  letter-spacing: -0.02em;
+}
+
+/* Focused by code after navigation, not something to operate. */
+.page__title:focus {
+  outline: none;
+}
+
+.placeholder {
+  padding: var(--space-6);
+  color: var(--color-text-muted);
+}
+
+.placeholder p {
+  margin: 0;
+}
+
+.placeholder p + p {
+  margin-top: var(--space-2);
+}

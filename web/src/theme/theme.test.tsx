@@ -2,7 +2,8 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 import { ThemeProvider } from "./ThemeProvider";
-import { ThemeSwitch } from "./ThemeSwitch";
+import { useTheme } from "./context";
+import type { ThemePreference } from "./theme";
 import { THEME_STORAGE_KEY, readPreference, resolveTheme } from "./theme";
 
 function mockSystemDark(isDark: boolean) {
@@ -17,10 +18,24 @@ function mockSystemDark(isDark: boolean) {
   );
 }
 
+/** A bare picker over the provider; the real one is in the account menu (see AppShell.test). */
+function Picker() {
+  const { preference, setPreference } = useTheme();
+  return (
+    <>
+      {(["light", "dark", "system"] as ThemePreference[]).map((value) => (
+        <button key={value} aria-pressed={preference === value} onClick={() => setPreference(value)}>
+          {value[0].toUpperCase() + value.slice(1)}
+        </button>
+      ))}
+    </>
+  );
+}
+
 function renderSwitch() {
   return render(
     <ThemeProvider>
-      <ThemeSwitch />
+      <Picker />
     </ThemeProvider>,
   );
 }
@@ -48,7 +63,7 @@ describe("readPreference", () => {
   });
 });
 
-describe("ThemeSwitch", () => {
+describe("ThemeProvider", () => {
   it("defaults to System and applies the system theme", () => {
     mockSystemDark(true);
     renderSwitch();

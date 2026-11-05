@@ -79,6 +79,20 @@
   --color-on-sidebar-accent: #fdba74;
   --color-on-brand: #0e1a2b; /* the letter on the orange logo mark */
   --color-sidebar-edge: transparent;
+  --color-sidebar-hover: rgba(255, 255, 255, 0.07);
+  --color-sidebar-pressed: rgba(255, 255, 255, 0.12);
+  --color-sidebar-divider: rgba(255, 255, 255, 0.12);
+  --color-sidebar-active: #ffffff; /* the white pill on the current page */
+  --color-on-sidebar-active: #0e1a2b;
+
+  /* Menus (account menu) */
+  --color-menu-border: #e3e7ed;
+  --color-menu-divider: #eef1f5;
+  --color-menu-hover: #f2f4f7;
+  --color-selected-bg: #eef4ff; /* chosen option in a picker */
+  --color-selected-text: #1e3a8a;
+  --color-selected-line: #1f5fd6;
+  --shadow-menu: 0 18px 48px rgba(14, 26, 43, 0.22), 0 2px 6px rgba(14, 26, 43, 0.08);
 
   --shadow-raised: 0 18px 48px rgba(14, 26, 43, 0.1), 0 2px 6px rgba(14, 26, 43, 0.06);
 }
@@ -125,6 +139,15 @@
 
   --color-on-brand: #0b1220;
   --color-sidebar-edge: #1c2638;
+  --color-on-sidebar-active: #0b1220;
+
+  --color-menu-border: #2e3b54;
+  --color-menu-divider: #233047;
+  --color-menu-hover: #1f2a3e;
+  --color-selected-bg: #1b2e57;
+  --color-selected-text: #dce7fb;
+  --color-selected-line: #3d78ea;
+  --shadow-menu: 0 18px 48px rgba(0, 0, 0, 0.55);
 
   --shadow-raised: 0 18px 48px rgba(0, 0, 0, 0.45);
 }

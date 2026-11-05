@@ -1,0 +1,183 @@
+.sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 28px;
+  width: var(--sidebar-width);
+  height: 100vh;
+  height: 100dvh;
+  padding: var(--space-6) 14px 14px;
+  overflow-y: auto;
+  background: var(--color-sidebar);
+  border-right: 1px solid var(--color-sidebar-edge);
+  color: var(--color-on-sidebar);
+  transition: width 0.18s ease;
+}
+
+.sidebar :focus-visible {
+  outline-color: var(--color-on-sidebar-accent);
+}
+
+.sidebar__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 0 0 6px;
+}
+
+.sidebar__toggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: var(--control-height);
+  margin-left: auto;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-on-sidebar-muted);
+  cursor: pointer;
+}
+
+.sidebar__toggle:hover {
+  background: var(--color-sidebar-hover);
+  color: var(--color-on-sidebar);
+}
+
+.sidebar__toggle svg {
+  transition: transform 0.18s ease;
+}
+
+.sidebar__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border-radius: 9px;
+  color: var(--color-on-sidebar-muted);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sidebar__link svg {
+  flex: none;
+}
+
+.sidebar__link:hover {
+  background: var(--color-sidebar-hover);
+  color: var(--color-on-sidebar);
+}
+
+.sidebar__link[aria-current="page"],
+.sidebar__link[aria-current="page"]:hover {
+  background: var(--color-sidebar-active);
+  color: var(--color-on-sidebar-active);
+}
+
+.sidebar__account {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-sidebar-divider);
+}
+
+/* Icon rail. Labels are visually hidden, not removed, so links keep their names. */
+@media (min-width: 721px) {
+  .sidebar--collapsed {
+    width: var(--sidebar-width-collapsed);
+    padding-inline: var(--space-3);
+  }
+
+  .sidebar--collapsed .sidebar__head {
+    flex-direction: column;
+    gap: 14px;
+    padding: 0;
+  }
+
+  .sidebar--collapsed .sidebar__toggle {
+    width: var(--control-height);
+    margin-left: 0;
+  }
+
+  .sidebar--collapsed .sidebar__toggle svg {
+    transform: rotate(180deg);
+  }
+
+  .sidebar--collapsed .sidebar__link {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .sidebar--collapsed .brand__name,
+  .sidebar--collapsed .sidebar__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* Phone width: a bar above the content; the nav scrolls sideways inside it. */
+@media (max-width: 720px) {
+  .sidebar {
+    position: static;
+    flex-flow: row wrap;
+    align-items: center;
+    gap: var(--space-3);
+    width: auto;
+    height: auto;
+    padding: var(--space-3) var(--space-4);
+    border-right: 0;
+    border-bottom: 1px solid var(--color-sidebar-edge);
+    overflow: visible;
+  }
+
+  .sidebar__head {
+    flex: 1;
+    padding: 0;
+  }
+
+  .sidebar__toggle {
+    display: none;
+  }
+
+  .sidebar__nav {
+    order: 3;
+    flex-basis: 100%;
+    min-width: 0;
+    overflow-x: auto;
+  }
+
+  .sidebar__list {
+    flex-direction: row;
+  }
+
+  .sidebar__account {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .sidebar__toggle svg {
+    transition: none;
+  }
+}

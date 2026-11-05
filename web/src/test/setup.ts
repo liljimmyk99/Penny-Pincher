@@ -6,6 +6,7 @@ afterEach(() => {
   cleanup();
   window.localStorage.clear();
   delete document.documentElement.dataset.theme;
+  window.history.replaceState(null, "", "/");
 });
 
 // jsdom has no matchMedia; default to a light system theme. Tests override as needed.
