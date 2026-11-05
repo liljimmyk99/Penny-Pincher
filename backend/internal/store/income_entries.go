@@ -3,13 +3,10 @@ package store
 import (
 	"context"
 	"database/sql"
-	"encoding/base64"
 	"errors"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 )
 
 // IncomeEntry is an income_entries row: one paycheck or one-off job. The tax
@@ -54,33 +51,14 @@ type IncomeEntryPatch struct {
 	Confirmed *bool
 }
 
-// IncomeEntryFilter selects entries for List. A nil field is no filter.
-// Month and From/To are mutually exclusive.
+// IncomeEntryFilter selects entries to list. Month cannot be combined with
+// From/To. Zero values mean no filter.
 type IncomeEntryFilter struct {
-	Month     *string // YYYY-MM
-	From, To  *string // inclusive YYYY-MM-DD
+	Month     string // YYYY-MM
+	From, To  string // inclusive YYYY-MM-DD bounds
 	SourceID  *int64
 	Confirmed *bool
-	Limit     *int // nil means DefaultListLimit
-	Cursor    *string
 }
-
-// IncomeEntryPage is one page of List, newest first. NextCursor is nil on the
-// last page.
-type IncomeEntryPage struct {
-	Items      []IncomeEntry
-	NextCursor *string
-}
-
-const (
-	// DefaultListLimit and MaxListLimit bound a page of a paginated list.
-	DefaultListLimit = 200
-	MaxListLimit     = 1000
-	maxNoteLen       = 500
-	dateLayout       = "2006-01-02"
-)
-
-var monthRE = regexp.MustCompile(`^[0-9]{4}-(0[1-9]|1[0-2])$`)
 
 // IncomeEntries reads and writes the income_entries table. Every method is
 // scoped to the given user; another user's entries behave as if they do not
@@ -95,39 +73,27 @@ func (s IncomeEntries) Get(ctx context.Context, userID, id int64) (IncomeEntry, 
 	return getIncomeEntry(ctx, s.DB, userID, id)
 }
 
-// List returns a page of the user's entries matching f, sorted by date
-// descending (newest id first within a day).
-func (s IncomeEntries) List(ctx context.Context, userID int64, f IncomeEntryFilter) (IncomeEntryPage, error) {
+// List returns the user's entries matching f, sorted by date descending and
+// then newest first, one page at a time. The second result is the cursor for
+// the next page ("" on the last one).
+func (s IncomeEntries) List(ctx context.Context, userID int64, f IncomeEntryFilter, page Page) ([]IncomeEntry, string, error) {
+	limit, err := page.limit()
+	if err != nil {
+		return nil, "", err
+	}
+	from, to, err := dateBounds(f.Month, f.From, f.To)
+	if err != nil {
+		return nil, "", err
+	}
 	where := []string{"user_id = ?"}
 	args := []any{userID}
-
-	if f.Month != nil {
-		if f.From != nil || f.To != nil {
-			return IncomeEntryPage{}, invalid("month", "cannot be combined with from or to")
-		}
-		if !monthRE.MatchString(*f.Month) {
-			return IncomeEntryPage{}, invalid("month", "must look like YYYY-MM")
-		}
-		// Dates are YYYY-MM-DD text, so a month is a lexical range.
-		where = append(where, "received_on BETWEEN ? AND ?")
-		args = append(args, *f.Month+"-01", *f.Month+"-31")
-	}
-	if f.From != nil {
-		if err := checkDate("from", *f.From); err != nil {
-			return IncomeEntryPage{}, err
-		}
+	if from != "" {
 		where = append(where, "received_on >= ?")
-		args = append(args, *f.From)
+		args = append(args, from)
 	}
-	if f.To != nil {
-		if err := checkDate("to", *f.To); err != nil {
-			return IncomeEntryPage{}, err
-		}
+	if to != "" {
 		where = append(where, "received_on <= ?")
-		args = append(args, *f.To)
-	}
-	if f.From != nil && f.To != nil && *f.From > *f.To {
-		return IncomeEntryPage{}, invalid("from", "must be on or before to")
+		args = append(args, to)
 	}
 	if f.SourceID != nil {
 		where = append(where, "income_source_id = ?")
@@ -137,21 +103,17 @@ func (s IncomeEntries) List(ctx context.Context, userID int64, f IncomeEntryFilt
 		where = append(where, "confirmed = ?")
 		args = append(args, *f.Confirmed)
 	}
-
-	limit := DefaultListLimit
-	if f.Limit != nil {
-		limit = *f.Limit
-		if limit < 1 || limit > MaxListLimit {
-			return IncomeEntryPage{}, invalid("limit", "must be between 1 and "+strconv.Itoa(MaxListLimit))
+	if page.Cursor != "" {
+		parts, err := decodeCursor(page.Cursor, 2)
+		if err != nil {
+			return nil, "", err
 		}
-	}
-	if f.Cursor != nil {
-		date, id, ok := decodeCursor(*f.Cursor)
-		if !ok {
-			return IncomeEntryPage{}, invalid("cursor", "is not a cursor from this list")
+		lastID, err := strconv.ParseInt(parts[1], 10, 64)
+		if err != nil {
+			return nil, "", invalid("cursor", "is not valid")
 		}
 		where = append(where, "(received_on < ? OR (received_on = ? AND id < ?))")
-		args = append(args, date, date, id)
+		args = append(args, parts[0], parts[0], lastID)
 	}
 	args = append(args, limit+1)
 
@@ -159,27 +121,27 @@ func (s IncomeEntries) List(ctx context.Context, userID int64, f IncomeEntryFilt
 		`SELECT `+incomeEntryCols+` FROM income_entries WHERE `+strings.Join(where, " AND ")+
 			` ORDER BY received_on DESC, id DESC LIMIT ?`, args...)
 	if err != nil {
-		return IncomeEntryPage{}, err
+		return nil, "", err
 	}
 	defer rows.Close()
-	page := IncomeEntryPage{Items: []IncomeEntry{}}
+	out := []IncomeEntry{}
 	for rows.Next() {
 		e, err := scanIncomeEntry(rows)
 		if err != nil {
-			return IncomeEntryPage{}, err
+			return nil, "", err
 		}
-		page.Items = append(page.Items, e)
+		out = append(out, e)
 	}
 	if err := rows.Err(); err != nil {
-		return IncomeEntryPage{}, err
+		return nil, "", err
 	}
-	if len(page.Items) > limit {
-		page.Items = page.Items[:limit]
-		last := page.Items[limit-1]
-		c := encodeCursor(last.Date, last.ID)
-		page.NextCursor = &c
+	next := ""
+	if len(out) > limit {
+		out = out[:limit]
+		last := out[limit-1]
+		next = encodeCursor(last.Date, strconv.FormatInt(last.ID, 10))
 	}
-	return page, nil
+	return out, next, nil
 }
 
 // Create adds an entry. The source must be one of the user's.
@@ -188,7 +150,7 @@ func (s IncomeEntries) Create(ctx context.Context, userID int64, n NewIncomeEntr
 	if err != nil {
 		return IncomeEntry{}, err
 	}
-	if err := checkDate("date", n.Date); err != nil {
+	if err := checkDate(n.Date, "date"); err != nil {
 		return IncomeEntry{}, err
 	}
 	if err := checkIncomeFigures(n.GrossCents, n.GrossTaxableCents, n.NetCents); err != nil {
@@ -231,7 +193,7 @@ func (s IncomeEntries) Update(ctx context.Context, userID, id int64, p IncomeEnt
 		return IncomeEntry{}, invalid("body", "must set at least one field")
 	}
 	if p.Date != nil {
-		if err := checkDate("date", *p.Date); err != nil {
+		if err := checkDate(*p.Date, "date"); err != nil {
 			return IncomeEntry{}, err
 		}
 	}
@@ -368,48 +330,4 @@ func checkIncomeFigures(gross, taxable, net int64) error {
 		return invalid("net_cents", "must be <= gross_cents")
 	}
 	return nil
-}
-
-func checkDate(field, s string) error {
-	if _, err := time.Parse(dateLayout, s); err != nil {
-		return invalid(field, "must be a date like YYYY-MM-DD")
-	}
-	return nil
-}
-
-// cleanNote trims a note; an empty note is stored as NULL.
-func cleanNote(n *string) (*string, error) {
-	if n == nil {
-		return nil, nil
-	}
-	s := strings.TrimSpace(*n)
-	if s == "" {
-		return nil, nil
-	}
-	if utf8.RuneCountInString(s) > maxNoteLen {
-		return nil, invalid("note", "must be at most "+strconv.Itoa(maxNoteLen)+" characters")
-	}
-	return &s, nil
-}
-
-// A cursor is the (date, id) of the last row on the previous page. It is
-// opaque to clients.
-func encodeCursor(date string, id int64) string {
-	return base64.RawURLEncoding.EncodeToString([]byte(date + "/" + strconv.FormatInt(id, 10)))
-}
-
-func decodeCursor(c string) (string, int64, bool) {
-	b, err := base64.RawURLEncoding.DecodeString(c)
-	if err != nil {
-		return "", 0, false
-	}
-	date, rawID, ok := strings.Cut(string(b), "/")
-	if !ok || checkDate("cursor", date) != nil {
-		return "", 0, false
-	}
-	id, err := strconv.ParseInt(rawID, 10, 64)
-	if err != nil || id < 1 {
-		return "", 0, false
-	}
-	return date, id, true
 }

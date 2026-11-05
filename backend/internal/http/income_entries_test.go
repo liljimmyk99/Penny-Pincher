@@ -270,7 +270,6 @@ func TestListIncomeEntriesHTTP(t *testing.T) {
 	for _, q := range []string{
 		"?month=2026-01&from=2026-01-01",
 		"?month=2026-1",
-		"?month=",
 		"?from=2026-02-01&to=2026-01-01",
 		"?from=2026-02-30",
 		"?limit=0",

@@ -35,12 +35,12 @@ func (f *entryFixture) add(user, source int64, date string) IncomeEntry {
 // dates lists the user's entries matching flt as "date#id" in result order.
 func (f *entryFixture) dates(user int64, flt IncomeEntryFilter) []string {
 	f.t.Helper()
-	page, err := f.e.List(context.Background(), user, flt)
+	items, _, err := f.e.List(context.Background(), user, flt, Page{})
 	if err != nil {
 		f.t.Fatal(err)
 	}
 	out := []string{}
-	for _, e := range page.Items {
+	for _, e := range items {
 		out = append(out, e.Date)
 	}
 	return out
@@ -245,14 +245,14 @@ func TestListIncomeEntriesByMonth(t *testing.T) {
 		want string
 	}{
 		{"all, newest first", IncomeEntryFilter{}, "2026-02-01,2026-01-31,2026-01-20,2026-01-15,2026-01-01,2025-12-31,2024-02-29"},
-		{"january", IncomeEntryFilter{Month: ptr("2026-01")}, "2026-01-31,2026-01-20,2026-01-15,2026-01-01"},
-		{"december", IncomeEntryFilter{Month: ptr("2025-12")}, "2025-12-31"},
-		{"leap february", IncomeEntryFilter{Month: ptr("2024-02")}, "2024-02-29"},
-		{"empty month", IncomeEntryFilter{Month: ptr("2026-03")}, ""},
-		{"month and source", IncomeEntryFilter{Month: ptr("2026-01"), SourceID: &side.ID}, "2026-01-20"},
-		{"from only", IncomeEntryFilter{From: ptr("2026-01-31")}, "2026-02-01,2026-01-31"},
-		{"to only", IncomeEntryFilter{To: ptr("2026-01-01")}, "2026-01-01,2025-12-31,2024-02-29"},
-		{"from and to, inclusive", IncomeEntryFilter{From: ptr("2025-12-31"), To: ptr("2026-01-15")}, "2026-01-15,2026-01-01,2025-12-31"},
+		{"january", IncomeEntryFilter{Month: "2026-01"}, "2026-01-31,2026-01-20,2026-01-15,2026-01-01"},
+		{"december", IncomeEntryFilter{Month: "2025-12"}, "2025-12-31"},
+		{"leap february", IncomeEntryFilter{Month: "2024-02"}, "2024-02-29"},
+		{"empty month", IncomeEntryFilter{Month: "2026-03"}, ""},
+		{"month and source", IncomeEntryFilter{Month: "2026-01", SourceID: &side.ID}, "2026-01-20"},
+		{"from only", IncomeEntryFilter{From: "2026-01-31"}, "2026-02-01,2026-01-31"},
+		{"to only", IncomeEntryFilter{To: "2026-01-01"}, "2026-01-01,2025-12-31,2024-02-29"},
+		{"from and to, inclusive", IncomeEntryFilter{From: "2025-12-31", To: "2026-01-15"}, "2026-01-15,2026-01-01,2025-12-31"},
 		{"unknown source", IncomeEntryFilter{SourceID: ptr[int64](0)}, ""},
 	} {
 		if got := strings.Join(f.dates(f.a, tc.flt), ","); got != tc.want {
@@ -283,20 +283,21 @@ func TestListIncomeEntriesRejectsBadFilters(t *testing.T) {
 	for _, tc := range []struct {
 		field string
 		flt   IncomeEntryFilter
+		page  Page
 	}{
-		{"month", IncomeEntryFilter{Month: ptr("2026-01"), From: ptr("2026-01-01")}},
-		{"month", IncomeEntryFilter{Month: ptr("2026-01"), To: ptr("2026-01-31")}},
-		{"month", IncomeEntryFilter{Month: ptr("2026-13")}},
-		{"month", IncomeEntryFilter{Month: ptr("")}},
-		{"from", IncomeEntryFilter{From: ptr("2026-02-01"), To: ptr("2026-01-31")}},
-		{"from", IncomeEntryFilter{From: ptr("yesterday")}},
-		{"to", IncomeEntryFilter{To: ptr("2026-02-30")}},
-		{"limit", IncomeEntryFilter{Limit: ptr(0)}},
-		{"limit", IncomeEntryFilter{Limit: ptr(MaxListLimit + 1)}},
-		{"cursor", IncomeEntryFilter{Cursor: ptr("not a cursor")}},
-		{"cursor", IncomeEntryFilter{Cursor: ptr("")}},
+		{"month", IncomeEntryFilter{Month: "2026-01", From: "2026-01-01"}, Page{}},
+		{"month", IncomeEntryFilter{Month: "2026-01", To: "2026-01-31"}, Page{}},
+		{"month", IncomeEntryFilter{Month: "2026-13"}, Page{}},
+		{"month", IncomeEntryFilter{Month: "2026-1"}, Page{}},
+		{"from", IncomeEntryFilter{From: "2026-02-01", To: "2026-01-31"}, Page{}},
+		{"from", IncomeEntryFilter{From: "yesterday"}, Page{}},
+		{"to", IncomeEntryFilter{To: "2026-02-30"}, Page{}},
+		{"limit", IncomeEntryFilter{}, Page{Limit: -1}},
+		{"limit", IncomeEntryFilter{}, Page{Limit: MaxLimit + 1}},
+		{"cursor", IncomeEntryFilter{}, Page{Cursor: "not a cursor"}},
+		{"cursor", IncomeEntryFilter{}, Page{Cursor: encodeCursor("2026-01-01", "x")}},
 	} {
-		_, err := f.e.List(ctx, f.a, tc.flt)
+		_, _, err := f.e.List(ctx, f.a, tc.flt, tc.page)
 		wantField(t, err, tc.field)
 	}
 }
@@ -312,24 +313,24 @@ func TestListIncomeEntriesPaginates(t *testing.T) {
 	}
 
 	var got []int64
-	flt := IncomeEntryFilter{Limit: ptr(2)}
+	page := Page{Limit: 2}
 	pages := 0
 	for {
-		page, err := f.e.List(ctx, f.a, flt)
+		items, next, err := f.e.List(ctx, f.a, IncomeEntryFilter{}, page)
 		if err != nil {
 			t.Fatal(err)
 		}
 		pages++
-		if len(page.Items) > 2 {
-			t.Fatalf("page of %d", len(page.Items))
+		if len(items) > 2 {
+			t.Fatalf("page of %d", len(items))
 		}
-		for _, e := range page.Items {
+		for _, e := range items {
 			got = append(got, e.ID)
 		}
-		if page.NextCursor == nil {
+		if next == "" {
 			break
 		}
-		flt.Cursor = page.NextCursor
+		page.Cursor = next
 	}
 	if pages != 3 {
 		t.Fatalf("pages = %d", pages)
@@ -345,18 +346,19 @@ func TestListIncomeEntriesPaginates(t *testing.T) {
 	}
 
 	// An exact fit has no next page.
-	page, err := f.e.List(ctx, f.a, IncomeEntryFilter{Limit: ptr(5)})
-	if err != nil || len(page.Items) != 5 || page.NextCursor != nil {
-		t.Fatalf("exact page = %d items, cursor %v, %v", len(page.Items), page.NextCursor, err)
+	items, next, err := f.e.List(ctx, f.a, IncomeEntryFilter{}, Page{Limit: 5})
+	if err != nil || len(items) != 5 || next != "" {
+		t.Fatalf("exact page = %d items, cursor %q, %v", len(items), next, err)
 	}
 	// The cursor combines with filters.
-	page, err = f.e.List(ctx, f.a, IncomeEntryFilter{Month: ptr("2026-01"), Limit: ptr(1)})
-	if err != nil || page.NextCursor == nil {
-		t.Fatalf("january page 1 = %+v, %v", page, err)
+	jan := IncomeEntryFilter{Month: "2026-01"}
+	_, next, err = f.e.List(ctx, f.a, jan, Page{Limit: 1})
+	if err != nil || next == "" {
+		t.Fatalf("january page 1 cursor %q, %v", next, err)
 	}
-	page, err = f.e.List(ctx, f.a, IncomeEntryFilter{Month: ptr("2026-01"), Limit: ptr(10), Cursor: page.NextCursor})
-	if err != nil || len(page.Items) != 3 || page.NextCursor != nil {
-		t.Fatalf("january page 2 = %d items, %v", len(page.Items), err)
+	items, next, err = f.e.List(ctx, f.a, jan, Page{Limit: 10, Cursor: next})
+	if err != nil || len(items) != 3 || next != "" {
+		t.Fatalf("january page 2 = %d items, %v", len(items), err)
 	}
 }
 
@@ -401,12 +403,12 @@ func TestIncomeEntryTenancyIsolation(t *testing.T) {
 	}
 
 	// A's lists never include B's entries, even filtered by B's source.
-	for _, flt := range []IncomeEntryFilter{{}, {Month: ptr("2026-01")}, {SourceID: &bJob.ID}} {
-		page, err := f.e.List(ctx, f.a, flt)
+	for _, flt := range []IncomeEntryFilter{{}, {Month: "2026-01"}, {SourceID: &bJob.ID}} {
+		items, _, err := f.e.List(ctx, f.a, flt, Page{})
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, e := range page.Items {
+		for _, e := range items {
 			if e.ID == bEntry.ID {
 				t.Fatalf("A's list %+v has B's entry", flt)
 			}
