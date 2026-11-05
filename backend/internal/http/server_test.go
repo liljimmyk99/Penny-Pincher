@@ -9,13 +9,33 @@ import (
 	"time"
 
 	"github.com/liljimmyk99/penny-pincher/backend/internal/api"
+	"github.com/liljimmyk99/penny-pincher/backend/internal/auth"
+	"github.com/liljimmyk99/penny-pincher/backend/internal/store"
 )
 
-func do(method, path string) *httptest.ResponseRecorder {
-	h := NewRouter("test", nil, time.Now)
+const (
+	tokAdmin  = "tok-admin"
+	tokMember = "tok-member"
+	tokStray  = "tok-not-in-users" // valid Firebase token, uid not allowlisted
+)
+
+func do(t *testing.T, method, path, token string) *httptest.ResponseRecorder {
+	t.Helper()
+	db := store.NewTestDB(t)
+	for _, u := range [][2]string{{"uid-admin", "admin"}, {"uid-member", "member"}} {
+		if _, err := db.Exec(`INSERT INTO users (firebase_uid, email, display_name, role) VALUES (?, ?, ?, ?)`,
+			u[0], u[1]+"@example.com", "Test "+u[1], u[1]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	v := auth.FakeVerifier{tokAdmin: "uid-admin", tokMember: "uid-member", tokStray: "uid-stray"}
+	h := NewRouter("test", nil, time.Now, auth.Middleware(v, store.Users{DB: db}))
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(method, path, strings.NewReader("{}"))
 	req.Header.Set("Content-Type", "application/json")
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 	h.ServeHTTP(rec, req)
 	return rec
 }
@@ -45,10 +65,44 @@ func TestUnimplementedRoutesReturnStandard501(t *testing.T) {
 		{"GET", "/v1/summaries/monthly/2026-01"},
 		{"GET", "/v1/admin/status"},
 	} {
-		wantError(t, do(r[0], r[1]), http.StatusNotImplemented, api.ErrorErrorCodeNotImplemented)
+		wantError(t, do(t, r[0], r[1], tokAdmin), http.StatusNotImplemented, api.ErrorErrorCodeNotImplemented)
 	}
 }
 
-func TestMeWithoutIdentityIs401(t *testing.T) {
-	wantError(t, do("GET", "/v1/me"), http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated)
+func TestMissingOrInvalidTokenIs401(t *testing.T) {
+	wantError(t, do(t, "GET", "/v1/me", ""), http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated)
+	wantError(t, do(t, "GET", "/v1/me", "garbage"), http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated)
+	wantError(t, do(t, "GET", "/v1/admin/status", ""), http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated)
+}
+
+func TestUnknownUidIs403(t *testing.T) {
+	wantError(t, do(t, "GET", "/v1/me", tokStray), http.StatusForbidden, api.ErrorErrorCodeNotAllowlisted)
+	wantError(t, do(t, "GET", "/v1/categories", tokStray), http.StatusForbidden, api.ErrorErrorCodeNotAllowlisted)
+}
+
+func TestMemberOnAdminRouteIs403(t *testing.T) {
+	wantError(t, do(t, "GET", "/v1/admin/status", tokMember), http.StatusForbidden, api.ErrorErrorCodeAdminRequired)
+	wantError(t, do(t, "GET", "/v1/admin/backups", tokMember), http.StatusForbidden, api.ErrorErrorCodeAdminRequired)
+}
+
+func TestGetMeReturnsCurrentUser(t *testing.T) {
+	for tok, role := range map[string]string{tokAdmin: "admin", tokMember: "member"} {
+		rec := do(t, "GET", "/v1/me", tok)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d (%s)", rec.Code, rec.Body)
+		}
+		var me api.Me
+		if err := json.Unmarshal(rec.Body.Bytes(), &me); err != nil {
+			t.Fatal(err)
+		}
+		if string(me.Role) != role || me.Id == "" || me.Email == nil || *me.Email != role+"@example.com" {
+			t.Fatalf("me = %+v", me)
+		}
+	}
+}
+
+func TestHealthzNeedsNoToken(t *testing.T) {
+	if rec := do(t, "GET", "/healthz", ""); rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
 }

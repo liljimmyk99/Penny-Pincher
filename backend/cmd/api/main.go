@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/liljimmyk99/penny-pincher/backend/internal/auth"
 	"github.com/liljimmyk99/penny-pincher/backend/internal/config"
 	apihttp "github.com/liljimmyk99/penny-pincher/backend/internal/http"
 	"github.com/liljimmyk99/penny-pincher/backend/internal/logging"
@@ -51,9 +52,17 @@ func run() error {
 	if err := store.Migrate(context.Background(), db); err != nil {
 		return err
 	}
+	if cfg.FirebaseProjectID == "" {
+		return errors.New("FIREBASE_PROJECT_ID is required")
+	}
+	verifier, err := auth.NewFirebaseVerifier(context.Background(), cfg.FirebaseProjectID)
+	if err != nil {
+		return err
+	}
+	authn := auth.Middleware(verifier, store.Users{DB: db})
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
-		Handler:           apihttp.NewRouter(cfg.Version, db, time.Now),
+		Handler:           apihttp.NewRouter(cfg.Version, db, time.Now, authn),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

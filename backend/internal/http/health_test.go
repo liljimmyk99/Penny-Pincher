@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/liljimmyk99/penny-pincher/backend/internal/api"
+	"github.com/liljimmyk99/penny-pincher/backend/internal/auth"
+	"github.com/liljimmyk99/penny-pincher/backend/internal/store"
 )
 
 type pinger struct{ err error }
@@ -19,7 +21,8 @@ func (p pinger) PingContext(context.Context) error { return p.err }
 func get(t *testing.T, db Pinger) (*httptest.ResponseRecorder, api.Health) {
 	t.Helper()
 	clock := time.Unix(1000, 0)
-	h := NewRouter("1.2.3", db, func() time.Time { c := clock; clock = clock.Add(5 * time.Second); return c })
+	h := NewRouter("1.2.3", db, func() time.Time { c := clock; clock = clock.Add(5 * time.Second); return c },
+		auth.Middleware(auth.FakeVerifier{}, store.Users{DB: store.NewTestDB(t)}))
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest("GET", "/healthz", nil))
 	var body api.Health
