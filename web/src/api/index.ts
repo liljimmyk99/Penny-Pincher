@@ -29,3 +29,13 @@ export {
   useIncomeSources,
   useIncomeSourceStats,
 } from "./manage";
+export {
+  findMerchant,
+  lastCategoryFor,
+  merchantSearchQueryKey,
+  monthIncomeQueryKey,
+  useEntryMutations,
+  useMerchantExpenses,
+  useMerchantSearch,
+  useMonthIncome,
+} from "./entries";

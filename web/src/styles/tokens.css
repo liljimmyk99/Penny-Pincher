@@ -100,6 +100,8 @@
   --color-divider: #eef1f5; /* row separators inside cards */
   --color-badge: #f2f4f7; /* neutral pill, e.g. "Default" */
   --color-danger-hover: #991b1b;
+  --color-income-btn: #157f3b; /* "Save income"; white text passes 4.5:1 */
+  --color-income-btn-hover: #116a31;
   --color-backdrop: rgba(14, 26, 43, 0.45);
   --shadow-dialog: 0 24px 64px rgba(14, 26, 43, 0.3);
 }
@@ -161,6 +163,8 @@
   --color-divider: #1c2638;
   --color-badge: #1f2a3e;
   --color-danger-hover: #b91c1c;
+  --color-income-btn: #157f3b;
+  --color-income-btn-hover: #116a31;
   --color-backdrop: rgba(0, 0, 0, 0.6);
   --shadow-dialog: 0 24px 64px rgba(0, 0, 0, 0.6);
 }

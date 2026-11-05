@@ -1,4 +1,4 @@
-import { formatCents } from "./money";
+import { centsToInput, formatCents, parseCents } from "./money";
 
 describe("formatCents", () => {
   it.each([
@@ -39,4 +39,55 @@ describe("formatCents", () => {
       expect(() => formatCents(bad)).toThrow(RangeError);
     },
   );
+});
+
+describe("parseCents", () => {
+  it.each([
+    ["12", 1200],
+    ["12.5", 1250],
+    ["12.05", 1205],
+    ["0.01", 1],
+    [".99", 99],
+    ["8.", 800],
+    ["$1,234.56", 123456],
+    ["1234.56", 123456],
+    ["  42.10 ", 4210],
+    ["-24.99", -2499],
+    ["−24.99", -2499],
+    ["-$5", -500],
+    ["+3", 300],
+    ["0", 0],
+  ])("parses %j as %i cents", (input, expected) => {
+    expect(parseCents(input)).toBe(expected);
+  });
+
+  it.each(["", " ", "abc", "1.234", "12,34", "1,2345", "$", "-", ".", "1e3", "12.3.4", "--1"])(
+    "rejects %j",
+    (input) => {
+      expect(parseCents(input)).toBeNull();
+    },
+  );
+
+  it("never goes through floats (0.29 and 1.15 stay exact)", () => {
+    expect(parseCents("0.29")).toBe(29);
+    expect(parseCents("1.15")).toBe(115);
+    expect(parseCents("4.35")).toBe(435);
+  });
+});
+
+describe("centsToInput", () => {
+  it.each([
+    [0, "0.00"],
+    [5, "0.05"],
+    [123456, "1234.56"],
+    [-500, "-5.00"],
+  ])("formats %i as %j", (cents, expected) => {
+    expect(centsToInput(cents)).toBe(expected);
+  });
+
+  it("round-trips with parseCents", () => {
+    for (const cents of [0, 1, 99, 100, 2499, -2499, 123456789]) {
+      expect(parseCents(centsToInput(cents))).toBe(cents);
+    }
+  });
 });

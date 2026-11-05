@@ -64,6 +64,12 @@ export const ChevronLeftIcon = (p: P) => (
   </Icon>
 );
 
+export const ChevronRightIcon = (p: P) => (
+  <Icon strokeWidth={2.2} {...p}>
+    <path d="M9 18l6-6-6-6" />
+  </Icon>
+);
+
 export const LockIcon = (p: P) => (
   <Icon {...p}>
     <rect x="5" y="11" width="14" height="10" rx="2" />
