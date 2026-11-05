@@ -7,8 +7,23 @@
 
 .page__header {
   display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.page__heading {
+  display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .page__eyebrow {

@@ -111,6 +111,12 @@ Define these as tokens (CSS custom properties or the UI library's theme) in one 
 - Fields: date, merchant (autocomplete from past merchants), category, amount, optional note.
 - Income entries take source, gross, gross taxable and net.
 - An "Add refund" action creates a refund and can link it to an original expense.
+- As built (`src/pages/add`):
+  - One table does both jobs: a single row is the quick entry, "Add row" makes it a batch. Every save goes through `POST /v1/expenses/batch` (all or nothing; item errors are shown on their rows). Blank rows are skipped.
+  - **Enter** moves to the next row, adding one at the end; **⌘/Ctrl+Enter** saves all. New rows copy the previous row's date.
+  - Merchant is an ARIA combobox over `GET /v1/merchants?q=`. Picking (or typing) a known merchant prefills the category from its latest expense, unless the user already chose one.
+  - A refund row is one added with "Add refund", or any row with a negative amount; it is saved negative. "Refund for" lists that merchant's past expenses (`GET /v1/expenses?merchant_id=&type=expense`); picking one prefills its category. Linking stays optional.
+  - The page month (`?month=YYYY-MM`, default current) sets the default date (today in the current month, else the 1st) and the income "so far" panel. Income's "Label" is the entry's note.
 
 ### Transactions (details)
 - **Income table:** date, source, label, gross, taxable, net, tax rate, with a total row.

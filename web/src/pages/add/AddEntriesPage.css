@@ -1,0 +1,499 @@
+.add-entries {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(320px, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+@media (max-width: 1180px) {
+  .add-entries {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.entry-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.entry-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 20px 20px 12px;
+}
+
+.entry-card__desc {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+}
+
+.entry-card__keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.entry-card__alert {
+  margin: 0 20px 12px;
+}
+
+.entry-card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 14px 20px;
+  border-top: 1px solid var(--color-divider);
+  background: var(--color-surface-soft);
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
+}
+
+.entry-card__actions {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.entry-card__saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-success-text);
+}
+
+.entry-card__saved:empty {
+  display: none;
+}
+
+/* ---- Expense batch table ------------------------------------------------ */
+
+/* The table scrolls inside its card on narrow windows, never the page. */
+.batch__scroll {
+  overflow-x: auto;
+}
+
+.batch {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.batch th {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  font: var(--text-eyebrow);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.batch td {
+  padding: 8px;
+  border-bottom: 1px solid var(--color-divider);
+  vertical-align: top;
+  font-size: 14px;
+}
+
+.batch .num {
+  text-align: right;
+}
+
+.batch__date {
+  width: 150px;
+}
+
+.batch__merchant {
+  width: 26%;
+}
+
+.batch__category {
+  width: 170px;
+}
+
+.batch__amount {
+  width: 130px;
+}
+
+.batch__remove {
+  width: 52px;
+}
+
+.batch__row--refund td {
+  background: var(--color-refund-row);
+}
+
+.batch__row--refund .cell-input.num,
+.batch__row--refund .cell-money__sign {
+  color: var(--color-refund-text);
+}
+
+.cell-input {
+  width: 100%;
+  height: 38px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.cell-input:hover {
+  border-color: var(--color-border-strong);
+}
+
+.cell-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+  background: var(--color-field);
+}
+
+.cell-input[aria-invalid="true"] {
+  border-color: var(--color-danger-line);
+}
+
+.cell-input.num {
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.cell-input::placeholder {
+  color: var(--color-placeholder);
+}
+
+select.cell-input {
+  cursor: pointer;
+}
+
+.cell-money {
+  display: flex;
+  align-items: center;
+}
+
+.cell-money__sign {
+  font-weight: 700;
+  padding-left: 4px;
+}
+
+.batch .icon-btn {
+  width: 38px;
+  height: 38px;
+}
+
+.batch__errors {
+  margin: 6px 0 0;
+  padding: 0 8px;
+  list-style: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-danger-text);
+}
+
+.batch__add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  padding: 8px 14px 12px;
+}
+
+.batch__total {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.batch__total strong {
+  color: var(--color-text);
+}
+
+/* ---- Merchant autocomplete ---------------------------------------------- */
+
+.combo {
+  position: relative;
+}
+
+.combo__list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  min-width: 100%;
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--color-surface);
+  border: 1px solid var(--color-menu-border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-menu);
+}
+
+.combo__option {
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.combo__option:hover {
+  background: var(--color-menu-hover);
+}
+
+.combo__option[aria-selected="true"] {
+  background: var(--color-selected-bg);
+  color: var(--color-selected-text);
+}
+
+/* ---- Refund link -------------------------------------------------------- */
+
+.refund-link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 0;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-refund-text);
+}
+
+.refund-link--hint {
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.refund-link__select {
+  max-width: 100%;
+  min-height: 32px;
+  padding: 0 6px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  background: var(--color-field);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 600;
+}
+
+.refund-link__select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+.refund-link__error {
+  color: var(--color-danger-text);
+}
+
+/* ---- Income ------------------------------------------------------------- */
+
+.income__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: 0 20px 20px;
+}
+
+.income__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.income__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.income__money {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+@media (max-width: 480px) {
+  .income__row,
+  .income__money {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.income__optional {
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.income__error {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-danger-text);
+}
+
+.income__rate {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.income__rate strong {
+  display: flex;
+  align-items: center;
+  height: var(--control-height);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.income__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.money-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--control-height);
+  padding: 0 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-field);
+}
+
+.money-field:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+.money-field[data-invalid] {
+  border-color: var(--color-danger-line);
+}
+
+.money-field span {
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+
+.money-field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  text-align: right;
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.seg-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-control);
+  background: var(--color-badge);
+}
+
+.seg {
+  flex: 1 1 auto;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.seg.is-on {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 1px 2px rgba(14, 26, 43, 0.12);
+}
+
+.seg:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.so-far {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 16px 20px 20px;
+  border-top: 1px solid var(--color-divider);
+}
+
+.so-far h3 {
+  margin: 0;
+}
+
+.so-far__empty {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.so-far__list {
+  margin: 0;
+}
+
+.so-far__row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 6px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.so-far__row dt {
+  font-weight: 700;
+}
+
+.so-far__row dt span {
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.so-far__row dd {
+  margin: 0;
+  font-weight: 700;
+  color: var(--color-income);
+}
+
+.so-far__row--total {
+  border-top: 1px solid var(--color-divider);
+  font-weight: 800;
+}
+
+.so-far__row--total dt,
+.so-far__row--total dd {
+  font-weight: 800;
+}
