@@ -23,8 +23,9 @@ type Server struct {
 
 var _ api.StrictServerInterface = (*Server)(nil)
 
-// NewRouter builds the API router. db may be nil until the store is wired.
-func NewRouter(version string, db Pinger, now func() time.Time) http.Handler {
+// NewRouter builds the API router. authn (auth.Middleware) wraps every route;
+// it must not be nil. db may be nil until the store is wired.
+func NewRouter(version string, db Pinger, now func() time.Time, authn func(http.Handler) http.Handler) http.Handler {
 	s := &Server{version: version, db: db, now: now, start: now()}
 	strict := api.NewStrictHandlerWithOptions(s, nil, api.StrictHTTPServerOptions{
 		RequestErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, err error) {
@@ -39,9 +40,9 @@ func NewRouter(version string, db Pinger, now func() time.Time) http.Handler {
 			writeError(w, http.StatusInternalServerError, api.ErrorErrorCodeInternal, "Something went wrong.")
 		},
 	})
-	return api.HandlerWithOptions(strict, api.StdHTTPServerOptions{
+	return authn(api.HandlerWithOptions(strict, api.StdHTTPServerOptions{
 		ErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, err error) {
 			writeError(w, http.StatusBadRequest, api.ErrorErrorCodeInvalidRequest, "The request is malformed.")
 		},
-	})
+	}))
 }

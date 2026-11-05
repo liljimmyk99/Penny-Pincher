@@ -7,8 +7,8 @@ import (
 	"github.com/liljimmyk99/penny-pincher/backend/internal/auth"
 )
 
-// GetMe implements GET /v1/me. Until token verification is wired in, no
-// identity is ever in the context, so this answers 401.
+// GetMe implements GET /v1/me. The auth middleware has already put the
+// identity in the context; the 401 is a defensive fallback.
 func (s *Server) GetMe(ctx context.Context, _ api.GetMeRequestObject) (api.GetMeResponseObject, error) {
 	id, ok := auth.FromContext(ctx)
 	if !ok {

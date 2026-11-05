@@ -12,6 +12,9 @@ type Config struct {
 	DBPath   string
 	LogLevel string
 	Version  string
+
+	// FirebaseProjectID is required to run the server (checked in main).
+	FirebaseProjectID string
 }
 
 // Version is overridden at build time: -ldflags "-X .../internal/config.Version=...".
@@ -27,6 +30,7 @@ func Load(getenv func(string) string) (Config, error) {
 		}
 		c.Port = p
 	}
+	c.FirebaseProjectID = getenv("FIREBASE_PROJECT_ID")
 	if v := getenv("DB_PATH"); v != "" {
 		c.DBPath = v
 	}
