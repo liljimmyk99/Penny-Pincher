@@ -39,3 +39,24 @@
   font-size: 30px;
   letter-spacing: -0.02em;
 }
+
+/* The sidebar's compact lockup. */
+.brand--sm {
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.brand--sm .brand__mark {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  font-size: 16px;
+}
+
+.brand--sm .brand__name {
+  overflow: hidden;
+  font-size: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

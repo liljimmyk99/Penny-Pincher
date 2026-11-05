@@ -81,7 +81,7 @@ describe("AuthGate", () => {
     expect(alert).toHaveTextContent("user@example.com");
     expect(auth.signOut).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("heading", { level: 1, name: "Sign in" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Main" })).not.toBeInTheDocument();
   });
 
   it("offers a retry when /v1/me fails for another reason", async () => {
@@ -100,7 +100,8 @@ describe("AuthGate", () => {
     const { user, queryClient } = renderApp(auth, () => Response.json(me));
     await screen.findByText("user@example.com");
 
-    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    await user.click(screen.getByRole("button", { name: /user@example\.com/ }));
+    await user.click(await screen.findByRole("menuitem", { name: "Sign out" }));
 
     expect(await screen.findByRole("heading", { level: 1, name: "Sign in" })).toBeInTheDocument();
     expect(auth.signOut).toHaveBeenCalledTimes(1);

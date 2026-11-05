@@ -1,0 +1,38 @@
+.shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.shell__main {
+  flex: 1;
+  min-width: 0; /* lets wide cards scroll inside themselves, never the page */
+  padding: var(--space-8) clamp(var(--space-4), 4vw, var(--space-10)) 48px;
+}
+
+.shell__main:focus {
+  outline: none;
+}
+
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 100;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-link);
+  font-weight: 700;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+/* Phone width: the sidebar becomes a bar above the content. */
+@media (max-width: 720px) {
+  .shell {
+    flex-direction: column;
+  }
+}

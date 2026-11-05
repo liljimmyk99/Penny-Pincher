@@ -185,6 +185,10 @@ Rules:
   - The `firebase` package (modular v13), used only through `web/src/auth/firebase.ts`. Session persistence is Firebase's default (IndexedDB); it holds auth tokens only, no financial data.
   - Google sign-in uses a popup with the account chooser. The web config (API key, project id) is public and passed to the web build as `FIREBASE_WEB_API_KEY` / `FIREBASE_PROJECT_ID` in `.env`.
 
+- **Web routing and menus** (decided 2026-11-05)
+  - **Routing: React Router (`react-router`, declarative `<Routes>`).** Screens render inside the app shell (sidebar + account menu). Unknown addresses show a "Page not found" page; admin-only pages show it to members too.
+  - **Menus: `@radix-ui/react-dropdown-menu`** (unstyled, per the Radix rule above) for the account menu's keyboard and focus behaviour.
+
 ### Open
 
 - Backup tooling and destination (e.g. restic to object storage)
