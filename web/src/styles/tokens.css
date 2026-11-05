@@ -48,6 +48,7 @@
   --color-spent: #475569;
   --color-refund-row: #f0fdf4;
   --color-refund-text: #166534;
+  --color-refund-pill: #dcfce7;
   --color-unconfirmed-tint: #fff7ed;
   --color-unconfirmed-pill: #ffedd5;
   --color-unconfirmed-text: #9a3412;
@@ -104,6 +105,10 @@
   --color-income-btn-hover: #116a31;
   --color-backdrop: rgba(14, 26, 43, 0.45);
   --shadow-dialog: 0 24px 64px rgba(14, 26, 43, 0.3);
+
+  /* Toasts (refund linked, backup finished) */
+  --color-toast-bg: #111827;
+  --color-toast-text: #ffffff;
 }
 
 :root[data-theme="dark"] {
@@ -122,6 +127,7 @@
   --color-spent: #8c9ab0;
   --color-refund-row: #0f2a1c;
   --color-refund-text: #6ee7a0;
+  --color-refund-pill: #12391f;
   --color-unconfirmed-tint: #2b1d12;
   --color-unconfirmed-pill: #4a2a10;
   --color-unconfirmed-text: #fdba74;
@@ -167,4 +173,7 @@
   --color-income-btn-hover: #116a31;
   --color-backdrop: rgba(0, 0, 0, 0.6);
   --shadow-dialog: 0 24px 64px rgba(0, 0, 0, 0.6);
+
+  --color-toast-bg: #e8edf5;
+  --color-toast-text: #0d1524;
 }

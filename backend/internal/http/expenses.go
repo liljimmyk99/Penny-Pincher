@@ -250,6 +250,10 @@ func toAPIExpense(exp store.Expense) api.Expense {
 		id := formatID(*exp.TemplateApplyID)
 		apply = &id
 	}
+	var lastRefund *openapi_types.Date
+	if exp.LastRefundDate != nil {
+		lastRefund = &openapi_types.Date{Time: mustDate(*exp.LastRefundDate)}
+	}
 	return api.Expense{
 		Id:                 formatID(exp.ID),
 		Date:               openapi_types.Date{Time: mustDate(exp.Date)},
@@ -260,6 +264,7 @@ func toAPIExpense(exp store.Expense) api.Expense {
 		Note:               nullableOf(exp.Note),
 		RefundedExpenseId:  nullableOf(refunded),
 		RefundedTotalCents: &exp.RefundedTotalCents,
+		LastRefundDate:     nullableOf(lastRefund),
 		Confirmed:          exp.Confirmed,
 		TemplateApplyId:    nullableOf(apply),
 		CreatedAt:          &exp.CreatedAt,

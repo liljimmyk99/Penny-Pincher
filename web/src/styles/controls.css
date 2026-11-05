@@ -167,6 +167,14 @@ input {
   font-size: 14px;
 }
 
+/* Compact button inside a table row, next to its icon buttons. */
+.btn--xs {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+  border-radius: 8px;
+}
+
 .btn--danger {
   background: var(--color-danger);
   color: #fff;
@@ -342,4 +350,44 @@ kbd {
   border-radius: 5px;
   background: var(--color-surface);
   color: var(--color-text);
+}
+
+/* Stat tiles (refund totals; Summary and Yearly later). */
+.tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.tile {
+  flex: 1 1 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 20px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.tile__label {
+  font: var(--text-eyebrow);
+  letter-spacing: var(--eyebrow-spacing);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.tile__value {
+  font: var(--text-tile-value);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.tile__value--refund {
+  color: var(--color-refund-text);
+}
+
+.tile__sub {
+  font-size: 13px;
+  color: var(--color-text-muted);
 }

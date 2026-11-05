@@ -21,7 +21,8 @@ type Expense struct {
 	Merchant           Merchant
 	Note               *string
 	RefundedExpenseID  *int64
-	RefundedTotalCents int64 // sum of refunds linked to this expense (<= 0); never stored
+	RefundedTotalCents int64   // sum of refunds linked to this expense (<= 0); never stored
+	LastRefundDate     *string // date of the latest linked refund (YYYY-MM-DD); never stored
 	Confirmed          bool
 	TemplateApplyID    *int64
 	CreatedAt          time.Time
@@ -82,6 +83,8 @@ const expenseCols = `e.id, e.occurred_on, e.amount_cents, e.type, e.category_id,
 	e.refunded_expense_id,
 	COALESCE((SELECT SUM(r.amount_cents) FROM expenses r
 	           WHERE r.user_id = e.user_id AND r.refunded_expense_id = e.id), 0),
+	(SELECT MAX(r.occurred_on) FROM expenses r
+	  WHERE r.user_id = e.user_id AND r.refunded_expense_id = e.id),
 	e.confirmed, e.template_apply_id, e.created_at, e.updated_at`
 
 const expenseFrom = ` FROM expenses e JOIN merchants m ON m.id = e.merchant_id AND m.user_id = e.user_id`
@@ -447,12 +450,12 @@ func getExpense(ctx context.Context, q querier, userID, id int64) (Expense, erro
 func scanExpense(s interface{ Scan(...any) error }) (Expense, error) {
 	var (
 		exp              Expense
-		note             sql.NullString
+		note, lastRefund sql.NullString
 		refunded, apply  sql.NullInt64
 		created, updated string
 	)
 	if err := s.Scan(&exp.ID, &exp.Date, &exp.AmountCents, &exp.Type, &exp.CategoryID,
-		&exp.Merchant.ID, &exp.Merchant.Name, &note, &refunded, &exp.RefundedTotalCents,
+		&exp.Merchant.ID, &exp.Merchant.Name, &note, &refunded, &exp.RefundedTotalCents, &lastRefund,
 		&exp.Confirmed, &apply, &created, &updated); err != nil {
 		return Expense{}, err
 	}
@@ -461,6 +464,9 @@ func scanExpense(s interface{ Scan(...any) error }) (Expense, error) {
 	}
 	if refunded.Valid {
 		exp.RefundedExpenseID = &refunded.Int64
+	}
+	if lastRefund.Valid {
+		exp.LastRefundDate = &lastRefund.String
 	}
 	if apply.Valid {
 		exp.TemplateApplyID = &apply.Int64

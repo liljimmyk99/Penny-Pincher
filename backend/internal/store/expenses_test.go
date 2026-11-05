@@ -42,7 +42,7 @@ func TestCreateExpense(t *testing.T) {
 
 	if exp.ID == 0 || exp.Date != "2026-03-14" || exp.AmountCents != 1250 || exp.Type != TypeExpense ||
 		exp.CategoryID != in.CategoryID || exp.Merchant.Name != "Corner Cafe" || exp.Note == nil || *exp.Note != "lunch" ||
-		exp.RefundedExpenseID != nil || exp.RefundedTotalCents != 0 || !exp.Confirmed || exp.TemplateApplyID != nil ||
+		exp.RefundedExpenseID != nil || exp.RefundedTotalCents != 0 || exp.LastRefundDate != nil || !exp.Confirmed || exp.TemplateApplyID != nil ||
 		exp.CreatedAt.IsZero() || exp.UpdatedAt.IsZero() {
 		t.Fatalf("created = %+v", exp)
 	}
@@ -263,10 +263,10 @@ func TestRefundLinkBasics(t *testing.T) {
 	ref2 := f.add(f.a, r2)
 
 	got, err := f.x.Get(ctx, f.a, orig.ID)
-	if err != nil || got.RefundedTotalCents != -500 {
+	if err != nil || got.RefundedTotalCents != -500 || got.LastRefundDate == nil || *got.LastRefundDate != "2026-04-03" {
 		t.Fatalf("original = %+v, %v", got, err)
 	}
-	if ref1.RefundedTotalCents != 0 || *ref1.RefundedExpenseID != orig.ID {
+	if ref1.RefundedTotalCents != 0 || ref1.LastRefundDate != nil || *ref1.RefundedExpenseID != orig.ID {
 		t.Fatalf("refund = %+v", ref1)
 	}
 
