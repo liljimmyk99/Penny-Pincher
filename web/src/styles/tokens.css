@@ -1,0 +1,77 @@
+/*
+ * Design tokens: the single place colours, type, spacing and radii are defined.
+ * Source of truth: web/AGENTS.md "Design system". Components use these via
+ * var(--…); never hard-code hex values elsewhere.
+ * The theme is set on <html data-theme="light|dark"> (see src/theme).
+ */
+
+:root {
+  /* Type */
+  --font-sans: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --text-page-title: 800 32px/1.2 var(--font-sans);
+  --text-section-title: 800 18px/1.3 var(--font-sans);
+  --text-body: 400 14px/1.5 var(--font-sans);
+  --text-tile-value: 800 26px/1.2 var(--font-sans);
+  --text-eyebrow: 800 12px/1.2 var(--font-sans);
+  --eyebrow-spacing: 0.06em;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px; /* between tiles */
+  --space-6: 24px; /* between sections */
+  --space-8: 32px; /* page padding, top */
+  --space-10: 40px; /* page padding, sides */
+
+  /* Shape */
+  --radius-card: 14px;
+  --radius-control: 10px; /* buttons, inputs */
+  --radius-pill: 999px; /* chips, pills */
+  --control-height: 44px; /* also the minimum touch target */
+  --sidebar-width: 232px;
+  --sidebar-width-collapsed: 76px;
+
+  /* Colour: light */
+  color-scheme: light;
+  --color-background: #f2f4f7;
+  --color-surface: #ffffff;
+  --color-border: #e3e7ed;
+  --color-text: #111827;
+  --color-text-muted: #4b5563;
+  --color-sidebar: #0e1a2b;
+  --color-primary: #1f5fd6;
+  --color-brand: #f97316;
+  --color-income: #15803d;
+  --color-saving-text: #1e40af;
+  --color-saving-bar: #1f5fd6;
+  --color-spent: #475569;
+  --color-refund-row: #f0fdf4;
+  --color-refund-text: #166534;
+  --color-unconfirmed-tint: #fff7ed;
+  --color-unconfirmed-pill: #ffedd5;
+  --color-unconfirmed-text: #9a3412;
+  --color-danger: #b91c1c;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-background: #0d1524;
+  --color-surface: #141d2e;
+  --color-border: #233047;
+  --color-text: #e8edf5;
+  --color-text-muted: #a3aec0;
+  --color-sidebar: #070c16;
+  --color-primary: #2f6be0;
+  --color-brand: #f97316;
+  --color-income: #5bd68a;
+  --color-saving-text: #a9c4ff;
+  --color-saving-bar: #3d78ea;
+  --color-spent: #8c9ab0;
+  --color-refund-row: #0f2a1c;
+  --color-refund-text: #6ee7a0;
+  --color-unconfirmed-tint: #2b1d12;
+  --color-unconfirmed-pill: #4a2a10;
+  --color-unconfirmed-text: #fdba74;
+  --color-danger: #dc2626;
+}
