@@ -268,11 +268,13 @@ input {
   z-index: 50;
 }
 
+/* Centred with inset + auto margins, not a transform: a transform would make
+   the dialog the containing block for fixed popups (the merchant list). */
 .dialog {
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  inset: 0;
+  margin: auto;
+  height: fit-content;
   width: min(480px, calc(100vw - 32px));
   max-height: calc(100vh - 32px);
   overflow: auto;
