@@ -2,6 +2,7 @@ package store
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 
 	"modernc.org/sqlite"
@@ -21,7 +22,25 @@ var (
 	// ErrSourceHasEntries: the income source has income entries, so it can
 	// only be renamed, never deleted.
 	ErrSourceHasEntries = errors.New("income source has entries")
+	// ErrInvalidRefundLink: refunded_expense_id is set on a non-negative
+	// amount, or does not name one of the user's positive expenses.
+	ErrInvalidRefundLink = errors.New("invalid refund link")
+	// ErrHasLinkedRefunds: the expense has refunds pointing at it, so its
+	// amount cannot become negative.
+	ErrHasLinkedRefunds = errors.New("expense has linked refunds")
 )
+
+// BatchItemError reports which item of a batch failed. Nothing in the batch
+// was saved.
+type BatchItemError struct {
+	Index int
+	Err   error
+}
+
+func (e *BatchItemError) Error() string {
+	return "item " + strconv.Itoa(e.Index) + ": " + e.Err.Error()
+}
+func (e *BatchItemError) Unwrap() error { return e.Err }
 
 // ValidationError is an input that fails a rule (400 invalid_request).
 type ValidationError struct {
@@ -49,10 +68,16 @@ func mapConstraint(err error) error {
 	case sqlite3.SQLITE_CONSTRAINT_UNIQUE:
 		return ErrNameTaken
 	case sqlite3.SQLITE_CONSTRAINT_TRIGGER:
-		// Every RAISE(ABORT) guards a protected row, except the one that stops
-		// deleting an income source with entries (0001_init.sql).
-		if strings.Contains(err.Error(), "with income entries cannot be deleted") {
+		// Every RAISE(ABORT) guards a protected row, except the ones for income
+		// sources with entries and for refund links (0001_init.sql).
+		msg := err.Error()
+		switch {
+		case strings.Contains(msg, "with income entries cannot be deleted"):
 			return ErrSourceHasEntries
+		case strings.Contains(msg, "refunded_expense_id must reference"):
+			return ErrInvalidRefundLink
+		case strings.Contains(msg, "with linked refunds cannot have a negative amount"):
+			return ErrHasLinkedRefunds
 		}
 		return ErrProtected
 	}
