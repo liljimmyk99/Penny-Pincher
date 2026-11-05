@@ -4,12 +4,11 @@
   position: relative;
 }
 
+/* Fixed, placed from the input's on-screen box (see MerchantCombobox), so
+   scroll containers such as the batch table never clip it. */
 .combo__list {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  z-index: 20;
-  min-width: 100%;
+  position: fixed;
+  z-index: 55;
   max-height: 260px;
   overflow-y: auto;
   margin: 0;

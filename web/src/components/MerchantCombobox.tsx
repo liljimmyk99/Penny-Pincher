@@ -1,7 +1,17 @@
-import { useState, type KeyboardEvent, type Ref } from "react";
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type Ref,
+} from "react";
 import { useMerchantSearch, type Schemas } from "../api";
 import { MERCHANT_MAX } from "../lib/limits";
 import "./MerchantCombobox.css";
+
+/** Matches max-height in MerchantCombobox.css. */
+const LIST_MAX_HEIGHT = 260;
 
 interface Props {
   id: string;
@@ -47,7 +57,37 @@ export function MerchantCombobox({
   // Hide the list once the field already holds exactly the only suggestion.
   const options = found.length === 1 && found[0].name === value.trim() ? [] : found;
   const expanded = open && options.length > 0;
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [place, setPlace] = useState<CSSProperties>();
   const listId = `${id}-list`;
+
+  // The list is position: fixed (so the batch table's scroll box can't clip
+  // it); keep it under the input, or above it when there's no room below.
+  useLayoutEffect(() => {
+    if (!expanded) return;
+    function update() {
+      const box = wrapRef.current?.getBoundingClientRect();
+      if (!box) return;
+      const gap = 4;
+      const margin = 8;
+      const below = window.innerHeight - box.bottom - gap - margin;
+      const above = box.top - gap - margin;
+      const up = below < 160 && above > below;
+      setPlace({
+        left: box.left,
+        minWidth: box.width,
+        maxHeight: Math.max(0, Math.min(LIST_MAX_HEIGHT, up ? above : below)),
+        ...(up ? { bottom: window.innerHeight - box.top + gap } : { top: box.bottom + gap }),
+      });
+    }
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [expanded]);
   const optionId = (i: number) => `${id}-opt-${i}`;
 
   function pick(m: Schemas["Merchant"]) {
@@ -89,7 +129,7 @@ export function MerchantCombobox({
   }
 
   return (
-    <div className="combo">
+    <div className="combo" ref={wrapRef}>
       <input
         id={id}
         ref={inputRef}
@@ -119,7 +159,10 @@ export function MerchantCombobox({
           onCommit();
         }}
       />
-      <ul id={listId} role="listbox" aria-label="Past merchants" className="combo__list" hidden={!expanded}>
+      <ul id={listId} role="listbox" aria-label="Past merchants" className="combo__list"
+        style={place}
+        hidden={!expanded}
+      >
         {expanded &&
           options.map((m, i) => (
             <li
