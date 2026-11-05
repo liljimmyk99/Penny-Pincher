@@ -66,7 +66,7 @@ func run() error {
 	authn := auth.Middleware(verifier, store.Users{DB: db})
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
-		Handler:           apihttp.NewRouter(cfg.Version, db, time.Now, authn),
+		Handler:           apihttp.NewRouter(apihttp.Deps{Version: cfg.Version, DB: db, Data: db, Now: time.Now, Authn: authn}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

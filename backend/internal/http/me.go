@@ -17,8 +17,8 @@ func (s *Server) GetMe(ctx context.Context, _ api.GetMeRequestObject) (api.GetMe
 	}
 	return api.GetMe200JSONResponse{
 		Id:          id.ID,
-		Email:       id.Email,
-		DisplayName: id.DisplayName,
+		Email:       nullableOf(id.Email),
+		DisplayName: nullableOf(id.DisplayName),
 		Role:        api.MeRole(id.Role),
 	}, nil
 }

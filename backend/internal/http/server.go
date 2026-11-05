@@ -2,12 +2,14 @@
 package http
 
 import (
+	"database/sql"
 	"errors"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/liljimmyk99/penny-pincher/backend/internal/api"
+	"github.com/liljimmyk99/penny-pincher/backend/internal/store"
 )
 
 // Server implements api.StrictServerInterface. Operations not built yet fall
@@ -15,18 +17,36 @@ import (
 type Server struct {
 	api.Unimplemented
 
-	version string
-	db      Pinger
-	now     func() time.Time
-	start   time.Time
+	version    string
+	db         Pinger
+	categories store.Categories
+	now        func() time.Time
+	start      time.Time
+}
+
+// Deps are the router's dependencies.
+type Deps struct {
+	Version string
+	// DB is pinged by /healthz; nil skips the check.
+	DB Pinger
+	// Data is the database the store queries.
+	Data *sql.DB
+	Now  func() time.Time
+	// Authn (auth.Middleware) wraps every route; it must not be nil.
+	Authn func(http.Handler) http.Handler
 }
 
 var _ api.StrictServerInterface = (*Server)(nil)
 
-// NewRouter builds the API router. authn (auth.Middleware) wraps every route;
-// it must not be nil. db may be nil until the store is wired.
-func NewRouter(version string, db Pinger, now func() time.Time, authn func(http.Handler) http.Handler) http.Handler {
-	s := &Server{version: version, db: db, now: now, start: now()}
+// NewRouter builds the API router.
+func NewRouter(d Deps) http.Handler {
+	s := &Server{
+		version:    d.Version,
+		db:         d.DB,
+		categories: store.Categories{DB: d.Data},
+		now:        d.Now,
+		start:      d.Now(),
+	}
 	strict := api.NewStrictHandlerWithOptions(s, nil, api.StrictHTTPServerOptions{
 		RequestErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, err error) {
 			writeError(w, http.StatusBadRequest, api.ErrorErrorCodeInvalidRequest, "The request is malformed.")
@@ -40,7 +60,7 @@ func NewRouter(version string, db Pinger, now func() time.Time, authn func(http.
 			writeError(w, http.StatusInternalServerError, api.ErrorErrorCodeInternal, "Something went wrong.")
 		},
 	})
-	return authn(api.HandlerWithOptions(strict, api.StdHTTPServerOptions{
+	return d.Authn(api.HandlerWithOptions(strict, api.StdHTTPServerOptions{
 		ErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, err error) {
 			writeError(w, http.StatusBadRequest, api.ErrorErrorCodeInvalidRequest, "The request is malformed.")
 		},

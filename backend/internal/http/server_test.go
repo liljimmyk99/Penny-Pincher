@@ -1,6 +1,8 @@
 package http
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -19,25 +21,45 @@ const (
 	tokStray  = "tok-not-in-users" // valid Firebase token, uid not allowlisted
 )
 
-func do(t *testing.T, method, path, token string) *httptest.ResponseRecorder {
+// testAPI is a router over a fresh database with an admin and a member,
+// each seeded with the default categories like a real new account.
+type testAPI struct {
+	t  *testing.T
+	db *sql.DB
+	h  http.Handler
+}
+
+func newTestAPI(t *testing.T) *testAPI {
 	t.Helper()
 	db := store.NewTestDB(t)
 	for _, u := range [][2]string{{"uid-admin", "admin"}, {"uid-member", "member"}} {
-		if _, err := db.Exec(`INSERT INTO users (firebase_uid, email, display_name, role) VALUES (?, ?, ?, ?)`,
-			u[0], u[1]+"@example.com", "Test "+u[1], u[1]); err != nil {
+		if _, err := store.AddUser(context.Background(), db, store.NewUser{
+			FirebaseUID: u[0], Email: u[1] + "@example.com", DisplayName: "Test " + u[1], Role: u[1],
+		}); err != nil {
 			t.Fatal(err)
 		}
 	}
 	v := auth.FakeVerifier{tokAdmin: "uid-admin", tokMember: "uid-member", tokStray: "uid-stray"}
-	h := NewRouter("test", nil, time.Now, auth.Middleware(v, store.Users{DB: db}))
+	h := NewRouter(Deps{Version: "test", Data: db, Now: time.Now, Authn: auth.Middleware(v, store.Users{DB: db})})
+	return &testAPI{t: t, db: db, h: h}
+}
+
+// call sends body (a JSON string; "" sends none) and returns the response.
+func (a *testAPI) call(method, path, token, body string) *httptest.ResponseRecorder {
+	a.t.Helper()
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(method, path, strings.NewReader("{}"))
+	req := httptest.NewRequest(method, path, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	h.ServeHTTP(rec, req)
+	a.h.ServeHTTP(rec, req)
 	return rec
+}
+
+func do(t *testing.T, method, path, token string) *httptest.ResponseRecorder {
+	t.Helper()
+	return newTestAPI(t).call(method, path, token, "{}")
 }
 
 func wantError(t *testing.T, rec *httptest.ResponseRecorder, status int, code api.ErrorErrorCode) {
@@ -59,7 +81,6 @@ func wantError(t *testing.T, rec *httptest.ResponseRecorder, status int, code ap
 
 func TestUnimplementedRoutesReturnStandard501(t *testing.T) {
 	for _, r := range [][2]string{
-		{"GET", "/v1/categories"},
 		{"POST", "/v1/expenses"},
 		{"DELETE", "/v1/expenses/abc"},
 		{"GET", "/v1/summaries/monthly/2026-01"},
@@ -95,7 +116,7 @@ func TestGetMeReturnsCurrentUser(t *testing.T) {
 		if err := json.Unmarshal(rec.Body.Bytes(), &me); err != nil {
 			t.Fatal(err)
 		}
-		if string(me.Role) != role || me.Id == "" || me.Email == nil || *me.Email != role+"@example.com" {
+		if string(me.Role) != role || me.Id == "" || me.Email.IsNull() || me.Email.MustGet() != role+"@example.com" {
 			t.Fatalf("me = %+v", me)
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/liljimmyk99/penny-pincher/backend/internal/api"
+	"github.com/liljimmyk99/penny-pincher/backend/internal/store"
 )
 
 // newError builds the shared error body defined in the OpenAPI spec.
@@ -24,3 +25,13 @@ func writeError(w http.ResponseWriter, status int, code api.ErrorErrorCode, mess
 }
 
 func errType(err error) string { return fmt.Sprintf("%T", err) }
+
+// validationError builds a 400 invalid_request body naming the bad field.
+func validationError(ve *store.ValidationError) api.Error {
+	e := newError(api.ErrorErrorCodeInvalidRequest, "Invalid "+ve.Field+": "+ve.Issue+".")
+	e.Error.Details = &[]struct {
+		Field string `json:"field"`
+		Issue string `json:"issue"`
+	}{{Field: ve.Field, Issue: ve.Issue}}
+	return e
+}
