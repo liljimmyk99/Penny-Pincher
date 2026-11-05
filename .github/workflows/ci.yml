@@ -1,0 +1,96 @@
+# Checks every pull request (and every push to master) so later work stays green.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  backend:
+    name: Backend (vet, test, generated code)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: go vet
+        run: go vet ./...
+      - name: go test
+        run: go test ./...
+      - name: Generated Go code matches the spec
+        run: |
+          make check-generate
+          # git diff misses new untracked files, so check those too.
+          test -z "$(git status --porcelain -- internal/api)" || { git status --porcelain -- internal/api; exit 1; }
+
+  web:
+    name: Web (lint, typecheck, test, generated types)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24 # matches web/Dockerfile
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Type check
+        run: npm run typecheck
+      - name: Test
+        run: npm test
+      - name: Generated TypeScript types match the spec
+        run: |
+          npm run check:api
+          test -z "$(git status --porcelain -- src/api)" || { git status --porcelain -- src/api; exit 1; }
+
+  api:
+    name: API spec (Redocly lint)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      # recommended-strict (redocly.yaml) makes warnings fail as well as errors.
+      - name: Redocly lint
+        run: npx --yes @redocly/cli@2.75.0 lint
+
+  docker:
+    name: Docker image (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [backend, web]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      # Build only; nothing is pushed. The web build gets no Firebase config here,
+      # which is fine because it is only baked into the bundle, not checked.
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.image }}
+          push: false
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}

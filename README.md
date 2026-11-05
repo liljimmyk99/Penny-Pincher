@@ -39,3 +39,12 @@ npm run lint && npm run typecheck && npm test
 ```
 
 `web/.npmrc` sets `legacy-peer-deps` because npm's peer resolver currently crashes on the Vitest 4 peer set.
+
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `master`:
+
+- backend: `go vet ./...`, `go test ./...`, and `make check-generate`
+- web: `npm run lint`, `npm run typecheck`, `npm test`, and `npm run check:api`
+- api: Redocly lint (`recommended-strict`, so warnings fail too)
+- Docker builds of the `backend` and `web` images (not pushed)
