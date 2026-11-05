@@ -3,6 +3,12 @@ export interface FirebaseWebConfig {
   apiKey: string;
   authDomain: string;
   projectId: string;
+  /**
+   * Firebase Auth emulator URL (e.g. http://localhost:9099), only for the
+   * end-to-end suite in /e2e. Honored only for "demo-" projects, which
+   * Firebase keeps emulator-only, so a production build can never use it.
+   */
+  emulatorUrl?: string;
 }
 
 type Env = Partial<Record<string, string | undefined>>;
@@ -17,5 +23,7 @@ export function firebaseConfigFromEnv(env: Env = import.meta.env): FirebaseWebCo
   const projectId = env.VITE_FIREBASE_PROJECT_ID?.trim();
   if (!apiKey || !projectId) return null;
   const authDomain = env.VITE_FIREBASE_AUTH_DOMAIN?.trim() || `${projectId}.firebaseapp.com`;
+  const emulatorUrl = env.VITE_FIREBASE_AUTH_EMULATOR_URL?.trim();
+  if (emulatorUrl && projectId.startsWith("demo-")) return { apiKey, authDomain, projectId, emulatorUrl };
   return { apiKey, authDomain, projectId };
 }

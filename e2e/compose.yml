@@ -1,0 +1,64 @@
+# The M1 smoke stack for the end-to-end suite: the same API and web images and
+# Caddyfile as the root docker-compose.yml (dev profile), with the Firebase Auth
+# emulator in place of real Firebase. Run it through `npm test` in this folder,
+# which starts it as project "pp-e2e" on its own ports and volume.
+name: pp-e2e
+
+services:
+  auth:
+    build: ./auth-emulator
+    ports:
+      - "19099:9099" # the browser signs in here (baked into the web build below)
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9099/"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  api:
+    build: ../backend
+    volumes:
+      - api-data:/data
+    environment:
+      PORT: "8080"
+      DB_PATH: /data/spend.db
+      # demo- projects are emulator-only; the API refuses the emulator otherwise.
+      FIREBASE_PROJECT_ID: demo-penny-pincher
+      FIREBASE_AUTH_EMULATOR_HOST: auth:9099
+    expose:
+      - "8080"
+    depends_on:
+      auth:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/api", "healthcheck"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  web:
+    build:
+      context: ../web
+      args:
+        VITE_FIREBASE_API_KEY: demo-api-key
+        VITE_FIREBASE_PROJECT_ID: demo-penny-pincher
+        VITE_FIREBASE_AUTH_EMULATOR_URL: http://localhost:19099
+    expose:
+      - "80"
+
+  proxy:
+    image: caddy:2
+    environment:
+      DOMAIN: localhost
+    ports:
+      - "18443:443"
+    volumes:
+      - ../deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_started
+
+volumes:
+  api-data:

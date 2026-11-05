@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 // Config holds runtime settings. Secrets come from the environment only.
@@ -15,6 +16,12 @@ type Config struct {
 
 	// FirebaseProjectID is required to run the server (checked in main).
 	FirebaseProjectID string
+
+	// AuthEmulatorHost is FIREBASE_AUTH_EMULATOR_HOST. The Firebase Admin SDK
+	// reads it itself and then accepts unsigned emulator tokens, so it is only
+	// allowed with a "demo-" project id (Firebase's emulator-only projects).
+	// The end-to-end suite in /e2e is the only thing that sets it.
+	AuthEmulatorHost string
 }
 
 // Version is overridden at build time: -ldflags "-X .../internal/config.Version=...".
@@ -31,6 +38,10 @@ func Load(getenv func(string) string) (Config, error) {
 		c.Port = p
 	}
 	c.FirebaseProjectID = getenv("FIREBASE_PROJECT_ID")
+	c.AuthEmulatorHost = getenv("FIREBASE_AUTH_EMULATOR_HOST")
+	if c.AuthEmulatorHost != "" && !strings.HasPrefix(c.FirebaseProjectID, "demo-") {
+		return c, fmt.Errorf("FIREBASE_AUTH_EMULATOR_HOST is set, but FIREBASE_PROJECT_ID %q is not a demo- project; refusing to accept emulator tokens", c.FirebaseProjectID)
+	}
 	if v := getenv("DB_PATH"); v != "" {
 		c.DBPath = v
 	}
