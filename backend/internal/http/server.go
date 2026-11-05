@@ -25,6 +25,7 @@ type Server struct {
 	expenses      store.Expenses
 	merchants     store.Merchants
 	templates     store.Templates
+	months        store.Months
 	now           func() time.Time
 	start         time.Time
 }
@@ -54,6 +55,7 @@ func NewRouter(d Deps) http.Handler {
 		expenses:      store.Expenses{DB: d.Data},
 		merchants:     store.Merchants{DB: d.Data},
 		templates:     store.Templates{DB: d.Data},
+		months:        store.Months{DB: d.Data},
 		now:           d.Now,
 		start:         d.Now(),
 	}
