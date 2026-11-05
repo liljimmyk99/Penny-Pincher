@@ -6,10 +6,12 @@ services:
     build: ./backend
     volumes:
       - api-data:/data # SQLite file lives here (DB_PATH=/data/spend.db)
+      - ./secrets/firebase-sa.json:/run/secrets/firebase-sa.json:ro
     environment:
       PORT: "8080"
       DB_PATH: ${DB_PATH:-/data/spend.db}
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:?set FIREBASE_PROJECT_ID in .env}
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-sa.json
     expose:
       - "8080"
     healthcheck:

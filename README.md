@@ -19,6 +19,10 @@ docker compose up
 
 The SQLite file lives on the `api-data` volume; certificates on `caddy-data`/`caddy-dev-data`. The `api` service is built from `backend/`. The `web` service is built from `web/` (static files served by Caddy); the proxy sends `/v1/*` and `/healthz` to the API and everything else to the web app.
 
+## Firebase credentials
+
+The API needs Google credentials to initialize the Firebase Admin SDK. Download a service account key (Firebase console → Project settings → Service accounts → Generate new private key) and save it as `secrets/firebase-sa.json`. Compose mounts it read-only at `/run/secrets/firebase-sa.json` and sets `GOOGLE_APPLICATION_CREDENTIALS`. The `secrets/` folder is git-ignored; never commit the key. The file must exist before `docker compose up`, or Docker creates a directory in its place.
+
 ## Web app
 
 ```bash
