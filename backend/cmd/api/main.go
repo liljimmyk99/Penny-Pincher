@@ -35,6 +35,10 @@ func run() error {
 	}
 	log := logging.New(os.Stdout, cfg.LogLevel)
 
+	if len(os.Args) > 1 && os.Args[1] == "user" {
+		return runUser(context.Background(), cfg.DBPath, os.Args[2:], os.Stdout)
+	}
+
 	if len(os.Args) > 1 && os.Args[1] == "migrate" {
 		db, err := store.Open(cfg.DBPath)
 		if err != nil {
