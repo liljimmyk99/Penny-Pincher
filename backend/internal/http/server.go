@@ -21,6 +21,7 @@ type Server struct {
 	db            Pinger
 	categories    store.Categories
 	incomeSources store.IncomeSources
+	incomeEntries store.IncomeEntries
 	now           func() time.Time
 	start         time.Time
 }
@@ -46,6 +47,7 @@ func NewRouter(d Deps) http.Handler {
 		db:            d.DB,
 		categories:    store.Categories{DB: d.Data},
 		incomeSources: store.IncomeSources{DB: d.Data},
+		incomeEntries: store.IncomeEntries{DB: d.Data},
 		now:           d.Now,
 		start:         d.Now(),
 	}
