@@ -181,8 +181,8 @@ func TestUpdateAndDeleteExpenseHTTP(t *testing.T) {
 		http.StatusConflict, api.ErrorErrorCodeHasLinkedRefunds)
 	rec = a.call("GET", "/v1/expenses/"+exp.Id, tokMember, "")
 	_ = json.Unmarshal(rec.Body.Bytes(), &got)
-	if *got.RefundedTotalCents != -100 {
-		t.Fatalf("refunded_total_cents = %d", *got.RefundedTotalCents)
+	if *got.RefundedTotalCents != -100 || got.LastRefundDate.MustGet().String() != "2026-04-01" {
+		t.Fatalf("refunded_total_cents = %d, last_refund_date = %v", *got.RefundedTotalCents, got.LastRefundDate)
 	}
 	wantError(t, a.call("PATCH", "/v1/expenses/"+ref.Id, tokMember, `{"refunded_expense_id":"`+ref.Id+`"}`),
 		http.StatusBadRequest, api.ErrorErrorCodeInvalidRefundLink)

@@ -64,11 +64,12 @@ Define these as tokens (CSS custom properties or the UI library's theme) in one 
 | income (green) | `#15803D` | `#5BD68A` | net income figures |
 | saving (blue) | `#1E40AF` text, `#1F5FD6` bars | `#A9C4FF` text, `#3D78EA` bars | Saving everywhere |
 | spent (slate) | `#475569` | `#8C9AB0` | spent bars, ordinary category bars |
-| refund | row `#F0FDF4`, text `#166534` | row `#0F2A1C`, text `#6EE7A0` | refund rows and amounts |
+| refund | row `#F0FDF4`, text `#166534`, pill `#DCFCE7` | row `#0F2A1C`, text `#6EE7A0`, pill `#12391F` | refund rows, amounts and tags |
 | unconfirmed | tint `#FFF7ED`, pill `#FFEDD5`, text `#9A3412` | tint `#2B1D12`, pill `#4A2A10`, text `#FDBA74` | template copies not yet confirmed |
 | danger | `#B91C1C` | `#DC2626` | destructive buttons |
 | danger alert | bg `#FEF2F2`, border `#FECACA`, text `#991B1B`, invalid field `#DC2626` | bg `#3A1518`, border `#7F1D1D`, text `#FCA5A5`, invalid field `#F87171` | inline error alerts, invalid inputs |
 | success alert | bg `#F0FDF4`, border `#BBF7D0`, text `#166534` | bg `#0F2A1C`, border `#1E4D33`, text `#86EFAC` | confirmations (e.g. reset email sent) |
+| toast | bg `#111827`, text `#FFFFFF` | bg `#E8EDF5`, text `#0D1524` | toasts (refund linked, backup finished) |
 | link | `#1D4ED8`, hover `#1E3A8A` | `#8AB4FF`, hover `#B9D0FF` | links and text buttons |
 | field | bg `#FFFFFF`, border `#D5DBE3` | bg `#0F1726`, border `#2E3B54` | text inputs, ghost-button borders |
 
@@ -127,7 +128,7 @@ Define these as tokens (CSS custom properties or the UI library's theme) in one 
   - The address holds the month (`?month=`, via `useMonthParam`, which Summary and Add entries share), the category filter (`?category=<id>`) and the search (`?q=`), so these views can be linked to.
   - Reads `GET /v1/expenses?month=` and `GET /v1/income-entries?month=` (all pages). Category totals, the income total row and its tax rate are summed in the client from those lists, so edits and deletes refresh them with the lists. Categories with no entries in the month are left out.
   - Edit opens a modal (`@radix-ui/react-dialog`) and sends only the changed fields (`PATCH`); a negative amount is a refund. Delete uses the shared `DeleteDialog`, which notes that a deleted expense's refunds stay, unlinked.
-  - Refund rows and unconfirmed rows get their colours, a "Refund" tag and the unconfirmed pill. Refund details and linking (see Refunds below) and the Confirm buttons and banner (template flow) are built with those features.
+  - Unconfirmed rows get their colour and the unconfirmed pill; the Confirm buttons and banner are built with the template flow. Refunds are as built under Refunds below.
 
 ### Refunds (in the transaction list)
 - **Refund rows:** negative amount in refund green on a light-green row. Below the merchant: "Refund for <merchant · date · amount>", linking to the original.
@@ -137,6 +138,13 @@ Define these as tokens (CSS custom properties or the UI library's theme) in one 
 - **Linking dialog:** for an unlinked refund, "Link…" opens a dialog that searches recent expenses, shows a **Suggested** match (same category, close before the refund date), and links on confirm. Linking is optional.
 - **Tiles:** refunds this month, spent before refunds, spent after refunds. Summary and Trends use the after-refunds figure.
 - **Refund month:** a refund lowers spending in the month it is logged, in its own category, even when the original was in an earlier month.
+- As built (`src/pages/transactions`, helpers in `refunds.ts`):
+  - A refund's original comes from the month's list, or `GET /v1/expenses/{id}` when it is in another month. "Refund for" links to `/transactions?month=<its month>#expense-<id>`; that row scrolls into view, takes focus and is outlined.
+  - One tag per refund: "Not linked"; else "From <Month>" (with the year when it differs) when the original is in an earlier month; else "Full refund" when the refund covers the original's whole amount, otherwise "Partial refund".
+  - Originals read `refunded_total_cents` and `last_refund_date` (both computed by the API, never stored). Net = amount + refunded total; at or below zero it is "Refunded in full" and the amount is struck through.
+  - The refund chips (All, Refunds, Not linked) are their own group, kept in `?show=refunds|unlinked`, and combine with the category chips ("All categories") and the search.
+  - The linking dialog lists expenses from the 90 days up to the refund's date (`GET /v1/expenses?from=&to=&type=expense`), searchable by merchant and note. **Suggested** is the closest expense on or before the refund in the same category whose net still covers the refund; it is preselected. Linking sends only `refunded_expense_id` (an unconfirmed refund stays unconfirmed) and confirms with a toast (`src/components/Toast.tsx`).
+  - The tiles sit above Spending by category on every month: refunds (sum, count, how many linked), spent before refunds (expenses only) and spent after refunds.
 
 ### Templates
 - Template list ("Your templates") and an editor for one template.

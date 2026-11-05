@@ -504,9 +504,13 @@ type Expense struct {
 	// Id Opaque identifier.
 	//
 	// Examples: 42
-	Id       Id                      `json:"id"`
-	Merchant Merchant                `json:"merchant"`
-	Note     nullable.Nullable[Note] `json:"note"`
+	Id Id `json:"id"`
+
+	// LastRefundDate On an expense, the date of its latest linked refund, computed at read time and never
+	// stored. Null when no refund is linked, and always null on a refund.
+	LastRefundDate nullable.Nullable[openapi_types.Date] `json:"last_refund_date,omitempty"`
+	Merchant       Merchant                              `json:"merchant"`
+	Note           nullable.Nullable[Note]               `json:"note"`
 
 	// RefundedExpenseId On a refund, the expense it refunds (optional).
 	RefundedExpenseId nullable.Nullable[string] `json:"refunded_expense_id"`

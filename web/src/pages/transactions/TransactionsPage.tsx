@@ -1,24 +1,36 @@
-import { useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useLocation, useSearchParams } from "react-router";
 import {
   errorMessage,
   useCategories,
   useEntryMutations,
+  useExpensesById,
   useIncomeSources,
   useMonthExpenses,
   useMonthIncome,
   type Schemas,
 } from "../../api";
 import { DeleteDialog } from "../../components/DeleteDialog";
-import { AlertIcon, PencilIcon, PlusIcon, SearchIcon, TrashIcon } from "../../components/icons";
+import { AlertIcon, LinkIcon, PencilIcon, PlusIcon, SearchIcon, TrashIcon } from "../../components/icons";
 import { MonthSwitcher } from "../../components/MonthSwitcher";
-import { formatShortDate, monthName } from "../../lib/dates";
+import { Toast } from "../../components/Toast";
+import { formatShortDate, monthName, monthOf } from "../../lib/dates";
 import { formatCents } from "../../lib/money";
 import { formatTaxRate } from "../../lib/taxRate";
 import { useMonthParam } from "../../lib/useMonthParam";
 import { Page } from "../Page";
 import { EditExpenseDialog } from "./EditExpenseDialog";
 import { EditIncomeDialog } from "./EditIncomeDialog";
+import { LinkRefundDialog } from "./LinkRefundDialog";
+import {
+  describeOriginal,
+  isRefund,
+  matchesRefundFilter,
+  originalStatus,
+  refundTag,
+  refundTotals,
+  type RefundFilter,
+} from "./refunds";
 import { barPercent, categoryTotals, incomeTotals, matchesSearch, shareOf, sumCents } from "./totals";
 import "./TransactionsPage.css";
 
@@ -27,10 +39,21 @@ type Target = { kind: "expense"; item: Schemas["Expense"] } | { kind: "income"; 
 const count = new Intl.NumberFormat("en-US");
 const plural = (n: number, one: string, many: string) => `${count.format(n)} ${n === 1 ? one : many}`;
 
+const REFUND_FILTERS: { value: RefundFilter | null; label: string }[] = [
+  { value: null, label: "All" },
+  { value: "refunds", label: "Refunds" },
+  { value: "unlinked", label: "Not linked" },
+];
+const asRefundFilter = (v: string | null): RefundFilter | null => (v === "refunds" || v === "unlinked" ? v : null);
+
+/** Where a refund's "Refund for" link points: the original's row in its own month. */
+const expenseAnchor = (id: string) => `expense-${id}`;
+
 /**
  * Every income entry and expense in a month (web/AGENTS.md "Transactions").
  * The address holds the month (`?month=`, shared with Summary and Add
- * entries), the category filter (`?category=`) and the search (`?q=`).
+ * entries), the category filter (`?category=`), the refund filter
+ * (`?show=refunds|unlinked`) and the search (`?q=`).
  * Totals are summed here from the month's entries, so an edit or delete
  * refreshes them with the lists.
  */
@@ -38,9 +61,15 @@ export function TransactionsPage() {
   const [month, setMonth] = useMonthParam();
   const [params, setParams] = useSearchParams();
   const categoryFilter = params.get("category");
+  const refundFilter = asRefundFilter(params.get("show"));
   const search = params.get("q") ?? "";
   const [editing, setEditing] = useState<Target | null>(null);
   const [deleting, setDeleting] = useState<Target | null>(null);
+  const [linking, setLinking] = useState<Schemas["Expense"] | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const dismissToast = useCallback(() => setToast(null), []);
+  const categories = useCategories();
+  const categoryName = (id: string) => categories.data?.find((c) => c.id === id)?.name ?? "—";
 
   function setParam(key: string, value: string | null) {
     setParams(
@@ -71,11 +100,14 @@ export function TransactionsPage() {
       <SpendingSections
         month={month}
         categoryFilter={categoryFilter}
+        refundFilter={refundFilter}
         search={search}
         onFilter={(id) => setParam("category", id)}
+        onRefundFilter={(f) => setParam("show", f)}
         onSearch={(q) => setParam("q", q)}
         onEdit={(item) => setEditing({ kind: "expense", item })}
         onDelete={(item) => setDeleting({ kind: "expense", item })}
+        onLink={setLinking}
       />
       {editing?.kind === "expense" && (
         <EditExpenseDialog key={editing.item.id} expense={editing.item} onClose={() => setEditing(null)} />
@@ -83,7 +115,20 @@ export function TransactionsPage() {
       {editing?.kind === "income" && (
         <EditIncomeDialog key={editing.item.id} entry={editing.item} onClose={() => setEditing(null)} />
       )}
+      {linking && (
+        <LinkRefundDialog
+          key={linking.id}
+          refund={linking}
+          categoryName={categoryName}
+          onClose={() => setLinking(null)}
+          onLinked={(original) => {
+            setLinking(null);
+            setToast(`Refund linked to ${original.merchant.name} · ${formatShortDate(original.date)}`);
+          }}
+        />
+      )}
       <ConfirmDelete target={deleting} onDone={() => setDeleting(null)} />
+      <Toast message={toast} onDismiss={dismissToast} />
     </Page>
   );
 }
@@ -111,9 +156,24 @@ function UnconfirmedPill() {
   );
 }
 
-function RowActions({ name, onEdit, onDelete }: { name: string; onEdit: () => void; onDelete: () => void }) {
+function RowActions({
+  name,
+  onEdit,
+  onDelete,
+  onLink,
+}: {
+  name: string;
+  onEdit: () => void;
+  onDelete: () => void;
+  onLink?: () => void;
+}) {
   return (
     <div className="tx-table__buttons">
+      {onLink && (
+        <button type="button" className="btn btn--ghost btn--xs" aria-label={`Link ${name}`} onClick={onLink}>
+          Link…
+        </button>
+      )}
       <button type="button" className="icon-btn" aria-label={`Edit ${name}`} onClick={onEdit}>
         <PencilIcon />
       </button>
@@ -228,14 +288,17 @@ function IncomeSection({
 interface SpendingProps {
   month: string;
   categoryFilter: string | null;
+  refundFilter: RefundFilter | null;
   search: string;
   onFilter: (categoryId: string | null) => void;
+  onRefundFilter: (filter: RefundFilter | null) => void;
   onSearch: (q: string) => void;
   onEdit: (expense: Schemas["Expense"]) => void;
   onDelete: (expense: Schemas["Expense"]) => void;
+  onLink: (refund: Schemas["Expense"]) => void;
 }
 
-function SpendingSections({ month, categoryFilter, search, onFilter, onSearch, onEdit, onDelete }: SpendingProps) {
+function SpendingSections({ month, categoryFilter, ...rest }: SpendingProps) {
   const expenses = useMonthExpenses(month);
   const categories = useCategories();
 
@@ -272,20 +335,36 @@ function SpendingSections({ month, categoryFilter, search, onFilter, onSearch, o
 
   return (
     <>
-      <CategorySection totals={totals} totalCents={sumCents(all.map((e) => e.amount_cents))} selected={selected} onFilter={onFilter} />
-      <ExpenseSection
-        month={month}
-        expenses={all}
-        totals={totals}
-        categories={byId}
-        selected={selected}
-        search={search}
-        onFilter={onFilter}
-        onSearch={onSearch}
-        onEdit={onEdit}
-        onDelete={onDelete}
-      />
+      <RefundTiles month={month} expenses={all} />
+      <CategorySection totals={totals} totalCents={sumCents(all.map((e) => e.amount_cents))} selected={selected} onFilter={rest.onFilter} />
+      <ExpenseSection month={month} expenses={all} totals={totals} categories={byId} selected={selected} {...rest} />
     </>
+  );
+}
+
+/** Refunds this month, and spending before and after them (web/AGENTS.md "Refunds"). */
+function RefundTiles({ month, expenses }: { month: string; expenses: Schemas["Expense"][] }) {
+  const t = refundTotals(expenses);
+  return (
+    <section className="tiles" aria-label="Refunds this month">
+      <div className="tile">
+        <span className="tile__label">Refunds this month</span>
+        <span className={t.refundCents < 0 ? "tile__value tile__value--refund" : "tile__value"}>{formatCents(t.refundCents)}</span>
+        <span className="tile__sub">
+          {t.refundCount === 0 ? "No refunds" : `${plural(t.refundCount, "refund", "refunds")} · ${count.format(t.linkedCount)} linked to an expense`}
+        </span>
+      </div>
+      <div className="tile">
+        <span className="tile__label">Spent before refunds</span>
+        <span className="tile__value">{formatCents(t.beforeCents)}</span>
+        <span className="tile__sub">Every expense logged in {monthName(month)}</span>
+      </div>
+      <div className="tile">
+        <span className="tile__label">Spent after refunds</span>
+        <span className="tile__value">{formatCents(t.afterCents)}</span>
+        <span className="tile__sub">What Summary and Trends show</span>
+      </div>
+    </section>
   );
 }
 
@@ -359,21 +438,52 @@ function ExpenseSection({
   totals,
   categories,
   selected,
+  refundFilter,
   search,
   onFilter,
+  onRefundFilter,
   onSearch,
   onEdit,
   onDelete,
+  onLink,
 }: {
   month: string;
   expenses: Schemas["Expense"][];
   totals: ReturnType<typeof categoryTotals>;
   categories: Map<string, Schemas["Category"]>;
   selected: string | null;
-  search: string;
-} & Pick<SpendingProps, "onFilter" | "onSearch" | "onEdit" | "onDelete">) {
-  const shown = expenses.filter((e) => (!selected || e.category_id === selected) && matchesSearch(e, search));
-  const filtered = selected !== null || search.trim() !== "";
+} & Omit<SpendingProps, "month" | "categoryFilter">) {
+  const { hash } = useLocation();
+  const shown = expenses.filter(
+    (e) => (!selected || e.category_id === selected) && matchesRefundFilter(e, refundFilter) && matchesSearch(e, search),
+  );
+  const filtered = selected !== null || refundFilter !== null || search.trim() !== "";
+
+  // Originals in this month are in the list; earlier ones are looked up by id.
+  const inMonth = new Map(expenses.map((e) => [e.id, e]));
+  const elsewhere = [
+    ...new Set(
+      expenses.flatMap((e) => (e.refunded_expense_id && !inMonth.has(e.refunded_expense_id) ? [e.refunded_expense_id] : [])),
+    ),
+  ];
+  const fetched = useExpensesById(elsewhere);
+  const originalOf = (refund: Schemas["Expense"]) =>
+    refund.refunded_expense_id ? (inMonth.get(refund.refunded_expense_id) ?? fetched.get(refund.refunded_expense_id)) : undefined;
+
+  // "Refund for …" links land on the original's row: bring it into view and focus it.
+  const target = hash.startsWith("#expense-") ? hash.slice(1) : null;
+  const targetShown = target !== null && shown.some((e) => expenseAnchor(e.id) === target);
+  useEffect(() => {
+    if (!target || !targetShown) return;
+    const row = document.getElementById(target);
+    row?.scrollIntoView?.({ block: "center" });
+    row?.focus({ preventScroll: true });
+  }, [target, targetShown]);
+
+  const refundCounts = {
+    refunds: expenses.filter((e) => matchesRefundFilter(e, "refunds")).length,
+    unlinked: expenses.filter((e) => matchesRefundFilter(e, "unlinked")).length,
+  };
 
   const chip = (id: string | null, name: string, n: number) => {
     const on = id === selected;
@@ -391,7 +501,7 @@ function ExpenseSection({
         No expenses logged in {monthName(month)}. <Link to={`/add?month=${month}`}>Add expenses</Link>
       </p>
     );
-  else if (shown.length === 0) body = <p className="tx__status">No expenses match. Try another category or search.</p>;
+  else if (shown.length === 0) body = <p className="tx__status">No expenses match. Try another filter or search.</p>;
   else
     body = (
       <div className="tx-table__scroll">
@@ -410,29 +520,62 @@ function ExpenseSection({
           </thead>
           <tbody>
             {shown.map((e) => {
-              const refund = e.amount_cents < 0;
+              const refund = isRefund(e);
               const category = categories.get(e.category_id);
-              const rowClass = [refund && "is-refund", !e.confirmed && "is-unconfirmed"].filter(Boolean).join(" ") || undefined;
+              const original = refund ? originalOf(e) : undefined;
+              const tag = refund ? refundTag(e, original) : null;
+              const status = originalStatus(e);
+              const anchor = expenseAnchor(e.id);
+              const isTarget = anchor === target;
+              const rowClass =
+                [refund && "is-refund", !e.confirmed && "is-unconfirmed", isTarget && "is-target"].filter(Boolean).join(" ") ||
+                undefined;
+              const amountClass = ["num tx-table__amount", refund && "is-refund", status?.full && "is-struck"]
+                .filter(Boolean)
+                .join(" ");
+              const name = `${refund ? "refund" : "expense"} ${e.merchant.name}, ${formatShortDate(e.date)}`;
               return (
-                <tr key={e.id} className={rowClass}>
+                <tr key={e.id} id={anchor} tabIndex={isTarget ? -1 : undefined} className={rowClass}>
                   <td className="tx-table__date">{formatShortDate(e.date)}</td>
                   <td>
                     <div className="tx-table__main">
                       <strong>{e.merchant.name}</strong>
-                      {refund && <span className="tag tag--refund">Refund</span>}
+                      {refund && <span className={`pill pill--${tag?.kind ?? "refund"}`}>{tag?.label ?? "Refund"}</span>}
                       {!e.confirmed && <UnconfirmedPill />}
                     </div>
+                    {original && (
+                      <p className="tx-refund-for">
+                        <LinkIcon />
+                        <span>
+                          Refund for{" "}
+                          <Link to={{ pathname: "/transactions", search: `?month=${monthOf(original.date)}`, hash: expenseAnchor(original.id) }}>
+                            {describeOriginal(original)}
+                          </Link>
+                        </span>
+                      </p>
+                    )}
+                    {status && <p className="tx-refunded">{status.text}</p>}
                   </td>
                   <td>
                     <span className={category?.is_saving ? "tag tag--saving" : "tag"}>{category?.name ?? "—"}</span>
                   </td>
                   <td className="tx-table__note">{e.note ?? <span className="tx__muted">—</span>}</td>
-                  <td className={refund ? "num tx-table__amount is-refund" : "num tx-table__amount"}>{formatCents(e.amount_cents)}</td>
+                  <td className={amountClass}>
+                    {status?.full ? (
+                      <>
+                        <s>{formatCents(e.amount_cents)}</s>
+                        <span className="visually-hidden"> (refunded in full)</span>
+                      </>
+                    ) : (
+                      formatCents(e.amount_cents)
+                    )}
+                  </td>
                   <td className="tx-table__actions">
                     <RowActions
-                      name={`${refund ? "refund" : "expense"} ${e.merchant.name}, ${formatShortDate(e.date)}`}
+                      name={name}
                       onEdit={() => onEdit(e)}
                       onDelete={() => onDelete(e)}
+                      onLink={refund && !e.refunded_expense_id ? () => onLink(e) : undefined}
                     />
                   </td>
                 </tr>
@@ -446,9 +589,17 @@ function ExpenseSection({
   return (
     <section className="card tx" aria-labelledby="tx-exp-h">
       <div className="tx__head tx__head--expenses">
-        <h2 id="tx-exp-h">
-          Expenses <span className="tx__count">· {plural(expenses.length, "entry", "entries")}</span>
-        </h2>
+        <div>
+          <h2 id="tx-exp-h">
+            Expenses <span className="tx__count">· {plural(expenses.length, "entry", "entries")}</span>
+          </h2>
+          {refundCounts.refunds > 0 && (
+            <p className="tx__desc">
+              Refunds are negative amounts. They lower spending in their category for the month they’re logged, even when the
+              purchase was in an earlier month.
+            </p>
+          )}
+        </div>
         <label className="tx-search">
           <SearchIcon />
           <span className="visually-hidden">Search merchants and notes</span>
@@ -456,9 +607,28 @@ function ExpenseSection({
         </label>
       </div>
       {expenses.length > 0 && (
-        <div role="group" aria-label="Filter by category" className="tx__chips">
-          {chip(null, "All", expenses.length)}
-          {totals.map((t) => chip(t.category.id, t.category.name, t.count))}
+        <div className="tx__filters">
+          <div role="group" aria-label="Filter by refund" className="tx__chips">
+            {REFUND_FILTERS.map(({ value, label }) => {
+              const on = value === refundFilter;
+              const n = value === null ? expenses.length : refundCounts[value];
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  className={on ? "chip is-on" : "chip"}
+                  aria-pressed={on}
+                  onClick={() => onRefundFilter(value)}
+                >
+                  {label} <span className="chip__count">{count.format(n)}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div role="group" aria-label="Filter by category" className="tx__chips">
+            {chip(null, "All categories", expenses.length)}
+            {totals.map((t) => chip(t.category.id, t.category.name, t.count))}
+          </div>
         </div>
       )}
       {body}

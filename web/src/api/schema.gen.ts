@@ -987,6 +987,12 @@ export interface components {
              *     never stored. Display net = `amount_cents + refunded_total_cents`. Always 0 on a refund.
              */
             readonly refunded_total_cents: components["schemas"]["Cents"];
+            /**
+             * Format: date
+             * @description On an expense, the date of its latest linked refund, computed at read time and never
+             *     stored. Null when no refund is linked, and always null on a refund.
+             */
+            readonly last_refund_date: string | null;
             /** @description False for entries copied from a template that the user hasn't reviewed yet. */
             confirmed: boolean;
             readonly template_apply_id: string | null;

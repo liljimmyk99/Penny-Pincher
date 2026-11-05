@@ -46,6 +46,7 @@ function expense(id: string, merchant: Schemas["Merchant"], extra: Partial<Schem
     note: null,
     refunded_expense_id: null,
     refunded_total_cents: 0,
+    last_refund_date: null,
     confirmed: true,
     template_apply_id: null,
     created_at: stamp,
@@ -71,7 +72,9 @@ function income(id: string, extra: Partial<Schemas["IncomeEntry"]>): Schemas["In
   };
 }
 
-function fakeBackend() {
+type State = ReturnType<typeof fakeBackend>["state"];
+
+function fakeBackend(setup?: (state: State) => void) {
   const state = {
     categories: [category("1", "Saving", { is_saving: true }), category("2", "Food"), category("3", "Household"), category("9", "Other", { is_protected: true })],
     sources: [source("1", "Employer A"), source("2", "Side job"), source("9", "Other")],
@@ -89,7 +92,19 @@ function fakeBackend() {
     ],
     patchError: null as null | { status: number; body: unknown },
   };
+  setup?.(state as State);
   const calls: { method: string; path: string; body?: unknown }[] = [];
+
+  /** Like the API: an expense's refund total and latest refund date are computed when read. */
+  function view(e: Schemas["Expense"]): Schemas["Expense"] {
+    if (e.amount_cents < 0) return { ...e, refunded_total_cents: 0, last_refund_date: null };
+    const refunds = state.expenses.filter((r) => r.refunded_expense_id === e.id);
+    return {
+      ...e,
+      refunded_total_cents: refunds.reduce((sum, r) => sum + r.amount_cents, 0),
+      last_refund_date: refunds.map((r) => r.date).sort().at(-1) ?? null,
+    };
+  }
 
   async function handle(req: Request): Promise<Response> {
     const url = new URL(req.url);
@@ -102,7 +117,15 @@ function fakeBackend() {
     if (req.method === "GET" && path === "/v1/income-sources") return Response.json({ items: state.sources });
     if (req.method === "GET" && path === "/v1/merchants") return Response.json({ items: [], next_cursor: null });
     if (req.method === "GET" && path === "/v1/expenses") {
-      const items = state.expenses.filter((e) => e.date.startsWith(q.get("month")!)).sort((a, b) => b.date.localeCompare(a.date));
+      const month = q.get("month");
+      const from = q.get("from") ?? "";
+      const to = q.get("to") ?? "9999";
+      const type = q.get("type");
+      const items = state.expenses
+        .filter((e) => (month ? e.date.startsWith(month) : e.date >= from && e.date <= to))
+        .filter((e) => !type || (type === "refund") === e.amount_cents < 0)
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .map(view);
       return Response.json({ items, next_cursor: null });
     }
     if (req.method === "GET" && path === "/v1/income-entries") {
@@ -113,16 +136,19 @@ function fakeBackend() {
     if (m) {
       const list = (m[1] === "expenses" ? state.expenses : state.income) as { id: string }[];
       const index = list.findIndex((e) => e.id === m[2]);
+      if (index < 0) return Response.json({ error: { code: "not_found", message: "Not found." } }, { status: 404 });
+      if (req.method === "GET") return Response.json(view(state.expenses[index]));
       if (req.method === "DELETE") {
         list.splice(index, 1);
+        for (const e of state.expenses) if (e.refunded_expense_id === m[2]) e.refunded_expense_id = null;
         return new Response(null, { status: 204 });
       }
       if (req.method === "PATCH") {
         if (state.patchError) return Response.json(state.patchError.body, { status: state.patchError.status });
         const patch = body as Record<string, unknown>;
         if ("merchant_name" in patch) patch.merchant = { id: "mx", name: patch.merchant_name };
-        list[index] = { ...list[index], ...patch, confirmed: true } as { id: string };
-        return Response.json(list[index]);
+        list[index] = { ...list[index], confirmed: true, ...patch } as { id: string };
+        return Response.json(m[1] === "expenses" ? view(list[index] as Schemas["Expense"]) : list[index]);
       }
     }
     return Response.json({ error: { code: "not_found", message: `No route ${req.method} ${path}` } }, { status: 404 });
@@ -133,11 +159,11 @@ function fakeBackend() {
 
 function LocationProbe() {
   const loc = useLocation();
-  return <p data-testid="location">{loc.pathname + loc.search}</p>;
+  return <p data-testid="location">{loc.pathname + loc.search + loc.hash}</p>;
 }
 
-function renderPage(path = `/transactions?month=${MONTH}`) {
-  const backend = fakeBackend();
+function renderPage(path = `/transactions?month=${MONTH}`, setup?: (state: State) => void) {
+  const backend = fakeBackend(setup);
   const client = createApiClient({
     baseUrl: "http://api.test",
     getToken: async () => "tok",
@@ -172,7 +198,7 @@ const categoryButton = (name: string) => screen.getByRole("button", { name: new 
 const footer = () => within(screen.getByRole("region", { name: /^Expenses/ })).getByRole("status");
 
 async function ready() {
-  await screen.findByRole("cell", { name: /Corner Coffee/ });
+  await screen.findAllByRole("cell", { name: /Corner Coffee/ });
   await screen.findByRole("cell", { name: "Paycheck" });
 }
 
@@ -209,10 +235,19 @@ describe("TransactionsPage: spending", () => {
     renderPage();
     await ready();
 
-    expect(merchantsShown()).toEqual(["Corner Coffee", "Corner StoreRefund", "Corner Store", "BrokerageUnconfirmed · from template"]);
-    const [, refund, , unconfirmed] = expenseRows();
+    expect(merchantsShown()).toEqual([
+      "Corner Coffee",
+      "Corner StorePartial refundRefund for Corner Store · Mar 12 · $50.00",
+      "Corner StorePartly refunded · −$20.00 on Mar 14 · net $30.00",
+      "BrokerageUnconfirmed · from template",
+    ]);
+    const [, refund, original, unconfirmed] = expenseRows();
     expect(refund).toHaveClass("is-refund");
     expect(within(refund).getByText("−$20.00")).toHaveClass("is-refund");
+    expect(within(refund).getByText("Partial refund")).toHaveClass("pill--partial");
+    expect(original).not.toHaveClass("is-refund");
+    // Partly refunded: the amount stays as logged; the net is display-only.
+    expect(within(original).getByText("$50.00")).not.toHaveClass("is-struck");
     expect(unconfirmed).toHaveClass("is-unconfirmed");
   });
 
@@ -221,12 +256,15 @@ describe("TransactionsPage: spending", () => {
     await ready();
 
     const chips = within(screen.getByRole("group", { name: "Filter by category" }));
-    expect(chips.getAllByRole("button").map((b) => b.textContent)).toEqual(["All 4", "Saving 1", "Food 1", "Household 2"]);
+    expect(chips.getAllByRole("button").map((b) => b.textContent)).toEqual(["All categories 4", "Saving 1", "Food 1", "Household 2"]);
 
     await user.click(categoryButton("Household"));
     expect(categoryButton("Household")).toHaveAttribute("aria-pressed", "true");
     expect(chips.getByRole("button", { name: "Household 2" })).toHaveAttribute("aria-pressed", "true");
-    expect(merchantsShown()).toEqual(["Corner StoreRefund", "Corner Store"]);
+    expect(merchantsShown()).toEqual([
+      "Corner StorePartial refundRefund for Corner Store · Mar 12 · $50.00",
+      "Corner StorePartly refunded · −$20.00 on Mar 14 · net $30.00",
+    ]);
     expect(footer()).toHaveTextContent("Showing 2 of 4 expenses · $30.00");
     expect(screen.getByTestId("location")).toHaveTextContent("category=3");
 
@@ -235,7 +273,7 @@ describe("TransactionsPage: spending", () => {
 
     await user.click(chips.getByRole("button", { name: "Saving 1" }));
     expect(merchantsShown()).toEqual(["BrokerageUnconfirmed · from template"]);
-    await user.click(chips.getByRole("button", { name: "All 4" }));
+    await user.click(chips.getByRole("button", { name: "All categories 4" }));
     expect(merchantsShown()).toHaveLength(4);
     expect(footer()).toHaveTextContent("4 expenses · $334.50");
   });
@@ -245,12 +283,12 @@ describe("TransactionsPage: spending", () => {
     await ready();
 
     await user.type(screen.getByRole("searchbox", { name: "Search merchants and notes" }), "lamp");
-    expect(merchantsShown()).toEqual(["Corner Store"]);
+    expect(merchantsShown()).toEqual(["Corner StorePartly refunded · −$20.00 on Mar 14 · net $30.00"]);
     await user.clear(screen.getByRole("searchbox"));
     await user.type(screen.getByRole("searchbox"), "COFFEE");
     expect(merchantsShown()).toEqual(["Corner Coffee"]);
     await user.type(screen.getByRole("searchbox"), "zzz");
-    expect(screen.getByText("No expenses match. Try another category or search.")).toBeInTheDocument();
+    expect(screen.getByText("No expenses match. Try another filter or search.")).toBeInTheDocument();
   });
 });
 
@@ -379,5 +417,159 @@ describe("TransactionsPage: edit and delete", () => {
 
     await waitFor(() => expect(within(incomeTable()).getAllByRole("row")).toHaveLength(3));
     expect(backend.calls).toEqual([{ method: "DELETE", path: "/v1/income-entries/i2", body: undefined }]);
+  });
+});
+
+describe("TransactionsPage: refunds", () => {
+  /** A full refund in March of February's coffee, and an unlinked refund. */
+  const withMoreRefunds = (state: State) => {
+    state.expenses.push(
+      expense("e6", coffee, { date: "2020-03-08", amount_cents: -700, refunded_expense_id: "e5", note: "Wrong order" }),
+      expense("e7", store, { date: "2020-03-25", category_id: "3", amount_cents: -1000, note: "Price match" }),
+    );
+  };
+  const rowFor = (text: string) => expenseRows().find((r) => r.textContent?.includes(text))!;
+
+  it("tags refunds and links each to its original, even in an earlier month", async () => {
+    renderPage(undefined, withMoreRefunds);
+    await ready();
+
+    const fromEarlier = rowFor("Wrong order");
+    expect(fromEarlier).toHaveClass("is-refund");
+    expect(await within(fromEarlier).findByText("From February")).toHaveClass("pill--earlier");
+    const link = within(fromEarlier).getByRole("link", { name: "Corner Coffee · Feb 11 · $7.00" });
+    expect(link).toHaveAttribute("href", "/transactions?month=2020-02#expense-e5");
+    expect(within(fromEarlier).getByText("−$7.00")).toHaveClass("is-refund");
+
+    const unlinked = rowFor("Price match");
+    expect(within(unlinked).getByText("Not linked")).toHaveClass("pill--unlinked");
+    expect(within(unlinked).queryByRole("link")).not.toBeInTheDocument();
+    expect(within(unlinked).getByRole("button", { name: "Link refund Corner Store, Mar 25" })).toBeInTheDocument();
+    // Linked refunds and expenses have no Link… button.
+    expect(screen.getAllByRole("button", { name: /^Link / })).toHaveLength(1);
+  });
+
+  it("strikes through an original refunded in full and shows its net", async () => {
+    const { user } = renderPage(undefined, withMoreRefunds);
+    await ready();
+
+    await user.click(await within(rowFor("Wrong order")).findByRole("link", { name: /Corner Coffee/ }));
+    await waitFor(() => expect(screen.getByRole("group", { name: "Month" })).toHaveTextContent("February 2020"));
+    expect(screen.getByTestId("location")).toHaveTextContent("/transactions?month=2020-02#expense-e5");
+    const original = await screen.findByText("Refunded in full on Mar 8 · net $0.00");
+    const row = original.closest("tr")!;
+    expect(row).toHaveClass("is-target");
+    await waitFor(() => expect(row).toHaveFocus());
+    const amount = within(row).getByText("$7.00");
+    expect(amount.tagName).toBe("S");
+    expect(amount.closest("td")).toHaveClass("is-struck");
+    expect(amount.closest("td")).toHaveTextContent("$7.00 (refunded in full)");
+  });
+
+  it("shows a full refund of an expense in the same month", async () => {
+    renderPage(undefined, (state) => {
+      state.expenses.push(expense("e8", coffee, { date: "2020-03-21", amount_cents: -450, refunded_expense_id: "e1" }));
+    });
+    await ready();
+
+    expect(await screen.findByText("Full refund")).toHaveClass("pill--full");
+    expect(screen.getByText("Refunded in full on Mar 21 · net $0.00")).toBeInTheDocument();
+  });
+
+  it("totals refunds and spending before and after them", async () => {
+    renderPage(undefined, withMoreRefunds);
+    await ready();
+
+    const tiles = within(screen.getByRole("region", { name: "Refunds this month" }));
+    expect(tiles.getByText("Refunds this month").parentElement).toHaveTextContent("−$37.003 refunds · 2 linked to an expense");
+    expect(tiles.getByText("Spent before refunds").parentElement).toHaveTextContent("$354.50Every expense logged in March");
+    expect(tiles.getByText("Spent after refunds").parentElement).toHaveTextContent("$317.50What Summary and Trends show");
+  });
+
+  it("filters to refunds or to unlinked refunds", async () => {
+    const { user } = renderPage(undefined, withMoreRefunds);
+    await ready();
+
+    const chips = within(screen.getByRole("group", { name: "Filter by refund" }));
+    expect(chips.getAllByRole("button").map((b) => b.textContent)).toEqual(["All 6", "Refunds 3", "Not linked 1"]);
+    expect(chips.getByRole("button", { name: "All 6" })).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(chips.getByRole("button", { name: "Refunds 3" }));
+    expect(expenseRows()).toHaveLength(3);
+    expect(expenseRows().every((r) => r.classList.contains("is-refund"))).toBe(true);
+    expect(screen.getByTestId("location")).toHaveTextContent("show=refunds");
+    expect(footer()).toHaveTextContent("Showing 3 of 6 expenses · −$37.00");
+
+    await user.click(chips.getByRole("button", { name: "Not linked 1" }));
+    expect(merchantsShown()).toEqual(["Corner StoreNot linked"]);
+
+    await user.click(chips.getByRole("button", { name: "All 6" }));
+    expect(expenseRows()).toHaveLength(6);
+    expect(screen.getByTestId("location")).not.toHaveTextContent("show=");
+  });
+
+  it("links a refund to the suggested expense and confirms with a toast", async () => {
+    const { backend, user } = renderPage(undefined, withMoreRefunds);
+    await ready();
+
+    await user.click(screen.getByRole("button", { name: "Link refund Corner Store, Mar 25" }));
+    const dialog = await screen.findByRole("dialog", { name: "Link refund to an expense" });
+    expect(dialog).toHaveAccessibleDescription("Corner Store · Mar 25 · −$10.00 · Household · Price match");
+    expect(dialog).toHaveTextContent("An unlinked refund still lowers Household spending for March.");
+
+    // Same category, closest before the refund, with enough left to cover it.
+    const options = await within(dialog).findAllByRole("radio");
+    expect(options[0]).toBeChecked();
+    expect(options[0].closest("label")).toHaveTextContent("Corner StoreSuggestedMar 12 · Household · Lamp · net $30.00$50.00");
+    expect(options.map((o) => o.closest("label")!.querySelector("strong")!.textContent)).toEqual([
+      "Corner Store",
+      "Corner Coffee",
+      "Brokerage",
+      "Corner Coffee",
+    ]);
+
+    await user.click(within(dialog).getByRole("button", { name: "Link refund" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(backend.calls).toEqual([{ method: "PATCH", path: "/v1/expenses/e7", body: { refunded_expense_id: "e2" } }]);
+    expect(screen.getByText("Refund linked to Corner Store · Mar 12")).toBeInTheDocument();
+    await waitFor(() => expect(rowFor("Price match")).toHaveTextContent("Refund for Corner Store · Mar 12 · $50.00"));
+    expect(screen.getByText("Partly refunded · −$30.00 on Mar 25 · net $20.00")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByText(/Refund linked/)).not.toBeInTheDocument();
+  });
+
+  it("searches the linking dialog and lets the user pick another expense", async () => {
+    const { backend, user } = renderPage(undefined, withMoreRefunds);
+    await ready();
+
+    await user.click(screen.getByRole("button", { name: "Link refund Corner Store, Mar 25" }));
+    const dialog = await screen.findByRole("dialog", { name: "Link refund to an expense" });
+    await within(dialog).findAllByRole("radio");
+    await user.type(within(dialog).getByRole("searchbox", { name: "Search expenses" }), "coffee");
+    const options = within(dialog).getAllByRole("radio");
+    expect(options).toHaveLength(2);
+    await user.click(options[1]);
+    expect(options[1]).toBeChecked();
+    await user.click(within(dialog).getByRole("button", { name: "Link refund" }));
+
+    await waitFor(() => expect(backend.calls).toHaveLength(1));
+    expect(backend.calls[0]).toEqual({ method: "PATCH", path: "/v1/expenses/e7", body: { refunded_expense_id: "e5" } });
+  });
+
+  it("keeps the dialog open and explains when linking fails", async () => {
+    const { backend, user } = renderPage(undefined, withMoreRefunds);
+    await ready();
+    backend.state.patchError = {
+      status: 400,
+      body: { error: { code: "invalid_refund_link", message: "That expense can’t take a refund." } },
+    };
+
+    await user.click(screen.getByRole("button", { name: "Link refund Corner Store, Mar 25" }));
+    const dialog = await screen.findByRole("dialog", { name: "Link refund to an expense" });
+    await within(dialog).findAllByRole("radio");
+    await user.click(within(dialog).getByRole("button", { name: "Link refund" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(/^Not linked\./);
+    expect(screen.queryByText(/Refund linked/)).not.toBeInTheDocument();
   });
 });

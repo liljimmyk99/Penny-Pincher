@@ -72,3 +72,10 @@ export function formatShortDate(date: string): string {
   const [, m, d] = date.split("-").map(Number);
   return `${MONTH_NAMES[m - 1].slice(0, 3)} ${d}`;
 }
+
+/** "2026-03-01" shifted by -1 day is "2026-02-28". Calendar arithmetic only, so no time zone applies. */
+export function addDays(date: string, days: number): string {
+  const [y, m, d] = date.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d + days));
+  return `${t.getUTCFullYear()}-${pad(t.getUTCMonth() + 1)}-${pad(t.getUTCDate())}`;
+}

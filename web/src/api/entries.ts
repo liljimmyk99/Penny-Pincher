@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { unwrap, type ApiClient } from "./client";
 import { useApi } from "./context";
 import { meQueryKey } from "./me";
@@ -10,6 +10,8 @@ export const merchantSearchQueryKey = (q: string) => ["merchants", "search", q.t
 export const merchantExpensesQueryKey = (merchantId: string) => ["expenses", "merchant", merchantId] as const;
 export const monthIncomeQueryKey = (month: string) => ["income-entries", "month", month] as const;
 export const monthExpensesQueryKey = (month: string) => ["expenses", "month", month] as const;
+export const expenseQueryKey = (id: string) => ["expenses", "one", id] as const;
+export const expensesBetweenQueryKey = (from: string, to: string) => ["expenses", "between", from, to] as const;
 
 const SUGGESTIONS = 8;
 /** How many of a merchant's past expenses a refund can be linked to. */
@@ -108,6 +110,41 @@ export function useMonthExpenses(month: string) {
     queryFn: ({ signal }) =>
       fetchAll((cursor) =>
         unwrap(api.GET("/v1/expenses", { params: { query: { month, limit: PAGE, cursor } }, signal })),
+      ),
+  });
+}
+
+/**
+ * Single expenses by id, for refunds whose original is in another month.
+ * Returns the ones loaded so far; a failed lookup just stays missing.
+ */
+export function useExpensesById(ids: string[]) {
+  const api = useApi();
+  return useQueries({
+    queries: ids.map((id) => ({
+      queryKey: expenseQueryKey(id),
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        unwrap(api.GET("/v1/expenses/{id}", { params: { path: { id } }, signal })),
+      staleTime: 60_000,
+    })),
+    combine: (results) => {
+      const found = new Map<string, Schemas["Expense"]>();
+      for (const r of results) if (r.data) found.set(r.data.id, r.data);
+      return found;
+    },
+  });
+}
+
+/** Every expense (not refunds) dated from `from` to `to` inclusive, newest first. */
+export function useExpensesBetween(from: string, to: string) {
+  const api = useApi();
+  return useQuery<Schemas["Expense"][]>({
+    queryKey: expensesBetweenQueryKey(from, to),
+    queryFn: ({ signal }) =>
+      fetchAll((cursor) =>
+        unwrap(
+          api.GET("/v1/expenses", { params: { query: { from, to, type: "expense", limit: PAGE, cursor } }, signal }),
+        ),
       ),
   });
 }

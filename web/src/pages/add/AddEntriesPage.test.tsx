@@ -43,6 +43,7 @@ function expense(id: string, merchant: Schemas["Merchant"], extra: Partial<Schem
     note: null,
     refunded_expense_id: null,
     refunded_total_cents: 0,
+    last_refund_date: null,
     confirmed: true,
     template_apply_id: null,
     created_at: stamp,

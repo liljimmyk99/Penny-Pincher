@@ -30,12 +30,16 @@ export {
   useIncomeSourceStats,
 } from "./manage";
 export {
+  expenseQueryKey,
+  expensesBetweenQueryKey,
   findMerchant,
   lastCategoryFor,
   merchantSearchQueryKey,
   monthExpensesQueryKey,
   monthIncomeQueryKey,
   useEntryMutations,
+  useExpensesBetween,
+  useExpensesById,
   useMerchantExpenses,
   useMerchantSearch,
   useMonthExpenses,
