@@ -57,7 +57,11 @@ export interface paths {
          */
         get: operations["listCategories"];
         put?: never;
-        /** Create a category */
+        /**
+         * Create a category
+         * @description Added at the end of the list, or just before "Other" when "Other" is last.
+         *     A name already used by another category (case-insensitively) returns `409 name_taken`.
+         */
         post: operations["createCategory"];
         delete?: never;
         options?: never;
@@ -76,7 +80,8 @@ export interface paths {
         /**
          * Reorder all categories
          * @description `ids` must list every category exactly once, in the new order (the protected "Other"
-         *     category included). Sets `sort_order` for the whole list in one transaction.
+         *     category included). Sets `sort_order` for the whole list in one transaction. A list
+         *     with a missing, unknown or repeated id returns `400 invalid_request` and changes nothing.
          */
         put: operations["reorderCategories"];
         post?: never;
@@ -110,6 +115,8 @@ export interface paths {
          * Update a category
          * @description On the protected "Other" category only `color` may change; any other field returns
          *     `409 protected_resource`. It can also be reordered with `PUT /v1/categories/order`.
+         *     Sending `"color": null` clears the colour. A name already used by another category
+         *     (case-insensitively) returns `409 name_taken`.
          */
         patch: operations["updateCategory"];
         trace?: never;

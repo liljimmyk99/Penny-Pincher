@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/oapi-codegen/nullable"
 	"github.com/oapi-codegen/runtime"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
@@ -290,9 +291,9 @@ type AdminStatus struct {
 		Status    AdminStatusAuthProviderStatus `json:"status"`
 	} `json:"auth_provider"`
 	Backups struct {
-		LastRun       *Backup   `json:"last_run"`
-		NextMonthlyAt time.Time `json:"next_monthly_at"`
-		NextWeeklyAt  time.Time `json:"next_weekly_at"`
+		LastRun       nullable.Nullable[Backup] `json:"last_run"`
+		NextMonthlyAt time.Time                 `json:"next_monthly_at"`
+		NextWeeklyAt  time.Time                 `json:"next_weekly_at"`
 		Retention     struct {
 			// Monthly Examples: 12
 			Monthly int `json:"monthly"`
@@ -306,8 +307,8 @@ type AdminStatus struct {
 	} `json:"backups"`
 	Database struct {
 		// LastWriteAt Latest `updated_at` across user data.
-		LastWriteAt *time.Time `json:"last_write_at"`
-		SizeBytes   int64      `json:"size_bytes"`
+		LastWriteAt nullable.Nullable[time.Time] `json:"last_write_at"`
+		SizeBytes   int64                        `json:"size_bytes"`
 	} `json:"database"`
 	StartedAt     *Timestamp `json:"started_at,omitempty"`
 	UptimeSeconds int        `json:"uptime_seconds"`
@@ -320,17 +321,17 @@ type AdminStatusAuthProviderStatus string
 // Backup defines model for Backup.
 type Backup struct {
 	// ErrorMessage Short, safe reason when `status` is failed.
-	ErrorMessage *string    `json:"error_message"`
-	FinishedAt   *time.Time `json:"finished_at"`
+	ErrorMessage nullable.Nullable[string]    `json:"error_message"`
+	FinishedAt   nullable.Nullable[time.Time] `json:"finished_at"`
 
 	// Id Opaque identifier.
 	//
 	// Examples: 42
-	Id        Id           `json:"id"`
-	Kind      BackupKind   `json:"kind"`
-	SizeBytes *int64       `json:"size_bytes"`
-	StartedAt *Timestamp   `json:"started_at,omitempty"`
-	Status    BackupStatus `json:"status"`
+	Id        Id                       `json:"id"`
+	Kind      BackupKind               `json:"kind"`
+	SizeBytes nullable.Nullable[int64] `json:"size_bytes"`
+	StartedAt *Timestamp               `json:"started_at,omitempty"`
+	Status    BackupStatus             `json:"status"`
 }
 
 // BackupStatus defines model for Backup.Status.
@@ -342,8 +343,8 @@ type BackupKind string
 // Category defines model for Category.
 type Category struct {
 	// Color Examples: #2F80ED
-	Color     *Color     `json:"color"`
-	CreatedAt *Timestamp `json:"created_at,omitempty"`
+	Color     nullable.Nullable[Color] `json:"color"`
+	CreatedAt *Timestamp               `json:"created_at,omitempty"`
 
 	// Id Opaque identifier.
 	//
@@ -365,8 +366,8 @@ type Category struct {
 // CategoryCreate defines model for CategoryCreate.
 type CategoryCreate struct {
 	// Color Examples: #2F80ED
-	Color    *Color `json:"color,omitempty"`
-	IsSaving *bool  `json:"is_saving,omitempty"`
+	Color    nullable.Nullable[Color] `json:"color,omitempty"`
+	IsSaving *bool                    `json:"is_saving,omitempty"`
 
 	// Name Trimmed; unique per user, case-insensitively, within its kind.
 	Name Name `json:"name"`
@@ -375,10 +376,10 @@ type CategoryCreate struct {
 // CategoryTrendSeries defines model for CategoryTrendSeries.
 type CategoryTrendSeries struct {
 	// CategoryId Null for the "all spending" series.
-	CategoryId *string `json:"category_id"`
+	CategoryId nullable.Nullable[string] `json:"category_id"`
 
 	// Color Examples: #2F80ED
-	Color *Color `json:"color"`
+	Color nullable.Nullable[Color] `json:"color"`
 
 	// IsSaving When true, an increase is better (blue) rather than worse (orange).
 	IsSaving bool `json:"is_saving"`
@@ -404,8 +405,8 @@ type CategoryTrends struct {
 // CategoryUpdate defines model for CategoryUpdate.
 type CategoryUpdate struct {
 	// Color Examples: #2F80ED
-	Color    *Color `json:"color,omitempty"`
-	IsSaving *bool  `json:"is_saving,omitempty"`
+	Color    nullable.Nullable[Color] `json:"color,omitempty"`
+	IsSaving *bool                    `json:"is_saving,omitempty"`
 
 	// Name Trimmed; unique per user, case-insensitively, within its kind.
 	Name *Name `json:"name,omitempty"`
@@ -486,17 +487,17 @@ type Expense struct {
 	// Id Opaque identifier.
 	//
 	// Examples: 42
-	Id       Id       `json:"id"`
-	Merchant Merchant `json:"merchant"`
-	Note     *Note    `json:"note"`
+	Id       Id                      `json:"id"`
+	Merchant Merchant                `json:"merchant"`
+	Note     nullable.Nullable[Note] `json:"note"`
 
 	// RefundedExpenseId On a refund, the expense it refunds (optional).
-	RefundedExpenseId *string `json:"refunded_expense_id"`
+	RefundedExpenseId nullable.Nullable[string] `json:"refunded_expense_id"`
 
 	// RefundedTotalCents On an expense, the sum of linked refunds (zero or negative), computed at read time and
 	// never stored. Display net = `amount_cents + refunded_total_cents`. Always 0 on a refund.
-	RefundedTotalCents *Cents  `json:"refunded_total_cents,omitempty"`
-	TemplateApplyId    *string `json:"template_apply_id,omitempty"`
+	RefundedTotalCents *Cents                    `json:"refunded_total_cents,omitempty"`
+	TemplateApplyId    nullable.Nullable[string] `json:"template_apply_id,omitempty"`
 
 	// Type Derived from the sign of `amount_cents`; refunds are negative.
 	Type      *ExpenseType `json:"type,omitempty"`
@@ -520,11 +521,11 @@ type ExpenseCreate struct {
 	Date Date `json:"date"`
 
 	// MerchantName Matched case-insensitively to an existing merchant, or creates one.
-	MerchantName string `json:"merchant_name"`
-	Note         *Note  `json:"note,omitempty"`
+	MerchantName string                  `json:"merchant_name"`
+	Note         nullable.Nullable[Note] `json:"note,omitempty"`
 
 	// RefundedExpenseId Only allowed when `amount_cents` is negative; must be a positive expense of yours.
-	RefundedExpenseId *string `json:"refunded_expense_id,omitempty"`
+	RefundedExpenseId nullable.Nullable[string] `json:"refunded_expense_id,omitempty"`
 }
 
 // ExpenseType Derived from the sign of `amount_cents`; refunds are negative.
@@ -543,10 +544,10 @@ type ExpenseUpdate struct {
 	// Date Calendar date, `YYYY-MM-DD`, no time zone.
 	//
 	// Examples: 2026-10-30
-	Date              *Date   `json:"date,omitempty"`
-	MerchantName      *string `json:"merchant_name,omitempty"`
-	Note              *Note   `json:"note,omitempty"`
-	RefundedExpenseId *string `json:"refunded_expense_id,omitempty"`
+	Date              *Date                     `json:"date,omitempty"`
+	MerchantName      *string                   `json:"merchant_name,omitempty"`
+	Note              nullable.Nullable[Note]   `json:"note,omitempty"`
+	RefundedExpenseId nullable.Nullable[string] `json:"refunded_expense_id,omitempty"`
 }
 
 // Health defines model for Health.
@@ -586,11 +587,11 @@ type IncomeEntry struct {
 	// IncomeSourceId Opaque identifier.
 	//
 	// Examples: 42
-	IncomeSourceId  Id               `json:"income_source_id"`
-	NetCents        NonNegativeCents `json:"net_cents"`
-	Note            *Note            `json:"note"`
-	TemplateApplyId *string          `json:"template_apply_id,omitempty"`
-	UpdatedAt       *Timestamp       `json:"updated_at,omitempty"`
+	IncomeSourceId  Id                        `json:"income_source_id"`
+	NetCents        NonNegativeCents          `json:"net_cents"`
+	Note            nullable.Nullable[Note]   `json:"note"`
+	TemplateApplyId nullable.Nullable[string] `json:"template_apply_id,omitempty"`
+	UpdatedAt       *Timestamp                `json:"updated_at,omitempty"`
 }
 
 // IncomeEntryCreate `gross_taxable_cents` and `net_cents` must each be <= `gross_cents`.
@@ -607,9 +608,9 @@ type IncomeEntryCreate struct {
 	// IncomeSourceId Opaque identifier.
 	//
 	// Examples: 42
-	IncomeSourceId Id               `json:"income_source_id"`
-	NetCents       NonNegativeCents `json:"net_cents"`
-	Note           *Note            `json:"note,omitempty"`
+	IncomeSourceId Id                      `json:"income_source_id"`
+	NetCents       NonNegativeCents        `json:"net_cents"`
+	Note           nullable.Nullable[Note] `json:"note,omitempty"`
 }
 
 // IncomeEntryUpdate The resulting entry must still satisfy taxable <= gross and net <= gross.
@@ -626,9 +627,9 @@ type IncomeEntryUpdate struct {
 	// IncomeSourceId Opaque identifier.
 	//
 	// Examples: 42
-	IncomeSourceId *Id               `json:"income_source_id,omitempty"`
-	NetCents       *NonNegativeCents `json:"net_cents,omitempty"`
-	Note           *Note             `json:"note,omitempty"`
+	IncomeSourceId *Id                     `json:"income_source_id,omitempty"`
+	NetCents       *NonNegativeCents       `json:"net_cents,omitempty"`
+	Note           nullable.Nullable[Note] `json:"note,omitempty"`
 }
 
 // IncomeSource defines model for IncomeSource.
@@ -672,8 +673,8 @@ type IncomeTotals struct {
 
 // Me defines model for Me.
 type Me struct {
-	DisplayName *string `json:"display_name,omitempty"`
-	Email       *string `json:"email,omitempty"`
+	DisplayName nullable.Nullable[string] `json:"display_name,omitempty"`
+	Email       nullable.Nullable[string] `json:"email,omitempty"`
 
 	// Id Opaque identifier.
 	//
@@ -753,11 +754,11 @@ type MonthlySummary struct {
 			CategoryId Id `json:"category_id"`
 
 			// Color Examples: #2F80ED
-			Color        *Color `json:"color"`
-			ExpenseCount int    `json:"expense_count"`
-			IsProtected  bool   `json:"is_protected"`
-			IsSaving     bool   `json:"is_saving"`
-			Name         string `json:"name"`
+			Color        nullable.Nullable[Color] `json:"color"`
+			ExpenseCount int                      `json:"expense_count"`
+			IsProtected  bool                     `json:"is_protected"`
+			IsSaving     bool                     `json:"is_saving"`
+			Name         string                   `json:"name"`
 
 			// PreviousMonthTotalCents Integer cents. `$12.34` is `1234`.
 			PreviousMonthTotalCents Cents `json:"previous_month_total_cents"`
@@ -805,17 +806,17 @@ type ReorderRequest struct {
 // SavedTrend Exactly one of `merchant_id`, `category_id`, `match_text` is set, matching `match_type`.
 // Deleting the matched merchant or category deletes the saved trend.
 type SavedTrend struct {
-	CategoryId *string    `json:"category_id"`
-	CreatedAt  *Timestamp `json:"created_at,omitempty"`
+	CategoryId nullable.Nullable[string] `json:"category_id"`
+	CreatedAt  *Timestamp                `json:"created_at,omitempty"`
 
 	// Id Opaque identifier.
 	//
 	// Examples: 42
-	Id         Id             `json:"id"`
-	MatchText  *string        `json:"match_text"`
-	MatchType  TrendMatchType `json:"match_type"`
-	Measure    TrendMeasure   `json:"measure"`
-	MerchantId *string        `json:"merchant_id"`
+	Id         Id                        `json:"id"`
+	MatchText  nullable.Nullable[string] `json:"match_text"`
+	MatchType  TrendMatchType            `json:"match_type"`
+	Measure    TrendMeasure              `json:"measure"`
+	MerchantId nullable.Nullable[string] `json:"merchant_id"`
 
 	// Name Trimmed; unique per user, case-insensitively, within its kind.
 	Name      Name       `json:"name"`
@@ -845,11 +846,11 @@ type SavedTrendCreate struct {
 
 // SavedTrendUpdate defines model for SavedTrendUpdate.
 type SavedTrendUpdate struct {
-	CategoryId *string         `json:"category_id,omitempty"`
-	MatchText  *string         `json:"match_text,omitempty"`
-	MatchType  *TrendMatchType `json:"match_type,omitempty"`
-	Measure    *TrendMeasure   `json:"measure,omitempty"`
-	MerchantId *string         `json:"merchant_id,omitempty"`
+	CategoryId nullable.Nullable[string] `json:"category_id,omitempty"`
+	MatchText  nullable.Nullable[string] `json:"match_text,omitempty"`
+	MatchType  *TrendMatchType           `json:"match_type,omitempty"`
+	Measure    *TrendMeasure             `json:"measure,omitempty"`
+	MerchantId nullable.Nullable[string] `json:"merchant_id,omitempty"`
 
 	// Name Trimmed; unique per user, case-insensitively, within its kind.
 	Name      *Name `json:"name,omitempty"`
@@ -891,8 +892,8 @@ type TemplateApply struct {
 	Month YearMonth `json:"month"`
 
 	// TemplateId Null if the template was deleted since.
-	TemplateId   *string `json:"template_id"`
-	TemplateName *string `json:"template_name"`
+	TemplateId   nullable.Nullable[string] `json:"template_id"`
+	TemplateName nullable.Nullable[string] `json:"template_name"`
 
 	// UnconfirmedCount Entries from this apply still unconfirmed, i.e. what Undo would remove. Hide Undo at 0.
 	UnconfirmedCount *int `json:"unconfirmed_count,omitempty"`
@@ -919,8 +920,8 @@ type TemplateApplyResult struct {
 	RemovedIncomeEntryCount int `json:"removed_income_entry_count"`
 
 	// TemplateId Null if the template was deleted since.
-	TemplateId   *string `json:"template_id"`
-	TemplateName *string `json:"template_name"`
+	TemplateId   nullable.Nullable[string] `json:"template_id"`
+	TemplateName nullable.Nullable[string] `json:"template_name"`
 
 	// UnconfirmedCount Entries from this apply still unconfirmed, i.e. what Undo would remove. Hide Undo at 0.
 	UnconfirmedCount *int `json:"unconfirmed_count,omitempty"`
@@ -941,10 +942,10 @@ type TemplateExpenseItem struct {
 	// Id Opaque identifier.
 	//
 	// Examples: 42
-	Id        Id       `json:"id"`
-	Merchant  Merchant `json:"merchant"`
-	Note      *Note    `json:"note"`
-	SortOrder int      `json:"sort_order"`
+	Id        Id                      `json:"id"`
+	Merchant  Merchant                `json:"merchant"`
+	Note      nullable.Nullable[Note] `json:"note"`
+	SortOrder int                     `json:"sort_order"`
 }
 
 // TemplateExpenseItemCreate defines model for TemplateExpenseItemCreate.
@@ -957,9 +958,9 @@ type TemplateExpenseItemCreate struct {
 	CategoryId Id `json:"category_id"`
 
 	// DayOfMonth 29, 30 or 31 are clamped to the last day of shorter months when applied.
-	DayOfMonth   DayOfMonth `json:"day_of_month"`
-	MerchantName string     `json:"merchant_name"`
-	Note         *Note      `json:"note,omitempty"`
+	DayOfMonth   DayOfMonth              `json:"day_of_month"`
+	MerchantName string                  `json:"merchant_name"`
+	Note         nullable.Nullable[Note] `json:"note,omitempty"`
 
 	// SortOrder Defaults to the end of the list.
 	SortOrder *int `json:"sort_order,omitempty"`
@@ -975,10 +976,10 @@ type TemplateExpenseItemUpdate struct {
 	CategoryId *Id `json:"category_id,omitempty"`
 
 	// DayOfMonth 29, 30 or 31 are clamped to the last day of shorter months when applied.
-	DayOfMonth   *DayOfMonth `json:"day_of_month,omitempty"`
-	MerchantName *string     `json:"merchant_name,omitempty"`
-	Note         *Note       `json:"note,omitempty"`
-	SortOrder    *int        `json:"sort_order,omitempty"`
+	DayOfMonth   *DayOfMonth             `json:"day_of_month,omitempty"`
+	MerchantName *string                 `json:"merchant_name,omitempty"`
+	Note         nullable.Nullable[Note] `json:"note,omitempty"`
+	SortOrder    *int                    `json:"sort_order,omitempty"`
 }
 
 // TemplateIncomeItem defines model for TemplateIncomeItem.
@@ -996,10 +997,10 @@ type TemplateIncomeItem struct {
 	// IncomeSourceId Opaque identifier.
 	//
 	// Examples: 42
-	IncomeSourceId Id               `json:"income_source_id"`
-	NetCents       NonNegativeCents `json:"net_cents"`
-	Note           *Note            `json:"note"`
-	SortOrder      int              `json:"sort_order"`
+	IncomeSourceId Id                      `json:"income_source_id"`
+	NetCents       NonNegativeCents        `json:"net_cents"`
+	Note           nullable.Nullable[Note] `json:"note"`
+	SortOrder      int                     `json:"sort_order"`
 }
 
 // TemplateIncomeItemCreate `gross_taxable_cents` and `net_cents` must each be <= `gross_cents`.
@@ -1012,10 +1013,10 @@ type TemplateIncomeItemCreate struct {
 	// IncomeSourceId Opaque identifier.
 	//
 	// Examples: 42
-	IncomeSourceId Id               `json:"income_source_id"`
-	NetCents       NonNegativeCents `json:"net_cents"`
-	Note           *Note            `json:"note,omitempty"`
-	SortOrder      *int             `json:"sort_order,omitempty"`
+	IncomeSourceId Id                      `json:"income_source_id"`
+	NetCents       NonNegativeCents        `json:"net_cents"`
+	Note           nullable.Nullable[Note] `json:"note,omitempty"`
+	SortOrder      *int                    `json:"sort_order,omitempty"`
 }
 
 // TemplateIncomeItemUpdate defines model for TemplateIncomeItemUpdate.
@@ -1028,10 +1029,10 @@ type TemplateIncomeItemUpdate struct {
 	// IncomeSourceId Opaque identifier.
 	//
 	// Examples: 42
-	IncomeSourceId *Id               `json:"income_source_id,omitempty"`
-	NetCents       *NonNegativeCents `json:"net_cents,omitempty"`
-	Note           *Note             `json:"note,omitempty"`
-	SortOrder      *int              `json:"sort_order,omitempty"`
+	IncomeSourceId *Id                     `json:"income_source_id,omitempty"`
+	NetCents       *NonNegativeCents       `json:"net_cents,omitempty"`
+	Note           nullable.Nullable[Note] `json:"note,omitempty"`
+	SortOrder      *int                    `json:"sort_order,omitempty"`
 }
 
 // TemplateSummary defines model for TemplateSummary.
@@ -1078,9 +1079,9 @@ type YearlySummary struct {
 		CategoryId Id `json:"category_id"`
 
 		// Color Examples: #2F80ED
-		Color       *Color `json:"color"`
-		IsProtected bool   `json:"is_protected"`
-		IsSaving    bool   `json:"is_saving"`
+		Color       nullable.Nullable[Color] `json:"color"`
+		IsProtected bool                     `json:"is_protected"`
+		IsSaving    bool                     `json:"is_saving"`
 
 		// MonthlyAverageCents `total_cents / average_month_count`, rounded half away from zero.
 		MonthlyAverageCents Cents  `json:"monthly_average_cents"`
@@ -3935,7 +3936,7 @@ type ListExpenses200JSONResponse struct {
 	Items []Expense `json:"items"`
 
 	// NextCursor Pass as `cursor` to get the next page; null on the last page.
-	NextCursor *NextCursor `json:"next_cursor"`
+	NextCursor nullable.Nullable[NextCursor] `json:"next_cursor"`
 }
 
 func (response ListExpenses200JSONResponse) VisitListExpensesResponse(w http.ResponseWriter) error {
@@ -4451,7 +4452,7 @@ type ListIncomeEntries200JSONResponse struct {
 	Items []IncomeEntry `json:"items"`
 
 	// NextCursor Pass as `cursor` to get the next page; null on the last page.
-	NextCursor *NextCursor `json:"next_cursor"`
+	NextCursor nullable.Nullable[NextCursor] `json:"next_cursor"`
 }
 
 func (response ListIncomeEntries200JSONResponse) VisitListIncomeEntriesResponse(w http.ResponseWriter) error {
@@ -5194,7 +5195,7 @@ type ListMerchants200JSONResponse struct {
 	Items []Merchant `json:"items"`
 
 	// NextCursor Pass as `cursor` to get the next page; null on the last page.
-	NextCursor *NextCursor `json:"next_cursor"`
+	NextCursor nullable.Nullable[NextCursor] `json:"next_cursor"`
 }
 
 func (response ListMerchants200JSONResponse) VisitListMerchantsResponse(w http.ResponseWriter) error {

@@ -5,5 +5,5 @@
 // (or `go generate ./...`) from /backend.
 package api
 
-//go:generate go tool oapi-codegen -package api -generate types,std-http,strict-server -o openapi.gen.go ../../../api/openapi.yaml
+//go:generate go tool oapi-codegen -config oapi-codegen.yaml ../../../api/openapi.yaml
 //go:generate go run ./genstub -in openapi.gen.go -out unimplemented.gen.go

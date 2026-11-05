@@ -21,8 +21,14 @@ func (p pinger) PingContext(context.Context) error { return p.err }
 func get(t *testing.T, db Pinger) (*httptest.ResponseRecorder, api.Health) {
 	t.Helper()
 	clock := time.Unix(1000, 0)
-	h := NewRouter("1.2.3", db, func() time.Time { c := clock; clock = clock.Add(5 * time.Second); return c },
-		auth.Middleware(auth.FakeVerifier{}, store.Users{DB: store.NewTestDB(t)}))
+	data := store.NewTestDB(t)
+	h := NewRouter(Deps{
+		Version: "1.2.3",
+		DB:      db,
+		Data:    data,
+		Now:     func() time.Time { c := clock; clock = clock.Add(5 * time.Second); return c },
+		Authn:   auth.Middleware(auth.FakeVerifier{}, store.Users{DB: data}),
+	})
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest("GET", "/healthz", nil))
 	var body api.Health

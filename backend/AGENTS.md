@@ -112,5 +112,6 @@ migrations/       numbered SQL migrations
 ## Generated API code
 
 - `internal/api/*.gen.go` is generated from `/api/openapi.yaml` (oapi-codegen, pinned as a `tool` in `go.mod`). Never edit it by hand; run `make generate` after any spec change. `make check-generate` fails if the committed output is stale.
+- Codegen options live in `internal/api/oapi-codegen.yaml`. `nullable-type` is on, so nullable fields are `nullable.Nullable[T]`: a PATCH handler uses `IsSpecified()` to tell an omitted field from `null` (which clears it). In responses, always set nullable fields (use `nullableOf` in `internal/http`); an unset one would marshal as the zero value, not `null`.
 - `internal/http.Server` implements the generated `StrictServerInterface` and embeds `api.Unimplemented`; any operation it does not override answers `501 not_implemented` with the standard error body. To build an endpoint, add a method on `Server`.
 - All error responses (decode errors, 501, 500) use the spec's `Error` body via `internal/http/errors.go`.

@@ -1,0 +1,11 @@
+# oapi-codegen config for openapi.gen.go. Run `make generate` after editing.
+package: api
+generate:
+  models: true
+  std-http-server: true
+  strict-server: true
+output: openapi.gen.go
+output-options:
+  # Nullable fields become nullable.Nullable[T], so a PATCH can tell
+  # "field omitted" from "field sent as null" (null clears it; see the spec).
+  nullable-type: true

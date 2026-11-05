@@ -4,6 +4,7 @@ go 1.27.3
 
 require (
 	firebase.google.com/go/v4 v4.22.0
+	github.com/oapi-codegen/nullable v1.1.0
 	github.com/oapi-codegen/runtime v1.8.0
 	modernc.org/sqlite v1.61.1
 )
