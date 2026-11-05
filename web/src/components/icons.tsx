@@ -179,3 +179,37 @@ export const SignOutIcon = (p: P) => (
     <path d="M16 17l5-5-5-5M21 12H9" />
   </Icon>
 );
+
+/** Drag handle for reorderable rows. */
+export const GripIcon = (p: P) => (
+  <Icon {...p}>
+    <path d="M9 5h.01M9 12h.01M9 19h.01M15 5h.01M15 12h.01M15 19h.01" strokeWidth={3} />
+  </Icon>
+);
+
+export const PencilIcon = (p: P) => (
+  <Icon {...p}>
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+  </Icon>
+);
+
+export const TrashIcon = (p: P) => (
+  <Icon {...p}>
+    <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    <path d="M10 11v6M14 11v6" />
+  </Icon>
+);
+
+export const PlusIcon = (p: P) => (
+  <Icon {...p}>
+    <path d="M12 5v14M5 12h14" />
+  </Icon>
+);
+
+export const InfoIcon = (p: P) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 16v-5M12 8h.01" />
+  </Icon>
+);

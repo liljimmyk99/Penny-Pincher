@@ -188,6 +188,33 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  /v1/categories/stats:
+    get:
+      tags: [categories]
+      operationId: listCategoryStats
+      summary: Entry counts and totals per category
+      description: |
+        For the Categories & sources screen. One item per category, zero-filled, in `sort_order`.
+        `entry_count` and `total_cents` cover every expense and refund ever logged in the category
+        (exactly what deleting it would move to "Other"); `year_total_cents` covers `year` only.
+      parameters:
+        - $ref: '#/components/parameters/YearQuery'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/CategoryStats' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
   /v1/categories/{id}:
     parameters:
       - $ref: '#/components/parameters/Id'
@@ -296,6 +323,33 @@ paths:
                   items:
                     type: array
                     items: { $ref: '#/components/schemas/IncomeSource' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1/income-sources/stats:
+    get:
+      tags: [income-sources]
+      operationId: listIncomeSourceStats
+      summary: Entry counts and year totals per income source
+      description: |
+        For the Categories & sources screen. One item per income source, zero-filled, in `sort_order`.
+        `entry_count` covers every income entry ever logged for the source; the cent totals cover
+        `year` only. Clients derive the tax rate from them.
+      parameters:
+        - $ref: '#/components/parameters/YearQuery'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/IncomeSourceStats' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -1344,6 +1398,11 @@ components:
       in: path
       required: true
       schema: { $ref: '#/components/schemas/Year' }
+    YearQuery:
+      name: year
+      in: query
+      required: true
+      schema: { $ref: '#/components/schemas/Year' }
     MonthQuery:
       name: month
       in: query
@@ -1573,6 +1632,22 @@ components:
         color: { $ref: '#/components/schemas/Color' }
         is_saving: { type: boolean }
 
+    CategoryStats:
+      type: object
+      required: [category_id, entry_count, total_cents, year_total_cents]
+      properties:
+        category_id: { $ref: '#/components/schemas/Id' }
+        entry_count:
+          type: integer
+          minimum: 0
+          description: Every expense and refund in the category, all time.
+        total_cents:
+          allOf: [{ $ref: '#/components/schemas/Cents' }]
+          description: Sum of those amounts, all time (net of refunds). Can be negative.
+        year_total_cents:
+          allOf: [{ $ref: '#/components/schemas/Cents' }]
+          description: Sum of amounts dated in the requested year (net of refunds). Can be negative.
+
     # ---- Income sources -----------------------------------------------------
     IncomeSource:
       type: object
@@ -1600,6 +1675,19 @@ components:
       required: [name]
       properties:
         name: { $ref: '#/components/schemas/Name' }
+
+    IncomeSourceStats:
+      type: object
+      required: [income_source_id, entry_count, year_gross_cents, year_gross_taxable_cents, year_net_cents]
+      properties:
+        income_source_id: { $ref: '#/components/schemas/Id' }
+        entry_count:
+          type: integer
+          minimum: 0
+          description: Every income entry for the source, all time.
+        year_gross_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        year_gross_taxable_cents: { $ref: '#/components/schemas/NonNegativeCents' }
+        year_net_cents: { $ref: '#/components/schemas/NonNegativeCents' }
 
     # ---- Merchants ----------------------------------------------------------
     Merchant:

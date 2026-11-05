@@ -48,6 +48,10 @@ func (Unimplemented) ReorderCategories(context.Context, ReorderCategoriesRequest
 	return nil, ErrNotImplemented
 }
 
+func (Unimplemented) ListCategoryStats(context.Context, ListCategoryStatsRequestObject) (ListCategoryStatsResponseObject, error) {
+	return nil, ErrNotImplemented
+}
+
 func (Unimplemented) DeleteCategory(context.Context, DeleteCategoryRequestObject) (DeleteCategoryResponseObject, error) {
 	return nil, ErrNotImplemented
 }
@@ -113,6 +117,10 @@ func (Unimplemented) CreateIncomeSource(context.Context, CreateIncomeSourceReque
 }
 
 func (Unimplemented) ReorderIncomeSources(context.Context, ReorderIncomeSourcesRequestObject) (ReorderIncomeSourcesResponseObject, error) {
+	return nil, ErrNotImplemented
+}
+
+func (Unimplemented) ListIncomeSourceStats(context.Context, ListIncomeSourceStatsRequestObject) (ListIncomeSourceStatsResponseObject, error) {
 	return nil, ErrNotImplemented
 }
 

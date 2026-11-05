@@ -373,6 +373,23 @@ type CategoryCreate struct {
 	Name Name `json:"name"`
 }
 
+// CategoryStats defines model for CategoryStats.
+type CategoryStats struct {
+	// CategoryId Opaque identifier.
+	//
+	// Examples: 42
+	CategoryId Id `json:"category_id"`
+
+	// EntryCount Every expense and refund in the category, all time.
+	EntryCount int `json:"entry_count"`
+
+	// TotalCents Sum of those amounts, all time (net of refunds). Can be negative.
+	TotalCents Cents `json:"total_cents"`
+
+	// YearTotalCents Sum of amounts dated in the requested year (net of refunds). Can be negative.
+	YearTotalCents Cents `json:"year_total_cents"`
+}
+
 // CategoryTrendSeries defines model for CategoryTrendSeries.
 type CategoryTrendSeries struct {
 	// CategoryId Null for the "all spending" series.
@@ -655,6 +672,20 @@ type IncomeSource struct {
 type IncomeSourceCreate struct {
 	// Name Trimmed; unique per user, case-insensitively, within its kind.
 	Name Name `json:"name"`
+}
+
+// IncomeSourceStats defines model for IncomeSourceStats.
+type IncomeSourceStats struct {
+	// EntryCount Every income entry for the source, all time.
+	EntryCount int `json:"entry_count"`
+
+	// IncomeSourceId Opaque identifier.
+	//
+	// Examples: 42
+	IncomeSourceId        Id               `json:"income_source_id"`
+	YearGrossCents        NonNegativeCents `json:"year_gross_cents"`
+	YearGrossTaxableCents NonNegativeCents `json:"year_gross_taxable_cents"`
+	YearNetCents          NonNegativeCents `json:"year_net_cents"`
 }
 
 // IncomeSourceUpdate defines model for IncomeSourceUpdate.
@@ -1140,6 +1171,9 @@ type ToQuery = Date
 // YearPath defines model for YearPath.
 type YearPath = Year
 
+// YearQuery defines model for YearQuery.
+type YearQuery = Year
+
 // BadRequest defines model for BadRequest.
 type BadRequest = Error
 
@@ -1154,6 +1188,11 @@ type NotFound = Error
 
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
+
+// ListCategoryStatsParams defines parameters for ListCategoryStats.
+type ListCategoryStatsParams struct {
+	Year YearQuery `form:"year" json:"year"`
+}
 
 // ListExpensesParams defines parameters for ListExpenses.
 type ListExpensesParams struct {
@@ -1210,6 +1249,11 @@ type ListIncomeEntriesParams struct {
 
 	// Cursor The `next_cursor` from the previous page.
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// ListIncomeSourceStatsParams defines parameters for ListIncomeSourceStats.
+type ListIncomeSourceStatsParams struct {
+	Year YearQuery `form:"year" json:"year"`
 }
 
 // ListMerchantsParams defines parameters for ListMerchants.
@@ -1365,6 +1409,9 @@ type ServerInterface interface {
 	// ReorderCategories Reorder all categories
 	// (PUT /v1/categories/order)
 	ReorderCategories(w http.ResponseWriter, r *http.Request)
+	// ListCategoryStats Entry counts and totals per category
+	// (GET /v1/categories/stats)
+	ListCategoryStats(w http.ResponseWriter, r *http.Request, params ListCategoryStatsParams)
 	// DeleteCategory Delete a category
 	// (DELETE /v1/categories/{id})
 	DeleteCategory(w http.ResponseWriter, r *http.Request, id Id)
@@ -1416,6 +1463,9 @@ type ServerInterface interface {
 	// ReorderIncomeSources Reorder all income sources
 	// (PUT /v1/income-sources/order)
 	ReorderIncomeSources(w http.ResponseWriter, r *http.Request)
+	// ListIncomeSourceStats Entry counts and year totals per income source
+	// (GET /v1/income-sources/stats)
+	ListIncomeSourceStats(w http.ResponseWriter, r *http.Request, params ListIncomeSourceStatsParams)
 	// DeleteIncomeSource Delete an income source
 	// (DELETE /v1/income-sources/{id})
 	DeleteIncomeSource(w http.ResponseWriter, r *http.Request, id Id)
@@ -1629,6 +1679,39 @@ func (siw *ServerInterfaceWrapper) ReorderCategories(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReorderCategories(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCategoryStats operation middleware
+func (siw *ServerInterfaceWrapper) ListCategoryStats(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListCategoryStatsParams
+
+	// ------------- Required query parameter "year" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "year", r.URL.Query(), &params.Year, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "year"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "year", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCategoryStats(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2228,6 +2311,39 @@ func (siw *ServerInterfaceWrapper) ReorderIncomeSources(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReorderIncomeSources(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListIncomeSourceStats operation middleware
+func (siw *ServerInterfaceWrapper) ListIncomeSourceStats(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListIncomeSourceStatsParams
+
+	// ------------- Required query parameter "year" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "year", r.URL.Query(), &params.Year, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "year"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "year", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListIncomeSourceStats(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3211,11 +3327,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/categories", wrapper.ListCategories)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/categories", wrapper.CreateCategory)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/v1/categories/order", wrapper.ReorderCategories)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/categories/stats", wrapper.ListCategoryStats)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/v1/categories/{id}", wrapper.DeleteCategory)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/v1/categories/{id}", wrapper.UpdateCategory)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/income-sources", wrapper.ListIncomeSources)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/income-sources", wrapper.CreateIncomeSource)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/v1/income-sources/order", wrapper.ReorderIncomeSources)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/income-sources/stats", wrapper.ListIncomeSourceStats)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/v1/income-sources/{id}", wrapper.DeleteIncomeSource)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/v1/income-sources/{id}", wrapper.UpdateIncomeSource)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/merchants", wrapper.ListMerchants)
@@ -3748,6 +3866,72 @@ func (response ReorderCategories401JSONResponse) VisitReorderCategoriesResponse(
 type ReorderCategories403JSONResponse struct{ ForbiddenJSONResponse }
 
 func (response ReorderCategories403JSONResponse) VisitReorderCategoriesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListCategoryStatsRequestObject struct {
+	Params ListCategoryStatsParams
+}
+
+type ListCategoryStatsResponseObject interface {
+	VisitListCategoryStatsResponse(w http.ResponseWriter) error
+}
+
+type ListCategoryStats200JSONResponse struct {
+	Items []CategoryStats `json:"items"`
+}
+
+func (response ListCategoryStats200JSONResponse) VisitListCategoryStatsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListCategoryStats400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ListCategoryStats400JSONResponse) VisitListCategoryStatsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListCategoryStats401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListCategoryStats401JSONResponse) VisitListCategoryStatsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListCategoryStats403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListCategoryStats403JSONResponse) VisitListCategoryStatsResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -4958,6 +5142,72 @@ func (response ReorderIncomeSources401JSONResponse) VisitReorderIncomeSourcesRes
 type ReorderIncomeSources403JSONResponse struct{ ForbiddenJSONResponse }
 
 func (response ReorderIncomeSources403JSONResponse) VisitReorderIncomeSourcesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListIncomeSourceStatsRequestObject struct {
+	Params ListIncomeSourceStatsParams
+}
+
+type ListIncomeSourceStatsResponseObject interface {
+	VisitListIncomeSourceStatsResponse(w http.ResponseWriter) error
+}
+
+type ListIncomeSourceStats200JSONResponse struct {
+	Items []IncomeSourceStats `json:"items"`
+}
+
+func (response ListIncomeSourceStats200JSONResponse) VisitListIncomeSourceStatsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListIncomeSourceStats400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ListIncomeSourceStats400JSONResponse) VisitListIncomeSourceStatsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListIncomeSourceStats401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListIncomeSourceStats401JSONResponse) VisitListIncomeSourceStatsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListIncomeSourceStats403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListIncomeSourceStats403JSONResponse) VisitListIncomeSourceStatsResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -7030,6 +7280,9 @@ type StrictServerInterface interface {
 	// ReorderCategories Reorder all categories
 	// (PUT /v1/categories/order)
 	ReorderCategories(ctx context.Context, request ReorderCategoriesRequestObject) (ReorderCategoriesResponseObject, error)
+	// ListCategoryStats Entry counts and totals per category
+	// (GET /v1/categories/stats)
+	ListCategoryStats(ctx context.Context, request ListCategoryStatsRequestObject) (ListCategoryStatsResponseObject, error)
 	// DeleteCategory Delete a category
 	// (DELETE /v1/categories/{id})
 	DeleteCategory(ctx context.Context, request DeleteCategoryRequestObject) (DeleteCategoryResponseObject, error)
@@ -7081,6 +7334,9 @@ type StrictServerInterface interface {
 	// ReorderIncomeSources Reorder all income sources
 	// (PUT /v1/income-sources/order)
 	ReorderIncomeSources(ctx context.Context, request ReorderIncomeSourcesRequestObject) (ReorderIncomeSourcesResponseObject, error)
+	// ListIncomeSourceStats Entry counts and year totals per income source
+	// (GET /v1/income-sources/stats)
+	ListIncomeSourceStats(ctx context.Context, request ListIncomeSourceStatsRequestObject) (ListIncomeSourceStatsResponseObject, error)
 	// DeleteIncomeSource Delete an income source
 	// (DELETE /v1/income-sources/{id})
 	DeleteIncomeSource(ctx context.Context, request DeleteIncomeSourceRequestObject) (DeleteIncomeSourceResponseObject, error)
@@ -7410,6 +7666,32 @@ func (sh *strictHandler) ReorderCategories(w http.ResponseWriter, r *http.Reques
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ReorderCategoriesResponseObject); ok {
 		if err := validResponse.VisitReorderCategoriesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListCategoryStats operation middleware
+func (sh *strictHandler) ListCategoryStats(w http.ResponseWriter, r *http.Request, params ListCategoryStatsParams) {
+	var request ListCategoryStatsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListCategoryStats(ctx, request.(ListCategoryStatsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListCategoryStats")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListCategoryStatsResponseObject); ok {
+		if err := validResponse.VisitListCategoryStatsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -7896,6 +8178,32 @@ func (sh *strictHandler) ReorderIncomeSources(w http.ResponseWriter, r *http.Req
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ReorderIncomeSourcesResponseObject); ok {
 		if err := validResponse.VisitReorderIncomeSourcesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListIncomeSourceStats operation middleware
+func (sh *strictHandler) ListIncomeSourceStats(w http.ResponseWriter, r *http.Request, params ListIncomeSourceStatsParams) {
+	var request ListIncomeSourceStatsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListIncomeSourceStats(ctx, request.(ListIncomeSourceStatsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListIncomeSourceStats")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListIncomeSourceStatsResponseObject); ok {
+		if err := validResponse.VisitListIncomeSourceStatsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -24,6 +24,7 @@ Read the root `AGENTS.md` first. This folder holds the OpenAPI spec (`openapi.ya
   - sources have sort order; "Other" is protected, so rename and delete return an error
   - other sources can be renamed; deleting a source that has income entries returns an error
 - `categories` (sort order, `is_saving`; "Other" is protected, so rename and delete return an error, but it can be recolored and reordered)
+- `categories/stats` and `income-sources/stats` (`?year=`): per-row entry counts (all time) and totals (all time and the year for categories; the year's gross, gross taxable and net for sources) for the Categories & sources screen
 - `expenses`:
   - type `expense` | `refund` is read-only, derived from the amount's sign (refunds are negative)
   - optional `refunded_expense_id`, `confirmed`
