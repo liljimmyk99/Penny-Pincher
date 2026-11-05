@@ -95,6 +95,13 @@
   --shadow-menu: 0 18px 48px rgba(14, 26, 43, 0.22), 0 2px 6px rgba(14, 26, 43, 0.08);
 
   --shadow-raised: 0 18px 48px rgba(14, 26, 43, 0.1), 0 2px 6px rgba(14, 26, 43, 0.06);
+
+  /* Tables, badges and dialogs (Categories & sources onward) */
+  --color-divider: #eef1f5; /* row separators inside cards */
+  --color-badge: #f2f4f7; /* neutral pill, e.g. "Default" */
+  --color-danger-hover: #991b1b;
+  --color-backdrop: rgba(14, 26, 43, 0.45);
+  --shadow-dialog: 0 24px 64px rgba(14, 26, 43, 0.3);
 }
 
 :root[data-theme="dark"] {
@@ -150,4 +157,10 @@
   --shadow-menu: 0 18px 48px rgba(0, 0, 0, 0.55);
 
   --shadow-raised: 0 18px 48px rgba(0, 0, 0, 0.45);
+
+  --color-divider: #1c2638;
+  --color-badge: #1f2a3e;
+  --color-danger-hover: #b91c1c;
+  --color-backdrop: rgba(0, 0, 0, 0.6);
+  --shadow-dialog: 0 24px 64px rgba(0, 0, 0, 0.6);
 }

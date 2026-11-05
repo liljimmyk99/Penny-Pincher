@@ -160,3 +160,165 @@ input {
     animation-duration: 3s;
   }
 }
+
+.btn--sm {
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 14px;
+}
+
+.btn--danger {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: var(--color-danger-hover);
+}
+
+.field--sm {
+  height: 40px;
+  width: 220px;
+  max-width: 100%;
+  font-weight: 700;
+}
+
+/* Square icon-only button; give it an aria-label. */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-height);
+  height: var(--control-height);
+  flex: none;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.icon-btn:hover:not(:disabled) {
+  background: var(--color-menu-hover);
+  color: var(--color-text);
+}
+
+.icon-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.icon-btn--danger:hover:not(:disabled) {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+}
+
+.icon-btn--handle {
+  cursor: grab;
+}
+
+.icon-btn--handle:active {
+  cursor: grabbing;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: var(--radius-pill);
+  background: var(--color-badge);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.badge--saving {
+  background: var(--color-selected-bg);
+  color: var(--color-saving-text);
+}
+
+.tooltip {
+  max-width: 260px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--color-sidebar);
+  color: var(--color-on-sidebar);
+  font-size: 13px;
+  line-height: 1.4;
+  box-shadow: var(--shadow-menu);
+  z-index: 60;
+}
+
+/* Modal dialogs (Radix Dialog / AlertDialog). */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--color-backdrop);
+  z-index: 50;
+}
+
+.dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-dialog);
+  color: var(--color-text);
+  z-index: 51;
+}
+
+.dialog__head {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.dialog__warn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+}
+
+.dialog__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.dialog__title {
+  font: var(--text-section-title);
+  margin: 0;
+}
+
+.dialog__body {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+}
+
+.dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}

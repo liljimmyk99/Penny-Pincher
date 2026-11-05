@@ -189,6 +189,11 @@ Rules:
   - **Routing: React Router (`react-router`, declarative `<Routes>`).** Screens render inside the app shell (sidebar + account menu). Unknown addresses show a "Page not found" page; admin-only pages show it to members too.
   - **Menus: `@radix-ui/react-dropdown-menu`** (unstyled, per the Radix rule above) for the account menu's keyboard and focus behaviour.
 
+- **Categories & sources stats** (decided 2026-11-05)
+  - The Categories & sources screen reads `GET /v1/categories/stats?year=` and `GET /v1/income-sources/stats?year=`: one zero-filled row per category or source, aggregated in SQL.
+  - **"Entries" counts all time** (every expense and refund in a category; every income entry for a source), so the delete dialog's count and amount are exactly what moves to Other. The money columns (spent, gross, net, and the tax rate from them) are **year to date**.
+  - Web uses `@radix-ui/react-alert-dialog` (destructive confirmations) and `@radix-ui/react-tooltip`, unstyled, per the Radix rule above.
+
 ### Open
 
 - Backup tooling and destination (e.g. restic to object storage)

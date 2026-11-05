@@ -91,6 +91,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/categories/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Entry counts and totals per category
+         * @description For the Categories & sources screen. One item per category, zero-filled, in `sort_order`.
+         *     `entry_count` and `total_cents` cover every expense and refund ever logged in the category
+         *     (exactly what deleting it would move to "Other"); `year_total_cents` covers `year` only.
+         */
+        get: operations["listCategoryStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/categories/{id}": {
         parameters: {
             query?: never;
@@ -155,6 +177,28 @@ export interface paths {
          * @description `ids` must list every income source exactly once, in the new order.
          */
         put: operations["reorderIncomeSources"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/income-sources/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Entry counts and year totals per income source
+         * @description For the Categories & sources screen. One item per income source, zero-filled, in `sort_order`.
+         *     `entry_count` covers every income entry ever logged for the source; the cent totals cover
+         *     `year` only. Clients derive the tax rate from them.
+         */
+        get: operations["listIncomeSourceStats"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -886,6 +930,15 @@ export interface components {
             color?: components["schemas"]["Color"];
             is_saving?: boolean;
         };
+        CategoryStats: {
+            category_id: components["schemas"]["Id"];
+            /** @description Every expense and refund in the category, all time. */
+            entry_count: number;
+            /** @description Sum of those amounts, all time (net of refunds). Can be negative. */
+            total_cents: components["schemas"]["Cents"];
+            /** @description Sum of amounts dated in the requested year (net of refunds). Can be negative. */
+            year_total_cents: components["schemas"]["Cents"];
+        };
         IncomeSource: {
             id: components["schemas"]["Id"];
             name: components["schemas"]["Name"];
@@ -901,6 +954,14 @@ export interface components {
         };
         IncomeSourceUpdate: {
             name: components["schemas"]["Name"];
+        };
+        IncomeSourceStats: {
+            income_source_id: components["schemas"]["Id"];
+            /** @description Every income entry for the source, all time. */
+            entry_count: number;
+            year_gross_cents: components["schemas"]["NonNegativeCents"];
+            year_gross_taxable_cents: components["schemas"]["NonNegativeCents"];
+            year_net_cents: components["schemas"]["NonNegativeCents"];
         };
         Merchant: {
             id: components["schemas"]["Id"];
@@ -1368,6 +1429,7 @@ export interface components {
         ItemId: components["schemas"]["Id"];
         MonthPath: components["schemas"]["YearMonth"];
         YearPath: components["schemas"]["Year"];
+        YearQuery: components["schemas"]["Year"];
         /** @description Only entries dated in this month. Cannot be combined with `from`/`to`. */
         MonthQuery: components["schemas"]["YearMonth"];
         /** @description Inclusive start date. */
@@ -1516,6 +1578,33 @@ export interface operations {
             403: components["responses"]["Forbidden"];
         };
     };
+    listCategoryStats: {
+        parameters: {
+            query: {
+                year: components["parameters"]["YearQuery"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["CategoryStats"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
     deleteCategory: {
         parameters: {
             query?: never;
@@ -1644,6 +1733,33 @@ export interface operations {
                 content: {
                     "application/json": {
                         items: components["schemas"]["IncomeSource"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listIncomeSourceStats: {
+        parameters: {
+            query: {
+                year: components["parameters"]["YearQuery"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["IncomeSourceStats"][];
                     };
                 };
             };

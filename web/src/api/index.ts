@@ -17,3 +17,15 @@ export {
 } from "./errors";
 export { useMe, meQueryKey } from "./me";
 export { createQueryClient } from "./queryClient";
+export {
+  categoriesQueryKey,
+  categoryStatsQueryKey,
+  incomeSourcesQueryKey,
+  incomeSourceStatsQueryKey,
+  useCategories,
+  useCategoryMutations,
+  useCategoryStats,
+  useIncomeSourceMutations,
+  useIncomeSources,
+  useIncomeSourceStats,
+} from "./manage";

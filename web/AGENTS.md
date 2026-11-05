@@ -169,6 +169,9 @@ Two tabs at the top: **Custom trends** and **By category**.
   - Inline rename for every source except "Other", which is locked like the Other category.
   - Delete is offered only for sources with no entries; its template items move to "Other". A source with entries shows no delete action (a tooltip explains it can be renamed but not deleted).
 - An "Add category" / "Add source" field sits under each table.
+- "Entries" counts all time; the money columns are year to date (root §10). The page eyebrow names the year.
+- Reorder by dragging the handle, or from the keyboard with the arrow keys (Home/End) on it; "Other" keeps its place.
+- **Canvas difference:** the canvas's income-source note and delete dialog say deleting a source moves its *income entries* to Other. That contradicts root §5 (a source with entries can never be deleted); this file wins, so the screen says a source with entries can only be renamed, and deleting an unused source moves its template items to Other.
 
 ### Admin panel (admins only)
 Reached from the account menu; hidden from members. **v1 builds only app status and backups** (root §6.12).

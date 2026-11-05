@@ -88,7 +88,7 @@ migrations/       numbered SQL migrations
 
 ## Endpoints to implement (v1)
 
-- Income sources and categories, including reorder
+- Income sources and categories, including reorder and their per-year stats
 - Income entries
 - Expenses, including refund linking and "confirm all" for a month
 - Templates:
