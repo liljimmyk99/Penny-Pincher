@@ -1,6 +1,7 @@
 import { useState, type KeyboardEvent, type Ref } from "react";
-import { useMerchantSearch, type Schemas } from "../../api";
-import { MERCHANT_MAX } from "./expenseRows";
+import { useMerchantSearch, type Schemas } from "../api";
+import { MERCHANT_MAX } from "../lib/limits";
+import "./MerchantCombobox.css";
 
 interface Props {
   id: string;
@@ -8,14 +9,16 @@ interface Props {
   value: string;
   invalid: boolean;
   describedBy?: string;
-  inputRef: Ref<HTMLInputElement>;
+  inputRef?: Ref<HTMLInputElement>;
   onChange: (value: string) => void;
   /** A suggestion was chosen (click or Enter on the highlighted one). */
   onPick: (merchant: Schemas["Merchant"]) => void;
   /** Focus left the field without picking; the name may still match a merchant. */
   onCommit: () => void;
   /** Keys the combobox didn't use (Enter for "next row" and so on). */
-  onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void;
+  onKeyDown?: (e: KeyboardEvent<HTMLInputElement>) => void;
+  /** The input's class: a table cell by default, `field` in a form. */
+  className?: string;
 }
 
 /**
@@ -24,7 +27,19 @@ interface Props {
  * suggestions, Enter picks the highlighted one, Escape closes the list.
  * Typing a new name is fine: saving creates the merchant.
  */
-export function MerchantCombobox({ id, label, value, invalid, describedBy, inputRef, onChange, onPick, onCommit, onKeyDown }: Props) {
+export function MerchantCombobox({
+  id,
+  label,
+  value,
+  invalid,
+  describedBy,
+  inputRef,
+  onChange,
+  onPick,
+  onCommit,
+  onKeyDown,
+  className = "cell-input",
+}: Props) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const search = useMerchantSearch(open ? value : "");
@@ -70,7 +85,7 @@ export function MerchantCombobox({ id, label, value, invalid, describedBy, input
       setOpen(true);
       return;
     }
-    onKeyDown(e);
+    onKeyDown?.(e);
   }
 
   return (
@@ -78,7 +93,7 @@ export function MerchantCombobox({ id, label, value, invalid, describedBy, input
       <input
         id={id}
         ref={inputRef}
-        className="cell-input"
+        className={className}
         type="text"
         role="combobox"
         aria-label={label}

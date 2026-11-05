@@ -1,0 +1,472 @@
+/* Transactions (web/AGENTS.md "Transactions"). Colours come from tokens.css. */
+
+.tx {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tx__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  padding: 20px 20px 12px;
+}
+
+.tx__head--expenses {
+  align-items: center;
+}
+
+.tx__count {
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.tx__desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.tx__status {
+  margin: 0;
+  padding: 8px 20px 20px;
+  color: var(--color-text-muted);
+}
+
+.tx__alert {
+  margin: 0 20px 20px;
+}
+
+.tx__muted {
+  color: var(--color-text-muted);
+}
+
+.tx__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: 0 20px 14px;
+}
+
+.tx__footer {
+  margin: 0;
+  padding: 14px 20px;
+  border-top: 1px solid var(--color-divider);
+  font-size: 13px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Search -------------------------------------------------------------- */
+
+.tx-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 1 300px;
+  min-width: 200px;
+  height: var(--control-height);
+  padding: 0 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-field);
+  color: var(--color-text-muted);
+}
+
+.tx-search:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+.tx-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.tx-search input::placeholder {
+  color: var(--color-placeholder);
+}
+
+/* ---- Chips, tags and pills ------------------------------------------------ */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--control-height);
+  padding: 0 14px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chip:hover:not(.is-on) {
+  background: var(--color-surface-soft);
+}
+
+.chip.is-on {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.chip__count {
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.chip.is-on .chip__count {
+  color: inherit;
+  opacity: 0.85;
+}
+
+.chip:focus-visible,
+.cat-row:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-badge);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tag--saving {
+  background: var(--color-selected-bg);
+  color: var(--color-saving-text);
+}
+
+.tag--income {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+
+.tag--refund {
+  padding: 2px 8px;
+  background: var(--color-success-bg);
+  color: var(--color-refund-text);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.pill-unconfirmed {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-unconfirmed-pill);
+  color: var(--color-unconfirmed-text);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.pill-unconfirmed i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-brand);
+}
+
+/* ---- Tables --------------------------------------------------------------- */
+
+/* Wide tables scroll inside their card, never the page. */
+.tx-table__scroll {
+  overflow-x: auto;
+}
+
+.tx-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.tx-table--income {
+  min-width: 820px;
+}
+
+.tx-table--expenses {
+  min-width: 760px;
+}
+
+.tx-table th,
+.tx-table td {
+  height: 52px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-divider);
+  text-align: left;
+  font-weight: 400;
+}
+
+.tx-table th:first-child,
+.tx-table td:first-child {
+  padding-left: 20px;
+}
+
+.tx-table thead th {
+  height: 38px;
+  border-bottom-color: var(--color-border);
+  font: var(--text-eyebrow);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.tx-table .num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.tx-table td.num {
+  font-weight: 600;
+}
+
+.tx-table__date {
+  white-space: nowrap;
+  color: var(--color-text-muted);
+}
+
+.tx-table__main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.tx-table__note {
+  color: var(--color-text-muted);
+}
+
+.tx-table__net {
+  color: var(--color-income);
+}
+
+.tx-table td.tx-table__amount {
+  font-weight: 800;
+}
+
+.tx-table td.is-refund {
+  color: var(--color-refund-text);
+}
+
+.tx-table tr.is-refund td {
+  background: var(--color-refund-row);
+}
+
+.tx-table tr.is-unconfirmed td {
+  background: var(--color-unconfirmed-tint);
+}
+
+.tx-table__actions-col {
+  width: 104px;
+}
+
+.tx-table__actions {
+  text-align: right;
+}
+
+.tx-table__buttons {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.tx-table tfoot th,
+.tx-table tfoot td {
+  border-bottom: 0;
+  background: var(--color-surface-soft);
+  font-weight: 800;
+}
+
+.tx-table tfoot td.num {
+  font-weight: 800;
+}
+
+/* ---- Spending by category ------------------------------------------------- */
+
+.cat-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 10px 14px;
+}
+
+.cat-row {
+  display: grid;
+  grid-template-columns: minmax(96px, 180px) minmax(60px, 1fr) minmax(96px, auto) 84px;
+  column-gap: var(--space-4);
+  align-items: center;
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  font-size: 14px;
+  text-align: left;
+}
+
+button.cat-row {
+  cursor: pointer;
+}
+
+button.cat-row:hover:not(.is-on) {
+  background: var(--color-surface-soft);
+}
+
+.cat-row.is-on {
+  background: var(--color-selected-bg);
+  border-color: var(--color-selected-line);
+}
+
+.cat-row .num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.cat-row__name {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cat-row .cat-row__share {
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.cat-row--head {
+  min-height: 28px;
+  font: var(--text-eyebrow);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.cat-row--total {
+  margin-top: 4px;
+  border-top: 1px solid var(--color-divider);
+  border-radius: 0;
+  font-weight: 800;
+}
+
+.cat-row--total .num {
+  font-weight: 800;
+}
+
+.bar-track {
+  display: block;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-badge);
+  overflow: hidden;
+}
+
+.bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-spent);
+}
+
+.bar-fill--saving {
+  background: var(--color-saving-bar);
+}
+
+/* ---- Edit dialogs --------------------------------------------------------- */
+
+.edit-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.edit-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-4);
+}
+
+.edit-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.edit-form__field--wide {
+  grid-column: 1 / -1;
+}
+
+.edit-form__optional {
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.edit-form__error {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-danger-text);
+}
+
+.edit-form__rate {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+
+.edit-form__rate strong {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.field--num {
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+select.field {
+  cursor: pointer;
+}
+
+@media (max-width: 560px) {
+  .edit-form__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cat-row {
+    grid-template-columns: minmax(80px, 1fr) minmax(40px, 0.6fr) auto 52px;
+    column-gap: var(--space-2);
+  }
+}

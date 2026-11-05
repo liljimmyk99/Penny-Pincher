@@ -13,7 +13,7 @@ import { AlertIcon, CheckIcon, PlusIcon, TrashIcon } from "../../components/icon
 import { defaultDateFor } from "../../lib/dates";
 import { formatCents } from "../../lib/money";
 import { isApplePlatform } from "../../shell/platform";
-import { MerchantCombobox } from "./MerchantCombobox";
+import { MerchantCombobox } from "../../components/MerchantCombobox";
 import { RefundLink } from "./RefundLink";
 import {
   batchErrors,

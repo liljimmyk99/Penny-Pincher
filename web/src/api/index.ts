@@ -33,9 +33,11 @@ export {
   findMerchant,
   lastCategoryFor,
   merchantSearchQueryKey,
+  monthExpensesQueryKey,
   monthIncomeQueryKey,
   useEntryMutations,
   useMerchantExpenses,
   useMerchantSearch,
+  useMonthExpenses,
   useMonthIncome,
 } from "./entries";

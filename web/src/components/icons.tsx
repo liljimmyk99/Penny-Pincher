@@ -219,3 +219,10 @@ export const InfoIcon = (p: P) => (
     <path d="M12 16v-5M12 8h.01" />
   </Icon>
 );
+
+export const SearchIcon = (p: P) => (
+  <Icon {...p}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="M20 20l-3.5-3.5" />
+  </Icon>
+);

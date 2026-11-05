@@ -1,11 +1,13 @@
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
-import { AlertIcon, TrashIcon } from "../../components/icons";
+import { AlertIcon, TrashIcon } from "./icons";
 
 interface Props {
   open: boolean;
   title: string;
   body: string;
   extra?: string;
+  /** The danger button, naming the outcome (e.g. "Delete and move to Other"). */
+  confirmLabel: string;
   pending: boolean;
   error: string | null;
   onConfirm: () => void;
@@ -13,11 +15,11 @@ interface Props {
 }
 
 /**
- * The destructive confirmation for deleting a category or income source:
+ * The destructive confirmation (web/AGENTS.md "Interaction patterns"):
  * `role="alertdialog"`, focus trapped, Esc cancels, and a danger button that
  * names the outcome.
  */
-export function DeleteDialog({ open, title, body, extra, pending, error, onConfirm, onCancel }: Props) {
+export function DeleteDialog({ open, title, body, extra, confirmLabel, pending, error, onConfirm, onCancel }: Props) {
   return (
     <AlertDialog.Root open={open} onOpenChange={(next) => !next && !pending && onCancel()}>
       <AlertDialog.Portal>
@@ -44,7 +46,7 @@ export function DeleteDialog({ open, title, body, extra, pending, error, onConfi
               Cancel
             </AlertDialog.Cancel>
             <button type="button" className="btn btn--danger" onClick={onConfirm} disabled={pending}>
-              Delete and move to Other
+              {confirmLabel}
             </button>
           </div>
         </AlertDialog.Content>
