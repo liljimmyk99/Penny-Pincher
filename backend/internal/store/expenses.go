@@ -270,26 +270,8 @@ func (x Expenses) List(ctx context.Context, userID int64, f ExpenseFilter, page 
 	where := []string{"e.user_id = ?"}
 	args := []any{userID}
 
-	if f.Month != "" && (f.From != "" || f.To != "") {
-		return nil, "", invalid("month", "cannot be combined with from or to")
-	}
-	if f.Month != "" {
-		if _, err := time.Parse("2006-01", f.Month); err != nil || len(f.Month) != 7 {
-			return nil, "", invalid("month", "must be YYYY-MM")
-		}
-		// Dates are YYYY-MM-DD text, so this range is the whole month.
-		f.From, f.To = f.Month+"-01", f.Month+"-31"
-	} else {
-		for _, b := range []struct{ v, field string }{{f.From, "from"}, {f.To, "to"}} {
-			if b.v != "" {
-				if err := checkDate(b.v, b.field); err != nil {
-					return nil, "", err
-				}
-			}
-		}
-		if f.From != "" && f.To != "" && f.From > f.To {
-			return nil, "", invalid("from", "must not be after to")
-		}
+	if f.From, f.To, err = dateBounds(f.Month, f.From, f.To); err != nil {
+		return nil, "", err
 	}
 	if f.From != "" {
 		where = append(where, "e.occurred_on >= ?")

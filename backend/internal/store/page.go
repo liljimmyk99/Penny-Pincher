@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/base64"
 	"strings"
+	"time"
 )
 
 // Page asks for one page of a cursor-paginated list.
@@ -46,4 +47,31 @@ func decodeCursor(c string, n int) ([]string, error) {
 		return nil, invalid("cursor", "is not valid")
 	}
 	return parts, nil
+}
+
+// dateBounds checks a list's month or from/to filter and returns the inclusive
+// date range it selects ("" for an open end). month cannot be combined with
+// from or to; empty strings mean no filter.
+func dateBounds(month, from, to string) (string, string, error) {
+	if month != "" {
+		if from != "" || to != "" {
+			return "", "", invalid("month", "cannot be combined with from or to")
+		}
+		if _, err := time.Parse("2006-01", month); err != nil || len(month) != 7 {
+			return "", "", invalid("month", "must be YYYY-MM")
+		}
+		// Dates are YYYY-MM-DD text, so this range is the whole month.
+		return month + "-01", month + "-31", nil
+	}
+	for _, b := range []struct{ v, field string }{{from, "from"}, {to, "to"}} {
+		if b.v != "" {
+			if err := checkDate(b.v, b.field); err != nil {
+				return "", "", err
+			}
+		}
+	}
+	if from != "" && to != "" && from > to {
+		return "", "", invalid("from", "must not be after to")
+	}
+	return from, to, nil
 }
