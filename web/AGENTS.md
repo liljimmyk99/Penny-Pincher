@@ -123,6 +123,11 @@ Define these as tokens (CSS custom properties or the UI library's theme) in one 
 - **Spending by category:** clicking a category here **filters** the expense list (unlike Summary, which only highlights).
 - **Expense list:** filter chips by category with counts, plus search over merchant and note.
 - **Unconfirmed items:** light-orange row, a pill reading "Unconfirmed · from template", and a per-row Confirm button. A banner at the top has "Confirm all as-is".
+- As built (`src/pages/transactions`):
+  - The address holds the month (`?month=`, via `useMonthParam`, which Summary and Add entries share), the category filter (`?category=<id>`) and the search (`?q=`), so these views can be linked to.
+  - Reads `GET /v1/expenses?month=` and `GET /v1/income-entries?month=` (all pages). Category totals, the income total row and its tax rate are summed in the client from those lists, so edits and deletes refresh them with the lists. Categories with no entries in the month are left out.
+  - Edit opens a modal (`@radix-ui/react-dialog`) and sends only the changed fields (`PATCH`); a negative amount is a refund. Delete uses the shared `DeleteDialog`, which notes that a deleted expense's refunds stay, unlinked.
+  - Refund rows and unconfirmed rows get their colours, a "Refund" tag and the unconfirmed pill. Refund details and linking (see Refunds below) and the Confirm buttons and banner (template flow) are built with those features.
 
 ### Refunds (in the transaction list)
 - **Refund rows:** negative amount in refund green on a light-green row. Below the merchant: "Refund for <merchant · date · amount>", linking to the original.

@@ -5,13 +5,13 @@ import { AdminOnly } from "./pages/AdminOnly";
 import { CategoriesPage } from "./pages/categories/CategoriesPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
+import { TransactionsPage } from "./pages/transactions/TransactionsPage";
 import { AppShell } from "./shell/AppShell";
 import { ADMIN_PATH, EXPORT_PATH, NAV_ITEMS, SETTINGS_PATH } from "./shell/navigation";
 
 /** What each placeholder says until its screen is built. */
 const DESCRIPTIONS: Record<string, string> = {
   "/summary": "This month's income, spending and what's left over.",
-  "/transactions": "Every income entry and expense for the month.",
   "/yearly": "Month-by-month totals, category totals and monthly averages for a year.",
   "/trends": "Custom trends and spending by category over time.",
   "/templates": "Template months to start each month from.",
@@ -21,6 +21,7 @@ const DESCRIPTIONS: Record<string, string> = {
 const SCREENS: Record<string, ReactElement> = {
   "/add": <AddEntriesPage />,
   "/categories": <CategoriesPage />,
+  "/transactions": <TransactionsPage />,
 };
 
 /** The signed-in app (AuthGate has already loaded `/v1/me`). */

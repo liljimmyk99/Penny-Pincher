@@ -15,7 +15,7 @@ import { formatCents } from "../../lib/money";
 import { formatTaxRate } from "../../lib/taxRate";
 import { Page } from "../Page";
 import { AddForm } from "./AddForm";
-import { DeleteDialog } from "./DeleteDialog";
+import { DeleteDialog } from "../../components/DeleteDialog";
 import { ManageTable, type Column } from "./ManageTable";
 import "./CategoriesPage.css";
 
@@ -64,6 +64,7 @@ export function CategoriesPage({ year = new Date().getFullYear() }: { year?: num
       <DeleteDialog
         open={target !== null}
         {...(target ? deleteCopy(target) : { title: "", body: "" })}
+        confirmLabel="Delete and move to Other"
         pending={removing.isPending}
         error={deleteError}
         onConfirm={() => void confirmDelete()}

@@ -4,11 +4,12 @@ import { useApi } from "./context";
 import { meQueryKey } from "./me";
 import type { Schemas } from "./types";
 
-/** Merchants, expenses and income entries: what the Add entries screen reads and writes. */
+/** Merchants, expenses and income entries: what the Add entries and Transactions screens read and write. */
 
 export const merchantSearchQueryKey = (q: string) => ["merchants", "search", q.toLowerCase()] as const;
 export const merchantExpensesQueryKey = (merchantId: string) => ["expenses", "merchant", merchantId] as const;
 export const monthIncomeQueryKey = (month: string) => ["income-entries", "month", month] as const;
+export const monthExpensesQueryKey = (month: string) => ["expenses", "month", month] as const;
 
 const SUGGESTIONS = 8;
 /** How many of a merchant's past expenses a refund can be linked to. */
@@ -72,27 +73,46 @@ export async function lastCategoryFor(qc: QueryClient, api: ApiClient, merchantI
   return items[0]?.category_id ?? null;
 }
 
-/** Every income entry in a month (the "so far" panel). */
+/** The API's largest page; a month rarely needs a second one. */
+const PAGE = 1000;
+
+/** Follows `next_cursor` until the last page and returns every item. */
+async function fetchAll<T>(page: (cursor?: string) => Promise<{ items: T[]; next_cursor?: string | null }>) {
+  const items: T[] = [];
+  let cursor: string | undefined;
+  do {
+    const next = await page(cursor);
+    items.push(...next.items);
+    cursor = next.next_cursor ?? undefined;
+  } while (cursor);
+  return items;
+}
+
+/** Every income entry in a month, newest first. */
 export function useMonthIncome(month: string) {
   const api = useApi();
   return useQuery<Schemas["IncomeEntry"][]>({
     queryKey: monthIncomeQueryKey(month),
-    queryFn: async ({ signal }) => {
-      const items: Schemas["IncomeEntry"][] = [];
-      let cursor: string | undefined;
-      do {
-        const page = await unwrap(
-          api.GET("/v1/income-entries", { params: { query: { month, limit: 1000, cursor } }, signal }),
-        );
-        items.push(...page.items);
-        cursor = page.next_cursor ?? undefined;
-      } while (cursor);
-      return items;
-    },
+    queryFn: ({ signal }) =>
+      fetchAll((cursor) =>
+        unwrap(api.GET("/v1/income-entries", { params: { query: { month, limit: PAGE, cursor } }, signal })),
+      ),
   });
 }
 
-/** New entries change every total, so refetch everything except the signed-in user. */
+/** Every expense and refund in a month, newest first. */
+export function useMonthExpenses(month: string) {
+  const api = useApi();
+  return useQuery<Schemas["Expense"][]>({
+    queryKey: monthExpensesQueryKey(month),
+    queryFn: ({ signal }) =>
+      fetchAll((cursor) =>
+        unwrap(api.GET("/v1/expenses", { params: { query: { month, limit: PAGE, cursor } }, signal })),
+      ),
+  });
+}
+
+/** New, edited or deleted entries change every total, so refetch everything except the signed-in user. */
 function invalidateData(qc: QueryClient) {
   return qc.invalidateQueries({ predicate: (q) => q.queryKey[0] !== meQueryKey[0] });
 }
@@ -111,5 +131,23 @@ export function useEntryMutations() {
     mutationFn: (body: Schemas["IncomeEntryCreate"]) => unwrap(api.POST("/v1/income-entries", { body })),
     onSuccess,
   });
-  return { createExpenses, createIncome };
+  const updateExpense = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Schemas["ExpenseUpdate"] }) =>
+      unwrap(api.PATCH("/v1/expenses/{id}", { params: { path: { id } }, body })),
+    onSuccess,
+  });
+  const deleteExpense = useMutation({
+    mutationFn: (id: string) => unwrap(api.DELETE("/v1/expenses/{id}", { params: { path: { id } } })),
+    onSuccess,
+  });
+  const updateIncome = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Schemas["IncomeEntryUpdate"] }) =>
+      unwrap(api.PATCH("/v1/income-entries/{id}", { params: { path: { id } }, body })),
+    onSuccess,
+  });
+  const deleteIncome = useMutation({
+    mutationFn: (id: string) => unwrap(api.DELETE("/v1/income-entries/{id}", { params: { path: { id } } })),
+    onSuccess,
+  });
+  return { createExpenses, createIncome, updateExpense, deleteExpense, updateIncome, deleteIncome };
 }

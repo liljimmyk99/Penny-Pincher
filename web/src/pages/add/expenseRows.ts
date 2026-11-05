@@ -1,5 +1,6 @@
 import { fieldErrors, type Schemas } from "../../api";
 import { isDate } from "../../lib/dates";
+import { MERCHANT_MAX, NOTE_MAX } from "../../lib/limits";
 import { parseCents } from "../../lib/money";
 
 /**
@@ -25,8 +26,7 @@ export interface ExpenseRow {
 export type RowField = "date" | "merchant" | "category" | "amount" | "note" | "link";
 export type RowErrors = Partial<Record<RowField, string>>;
 
-export const NOTE_MAX = 500;
-export const MERCHANT_MAX = 100;
+export { MERCHANT_MAX, NOTE_MAX };
 
 let nextKey = 1;
 
