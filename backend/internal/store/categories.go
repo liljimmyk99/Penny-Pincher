@@ -76,33 +76,12 @@ func (c Categories) Create(ctx context.Context, userID int64, in NewCategory) (C
 	}
 	defer tx.Rollback()
 
-	if err := checkNameFree(ctx, tx, userID, name, 0); err != nil {
+	if err := checkNameFree(ctx, tx, "categories", userID, name, 0); err != nil {
 		return Category{}, err
 	}
-
-	var maxSort int
-	if err := tx.QueryRowContext(ctx,
-		`SELECT COALESCE(MAX(sort_order), 0) FROM categories WHERE user_id = ? AND is_protected = 0`,
-		userID).Scan(&maxSort); err != nil {
+	sort, err := nextSortOrder(ctx, tx, "categories", userID)
+	if err != nil {
 		return Category{}, err
-	}
-	sort := maxSort + sortStep
-	var otherID int64
-	var otherSort int
-	err = tx.QueryRowContext(ctx,
-		`SELECT id, sort_order FROM categories WHERE user_id = ? AND is_protected = 1`, userID).
-		Scan(&otherID, &otherSort)
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-	case err != nil:
-		return Category{}, err
-	case otherSort > maxSort && sort >= otherSort:
-		// "Other" is last: keep it last.
-		if _, err := tx.ExecContext(ctx,
-			`UPDATE categories SET sort_order = ?, updated_at = `+nowSQL+` WHERE id = ? AND user_id = ?`,
-			sort+sortStep, otherID, userID); err != nil {
-			return Category{}, err
-		}
 	}
 
 	res, err := tx.ExecContext(ctx,
@@ -158,7 +137,7 @@ func (c Categories) Update(ctx context.Context, userID, id int64, p CategoryPatc
 	sets := []string{"updated_at = " + nowSQL}
 	var args []any
 	if p.Name != nil {
-		if err := checkNameFree(ctx, tx, userID, name, id); err != nil {
+		if err := checkNameFree(ctx, tx, "categories", userID, name, id); err != nil {
 			return Category{}, err
 		}
 		sets = append(sets, "name = ?")
@@ -197,26 +176,12 @@ func (c Categories) Reorder(ctx context.Context, userID int64, ids []int64) ([]C
 	if err != nil {
 		return nil, err
 	}
-	pending := make(map[int64]bool, len(current))
-	for _, cat := range current {
-		pending[cat.ID] = true
+	have := make([]int64, len(current))
+	for i, cat := range current {
+		have[i] = cat.ID
 	}
-	if len(ids) != len(current) {
-		return nil, invalid("ids", "must list every category exactly once")
-	}
-	for _, id := range ids {
-		if !pending[id] {
-			return nil, invalid("ids", "must list every category exactly once")
-		}
-		delete(pending, id)
-	}
-
-	for i, id := range ids {
-		if _, err := tx.ExecContext(ctx,
-			`UPDATE categories SET sort_order = ?, updated_at = `+nowSQL+` WHERE id = ? AND user_id = ?`,
-			(i+1)*sortStep, id, userID); err != nil {
-			return nil, err
-		}
+	if err := applyOrder(ctx, tx, "categories", userID, have, ids, "category"); err != nil {
+		return nil, err
 	}
 	out, err := listCategories(ctx, tx, userID)
 	if err != nil {
@@ -319,19 +284,6 @@ func scanCategory(s interface{ Scan(...any) error }) (Category, error) {
 		return Category{}, err
 	}
 	return cat, nil
-}
-
-func checkNameFree(ctx context.Context, q querier, userID int64, name string, exceptID int64) error {
-	var taken bool
-	if err := q.QueryRowContext(ctx,
-		`SELECT EXISTS (SELECT 1 FROM categories WHERE user_id = ? AND name = ? COLLATE NOCASE AND id <> ?)`,
-		userID, name, exceptID).Scan(&taken); err != nil {
-		return err
-	}
-	if taken {
-		return ErrNameTaken
-	}
-	return nil
 }
 
 // cleanName trims a name and checks the spec's 1–100 character limit.

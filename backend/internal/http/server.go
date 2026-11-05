@@ -17,11 +17,12 @@ import (
 type Server struct {
 	api.Unimplemented
 
-	version    string
-	db         Pinger
-	categories store.Categories
-	now        func() time.Time
-	start      time.Time
+	version       string
+	db            Pinger
+	categories    store.Categories
+	incomeSources store.IncomeSources
+	now           func() time.Time
+	start         time.Time
 }
 
 // Deps are the router's dependencies.
@@ -41,11 +42,12 @@ var _ api.StrictServerInterface = (*Server)(nil)
 // NewRouter builds the API router.
 func NewRouter(d Deps) http.Handler {
 	s := &Server{
-		version:    d.Version,
-		db:         d.DB,
-		categories: store.Categories{DB: d.Data},
-		now:        d.Now,
-		start:      d.Now(),
+		version:       d.Version,
+		db:            d.DB,
+		categories:    store.Categories{DB: d.Data},
+		incomeSources: store.IncomeSources{DB: d.Data},
+		now:           d.Now,
+		start:         d.Now(),
 	}
 	strict := api.NewStrictHandlerWithOptions(s, nil, api.StrictHTTPServerOptions{
 		RequestErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, err error) {

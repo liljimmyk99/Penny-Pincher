@@ -2,6 +2,7 @@ package store
 
 import (
 	"errors"
+	"strings"
 
 	"modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
@@ -17,6 +18,9 @@ var (
 	// ErrNameTaken: another row of the same kind already has this name
 	// (case-insensitively).
 	ErrNameTaken = errors.New("name taken")
+	// ErrSourceHasEntries: the income source has income entries, so it can
+	// only be renamed, never deleted.
+	ErrSourceHasEntries = errors.New("income source has entries")
 )
 
 // ValidationError is an input that fails a rule (400 invalid_request).
@@ -45,6 +49,11 @@ func mapConstraint(err error) error {
 	case sqlite3.SQLITE_CONSTRAINT_UNIQUE:
 		return ErrNameTaken
 	case sqlite3.SQLITE_CONSTRAINT_TRIGGER:
+		// Every RAISE(ABORT) guards a protected row, except the one that stops
+		// deleting an income source with entries (0001_init.sql).
+		if strings.Contains(err.Error(), "with income entries cannot be deleted") {
+			return ErrSourceHasEntries
+		}
 		return ErrProtected
 	}
 	return err
