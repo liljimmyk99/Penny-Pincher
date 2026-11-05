@@ -1,0 +1,252 @@
+/* Split layout: brand panel left, sign-in card right; stacks at narrow widths. */
+.signin {
+  min-height: 100vh;
+  display: flex;
+  flex-wrap: wrap;
+  background: var(--color-background);
+}
+
+.signin__panel {
+  flex: 1 1 480px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 48px;
+  padding: clamp(32px, 6vw, 72px);
+  background: var(--color-sidebar);
+  color: var(--color-on-sidebar);
+  border-right: 1px solid var(--color-sidebar-edge);
+}
+
+.signin__pitch {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  max-width: 460px;
+}
+
+.signin__pitch h2 {
+  font-size: clamp(30px, 3.4vw, 42px);
+  line-height: 1.12;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.signin__features {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.signin__feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.signin__feature > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: 14px;
+  color: var(--color-on-sidebar-muted);
+}
+
+.signin__feature b {
+  font-size: 16px;
+  color: var(--color-on-sidebar);
+}
+
+.signin__feature-icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-control);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-on-sidebar-accent);
+}
+
+.signin__feature-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.signin__meta {
+  font-size: 13px;
+  color: var(--color-on-sidebar-muted);
+}
+
+.signin__main {
+  flex: 1 1 480px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px var(--space-4);
+}
+
+.signin__card {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 36px var(--space-8) 28px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-raised);
+}
+
+.signin__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.signin__head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.signin__head h1 {
+  font-size: 28px;
+  letter-spacing: -0.02em;
+}
+
+.signin__head h1:focus {
+  outline: none;
+}
+
+.signin__head p {
+  margin: 0;
+  font-size: 15px;
+  color: var(--color-text-muted);
+}
+
+.signin__divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.signin__divider::before,
+.signin__divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.signin__fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.signin__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.signin__label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.signin__forgot {
+  min-height: 32px;
+}
+
+.signin__back {
+  align-self: flex-start;
+  margin-left: calc(-1 * var(--space-1));
+}
+
+.signin__password {
+  position: relative;
+}
+
+.signin__password .field {
+  padding-right: 56px;
+}
+
+.signin__toggle {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.signin__toggle:hover {
+  background: var(--color-surface-soft);
+  color: var(--color-text);
+}
+
+.signin__note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.signin__footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+/* Phones: keep the form above the fold; the brand panel shrinks to a header. */
+@media (max-width: 600px) {
+  .signin {
+    align-content: flex-start;
+  }
+
+  .signin__panel {
+    flex-basis: 100%;
+    padding: var(--space-4) var(--space-4);
+  }
+
+  .signin__pitch,
+  .signin__meta {
+    display: none;
+  }
+
+  .signin__main {
+    align-items: flex-start;
+    padding: var(--space-6) var(--space-4);
+  }
+
+  .signin__card {
+    padding: 28px var(--space-6) var(--space-6);
+  }
+}

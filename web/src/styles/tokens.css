@@ -52,6 +52,35 @@
   --color-unconfirmed-pill: #ffedd5;
   --color-unconfirmed-text: #9a3412;
   --color-danger: #b91c1c;
+
+  /* Forms, links and alerts (sign-in screens onward) */
+  --color-text-secondary: #374151; /* field labels */
+  --color-placeholder: #6b7280;
+  --color-border-strong: #d5dbe3; /* input and ghost-button borders */
+  --color-field: #ffffff;
+  --color-surface-soft: #f7f8fa; /* hover on light surfaces */
+  --color-ghost: #ffffff;
+  --color-ghost-hover: #f7f8fa;
+  --color-primary-hover: #1a4fb4;
+  --color-focus-ring: rgba(31, 95, 214, 0.22);
+  --color-link: #1d4ed8;
+  --color-link-hover: #1e3a8a;
+  --color-danger-bg: #fef2f2;
+  --color-danger-border: #fecaca;
+  --color-danger-text: #991b1b;
+  --color-danger-line: #dc2626; /* invalid field border */
+  --color-success-bg: #f0fdf4;
+  --color-success-border: #bbf7d0;
+  --color-success-text: #166534;
+
+  /* On the dark brand panel (sidebar colour) */
+  --color-on-sidebar: #ffffff;
+  --color-on-sidebar-muted: #b8c2d1;
+  --color-on-sidebar-accent: #fdba74;
+  --color-on-brand: #0e1a2b; /* the letter on the orange logo mark */
+  --color-sidebar-edge: transparent;
+
+  --shadow-raised: 0 18px 48px rgba(14, 26, 43, 0.1), 0 2px 6px rgba(14, 26, 43, 0.06);
 }
 
 :root[data-theme="dark"] {
@@ -74,4 +103,28 @@
   --color-unconfirmed-pill: #4a2a10;
   --color-unconfirmed-text: #fdba74;
   --color-danger: #dc2626;
+
+  --color-text-secondary: #c9d2df;
+  --color-placeholder: #7d889b;
+  --color-border-strong: #2e3b54;
+  --color-field: #0f1726;
+  --color-surface-soft: #1a2538;
+  --color-ghost: #1a2538;
+  --color-ghost-hover: #1f2a3e;
+  --color-primary-hover: #3d78ea;
+  --color-focus-ring: rgba(61, 120, 234, 0.35);
+  --color-link: #8ab4ff;
+  --color-link-hover: #b9d0ff;
+  --color-danger-bg: #3a1518;
+  --color-danger-border: #7f1d1d;
+  --color-danger-text: #fca5a5;
+  --color-danger-line: #f87171;
+  --color-success-bg: #0f2a1c;
+  --color-success-border: #1e4d33;
+  --color-success-text: #86efac;
+
+  --color-on-brand: #0b1220;
+  --color-sidebar-edge: #1c2638;
+
+  --shadow-raised: 0 18px 48px rgba(0, 0, 0, 0.45);
 }

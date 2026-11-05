@@ -23,6 +23,12 @@ The SQLite file lives on the `api-data` volume; certificates on `caddy-data`/`ca
 
 The API needs Google credentials to initialize the Firebase Admin SDK. Download a service account key (Firebase console → Project settings → Service accounts → Generate new private key) and save it as `secrets/firebase-sa.json`. Compose mounts it read-only at `/run/secrets/firebase-sa.json` and sets `GOOGLE_APPLICATION_CREDENTIALS`. The `secrets/` folder is git-ignored; never commit the key. The file must exist before `docker compose up`, or Docker creates a directory in its place.
 
+## Firebase sign-in (web)
+
+The web app needs the project's public web config. In the Firebase console (Project settings → General → Your apps), add a Web app if there isn't one and copy its `apiKey` into `FIREBASE_WEB_API_KEY` in `.env`; Compose passes it and `FIREBASE_PROJECT_ID` to the web build. For `npm run dev`, copy `web/.env.example` to `web/.env.local` and fill in the same values.
+
+Also in the console: enable the Google and Email/Password providers (Authentication → Sign-in method), and add your domain under Authentication → Settings → Authorized domains (`localhost` is there by default). Sign-ins are still refused unless the user is in the API's users table.
+
 ## Web app
 
 ```bash

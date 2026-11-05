@@ -1,0 +1,36 @@
+.status-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: var(--space-8) var(--space-4);
+  background: var(--color-sidebar);
+  color: var(--color-on-sidebar);
+  text-align: center;
+}
+
+.status-screen__status {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-on-sidebar-muted);
+}
+
+.status-screen__message {
+  max-width: 420px;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--color-on-sidebar-muted);
+}
+
+.status-screen__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+}
