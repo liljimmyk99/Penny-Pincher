@@ -62,6 +62,9 @@ type Result struct {
 	Key  string
 	At   time.Time
 	Err  error // nil on success
+
+	ID       string    // job id, see Run.ID
+	Finished time.Time // when the run ended
 }
 
 // Service takes and prunes snapshots.
@@ -73,7 +76,8 @@ type Service struct {
 	Now       func() time.Time
 
 	mu      sync.Mutex
-	running bool
+	running *job
+	seq     int
 	last    *Result
 }
 
@@ -118,23 +122,61 @@ func parseKey(key string) (time.Time, bool) {
 // Run takes one snapshot of the given kind, uploads it, then prunes. It is
 // safe to call from several goroutines; a second concurrent call gets ErrBusy.
 func (s *Service) Run(ctx context.Context, kind Kind) (Result, error) {
-	s.mu.Lock()
-	if s.running {
-		s.mu.Unlock()
-		return Result{}, ErrBusy
+	job, err := s.begin(kind)
+	if err != nil {
+		return Result{}, err
 	}
-	s.running = true
-	s.mu.Unlock()
+	return s.finish(job, ctx), job.err
+}
 
-	res := Result{Kind: kind, At: s.now()}
-	key, err := s.run(ctx, kind, res.At)
-	res.Key, res.Err = key, err
+// Start begins a snapshot in the background and returns at once with the
+// running job. The outcome shows up in Last and Runs. A second concurrent
+// start gets ErrBusy.
+func (s *Service) Start(kind Kind) (Run, error) {
+	job, err := s.begin(kind)
+	if err != nil {
+		return Run{}, err
+	}
+	go s.finish(job, context.Background())
+	return job.run(), nil
+}
 
+type job struct {
+	s    *Service
+	kind Kind
+	id   string
+	at   time.Time
+	err  error
+}
+
+func (j *job) run() Run {
+	return Run{ID: j.id, Kind: j.kind, Status: StatusRunning, Started: j.at}
+}
+
+// begin reserves the single backup slot.
+func (s *Service) begin(kind Kind) (*job, error) {
 	s.mu.Lock()
-	s.running = false
+	defer s.mu.Unlock()
+	if s.running != nil {
+		return nil, ErrBusy
+	}
+	at := s.now()
+	s.seq++
+	j := &job{s: s, kind: kind, at: at, id: fmt.Sprintf("run-%d-%d", at.UnixNano(), s.seq)}
+	s.running = j
+	return j, nil
+}
+
+// finish takes the snapshot for j and releases the slot.
+func (s *Service) finish(j *job, ctx context.Context) Result {
+	key, err := s.run(ctx, j.kind, j.at)
+	j.err = err
+	res := Result{Kind: j.kind, Key: key, At: j.at, Err: err, ID: j.id, Finished: s.now()}
+	s.mu.Lock()
+	s.running = nil
 	s.last = &res
 	s.mu.Unlock()
-	return res, err
+	return res
 }
 
 func (s *Service) now() time.Time {

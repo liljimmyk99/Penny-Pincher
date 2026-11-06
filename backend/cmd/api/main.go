@@ -76,11 +76,6 @@ func run() error {
 		return err
 	}
 	authn := auth.Middleware(verifier, store.Users{DB: db})
-	srv := &http.Server{
-		Addr:              fmt.Sprintf(":%d", cfg.Port),
-		Handler:           apihttp.NewRouter(apihttp.Deps{Version: cfg.Version, DB: db, Data: db, Now: time.Now, Authn: authn}),
-		ReadHeaderTimeout: 5 * time.Second,
-	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -88,10 +83,20 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	deps := apihttp.Deps{Version: cfg.Version, DB: db, Data: db, Now: time.Now, Authn: authn, AuthCheck: auth.ProbeProvider}
+	if cfg.AuthEmulatorHost != "" {
+		deps.AuthCheck = nil // the emulator is local; there is no remote provider to probe
+	}
 	if bsvc != nil {
+		deps.Backups = bsvc // only when set: a nil *Service in the interface would not be nil
 		go bsvc.RunScheduled(ctx, 15*time.Minute, log)
 	} else {
 		log.Warn("backups are not configured; set BACKUP_AGE_RECIPIENT and BACKUP_S3_*")
+	}
+	srv := &http.Server{
+		Addr:              fmt.Sprintf(":%d", cfg.Port),
+		Handler:           apihttp.NewRouter(deps),
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 	go func() {
 		<-ctx.Done()
