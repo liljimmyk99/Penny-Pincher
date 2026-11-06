@@ -11,6 +11,8 @@
 	@assets path /assets/*
 	header @assets Cache-Control "public, max-age=31536000, immutable"
 	header /index.html Cache-Control "no-cache"
+	# Not hashed, so a new build must be picked up on the next load.
+	header /theme-init.js Cache-Control "no-cache"
 	try_files {path} /index.html
 	file_server
 }

@@ -49,6 +49,8 @@ services:
     image: caddy:2
     environment:
       DOMAIN: localhost
+      # The Content-Security-Policy allows the Firebase auth domain's iframe.
+      FIREBASE_AUTH_DOMAIN: ${FIREBASE_AUTH_DOMAIN:-${FIREBASE_PROJECT_ID}.firebaseapp.com}
     ports:
       - "8080:80"
       - "8443:443"
@@ -68,6 +70,7 @@ services:
     environment:
       DOMAIN: ${DOMAIN:-}
       ACME_EMAIL: ${ACME_EMAIL:-}
+      FIREBASE_AUTH_DOMAIN: ${FIREBASE_AUTH_DOMAIN:-${FIREBASE_PROJECT_ID}.firebaseapp.com}
     ports:
       - "80:80"
       - "443:443"

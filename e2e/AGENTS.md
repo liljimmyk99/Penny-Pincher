@@ -1,6 +1,6 @@
 # AGENTS.md — /e2e
 
-Read the root `AGENTS.md` first. This folder is the end-to-end suite: Playwright driving the real Docker stack. It automates the **M1 testing gate**'s smoke checklist, the **M2 acceptance tests** (AT-1 to AT-24) and the **M3 acceptance tests** (MS, RB, YS, ED).
+Read the root `AGENTS.md` first. This folder is the end-to-end suite: Playwright driving the real Docker stack. It automates the **M1 testing gate**'s smoke checklist, the **M2 acceptance tests** (AT-1 to AT-24), the **M3 acceptance tests** (MS, RB, YS, ED) and the M6 security headers (#105).
 
 ## Running it
 
@@ -21,9 +21,10 @@ npm test                 # builds + starts compose.yml, runs every spec, removes
 - `compose.yml` uses the same API and web images and the same `deploy/Caddyfile` as the root `docker-compose.yml` (dev profile). The **Firebase Auth emulator** (`auth-emulator/`) replaces real Firebase.
   - **API:** `FIREBASE_AUTH_EMULATOR_HOST` makes the Admin SDK accept emulator tokens. The API refuses to start with it unless `FIREBASE_PROJECT_ID` starts with `demo-` (`internal/config`).
   - **Web:** the build arg `VITE_FIREBASE_AUTH_EMULATOR_URL` connects the SDK to the emulator, and is likewise ignored unless the project id starts with `demo-`. A production build never sets either.
+  - **Proxy:** `FIREBASE_AUTH_EMULATOR_URL` adds the emulator's origin to the Content-Security-Policy's `connect-src` and `frame-src`. Only this stack sets it.
 - Every test gets a **fresh user**: an emulator account with generated test credentials, added to the allowlist with the real CLI (`docker compose exec api /api user add …`). Tests share the stack but never each other's data.
 - Tests drive the UI and check results through the API (`support/stack.ts` `Api`). They arrange data through the API too, where the UI isn't what's being tested.
-- One worker. `resilience.spec.ts` stops the API container, so it is its own Playwright project that runs last.
+- One worker. `security-headers.spec.ts` is its own Playwright project on full Chromium (below), so the smoke project keeps one worker throughout. `resilience.spec.ts` stops the API container, so it is its own project too, and runs after smoke.
 
 ## Gate coverage
 
@@ -109,9 +110,20 @@ Each test seeds the doc's golden month (Dec 2026 to Mar 2027, generic names) for
 - **MS-7:** the doc expects no change figures for the first month; the app compares with an empty prior month and shows them. Not asserted.
 - **Manual:** screen-reader use (YS-10) and whether dark mode looks right are still a human call.
 
+### M6 security headers (`security-headers.spec.ts`, #105)
+
+| Check | Test |
+| --- | --- |
+| Every header on `/`, an app route, `theme-init.js`, `/healthz` and `/v1/*` (signed in and out); no `Server` or `Via`; `no-store` on API responses; no inline `<script>` in the page | `security-headers` · every response |
+| Email sign-in, the pre-paint theme, Google Fonts, every screen, menus and dialogs (including the scroll lock) with no CSP violations | `security-headers` · email sign-in and every screen |
+| Google sign-in through the popup with no CSP violations: not allowlisted, then allowlisted | `security-headers` · Google popup |
+
+- This spec is the `security` project, on **full Chromium** (`channel: "chromium"`), not Playwright's default headless shell. In the shell, an iframe created while a popup opens often never runs its scripts, so the SDK's auth iframe stalls and the popup can't return its result.
+- The Google test waits for the emulator's account chooser to finish loading and for the SDK's auth iframe in the page, as a person picking an account naturally does.
+
 ### Where the automation differs from the manual checklist
 
-- **Sign-in uses the auth emulator, not real Firebase.** The email-and-password flow and the backend's token check and allowlist are exercised for real. Google sign-in and the real project's configuration are not; check those by hand once on the deployed stack.
+- **Sign-in uses the auth emulator, not real Firebase.** The email-and-password flow and the backend's token check and allowlist are exercised for real. Google sign-in runs through the emulator's popup: the SDK loads the same Google script and opens the same kind of auth iframe, so the CSP is exercised, but Google's real account chooser is not. Check real Google sign-in, with no CSP errors in the console, and the real project's configuration by hand once on the deployed stack.
 - **Time zone:** the browser runs in a zone whose calendar date differs from UTC's at the moment of the run (`Pacific/Pago_Pago` or `Pacific/Kiritimati`). That catches the same `new Date()` / `toISOString()` bug as "after 7 pm Eastern", at any hour.
 - **Recolouring "Other"** is checked on the API because the Categories screen has no colour control yet.
 - **Dark mode** is checked for theme, background and WCAG colour contrast, with screenshots attached to the report. Whether it *looks right* is still a human call.

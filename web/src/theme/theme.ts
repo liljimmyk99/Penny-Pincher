@@ -1,4 +1,4 @@
-/** Theme preference logic. Keep the inline script in index.html in sync with this. */
+/** Theme preference logic. Keep public/theme-init.js (run before first paint) in sync with this. */
 
 export type ThemePreference = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";

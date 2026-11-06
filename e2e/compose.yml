@@ -50,6 +50,11 @@ services:
     image: caddy:2
     environment:
       DOMAIN: localhost
+      # The web build's default auth domain (no VITE_FIREBASE_AUTH_DOMAIN above).
+      FIREBASE_AUTH_DOMAIN: demo-penny-pincher.firebaseapp.com
+      # Lets the Content-Security-Policy reach the emulator (sign-in requests and
+      # the popup's iframe). Only this stack sets it; see deploy/Caddyfile.
+      FIREBASE_AUTH_EMULATOR_URL: http://localhost:19099
     ports:
       - "18443:443"
     volumes:
