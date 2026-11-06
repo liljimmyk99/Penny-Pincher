@@ -195,6 +195,7 @@ Two tabs at the top: **Custom trends** and **By category**.
   - **Biggest movers:** every category ranked by change vs. the same month last year, drawn as **diverging bars** around a centre line. Clicking a category charts it.
   - Month-by-month table: spend, change vs. prior month (January compares with last December), last year's spend, change vs. last year, and a year-to-date total.
   - Uses the change-indicator colours above, with Saving flipped.
+  - As built (`src/pages/trends/CategoryTrends.tsx`, logic in `trendChange.ts`): reads `GET /v1/trends/by-category?year=` (`useCategoryTrends`) with its own year switcher; all comparisons are computed in the client. The month defaults to the current one (December for other years). Clicking a mover toggles that category (clicking it again returns to All spending). Months after today are dashed in the table. `PairedBars` gained `selectedId` and a `years` variant; `DivergingBars` is the new chart.
 
 ### Categories & sources
 - **Expense categories**
