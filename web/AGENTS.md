@@ -39,6 +39,8 @@ https://claude.ai/code/artifact/420ff31e-17a4-4f1d-b07d-9d958efeab9c
 
 Every screen exists in light and dark. Sample numbers and names on the canvas are mock data; never copy them into code, seeds or tests. When this file and the canvas disagree, this file wins; flag the difference.
 
+The Excel import screens (root §6.14) are on a separate canvas, **Penny-Pincher Screens · Import** (https://claude.ai/artifact/Whsrs2CRLpZ2aCArpdbuAa), until they are moved into the main one.
+
 ## Design system
 
 Define these as tokens (CSS custom properties or the UI library's theme) in one place. Do not scatter hex values through components.
@@ -84,9 +86,9 @@ Define these as tokens (CSS custom properties or the UI library's theme) in one 
 
 ## Layout and navigation
 
-- Left sidebar, 232px wide, dark background. Items in this order: Summary, Add entries, Transactions, Yearly, Trends, Templates, Categories & sources. The current page is highlighted (white pill) and marked `aria-current="page"`.
+- Left sidebar, 232px wide, dark background. Items in this order: Summary, Add entries, Transactions, Yearly, Trends, Templates, Categories & sources, Import. The current page is highlighted (white pill) and marked `aria-current="page"`.
 - **Collapsible sidebar:** a chevron button next to the logo collapses it to a ~76px icon-only rail (logo, icons, avatar) and the content widens. Links keep their accessible names when collapsed. Remember the choice per user (a UI preference, safe to store locally).
-- Account button at the bottom of the sidebar opens a menu: name and email, Appearance (Light / Dark / System), Settings (⌘,), Export data, Admin dashboard (admins only), Sign out.
+- Account button at the bottom of the sidebar opens a menu: name and email, Appearance (Light / Dark / System), Settings (⌘,), Import transactions, Export data, Admin dashboard (admins only), Sign out.
 - Main content is fluid; cards and tables wrap or scroll horizontally inside their card on narrow windows. No horizontal page scroll.
 
 ## Screens
@@ -230,6 +232,18 @@ Reached from the account menu; hidden from members. **v1 builds only app status 
   - Reads `GET /v1/admin/status` and `GET /v1/admin/backups`; the list polls every 2s while any backup is `running`. "Back up now" posts to `/v1/admin/backups`, toasts "Backup started", and toasts "Backup finished" (or "Backup failed") when that backup leaves `running`.
   - Download fetches the encrypted archive through the API client (so the bearer token is sent) and saves it as a blob; it is offered only for succeeded backups.
   - The "Firebase console" link goes to the project's Authentication users page, built from `VITE_FIREBASE_PROJECT_ID`.
+
+### Import (Excel)
+Root §6.14; API `imports` routes. One page with four stages and a step indicator (Get template, Upload, Review, Import).
+
+- **Upload:** a "Download template" card with a preview of the Expenses and Income tabs and three rules (dropdowns hold your categories and sources; any number of years; refunds are negative), and an upload card with a drop zone and "Choose file" (`.xlsx`, up to 10 MB). Errors such as `invalid_import_file` or `file_too_large` show inline on the card.
+- **Review:** the file name and "Choose a different file" (discards the import); tiles for entries found, date range, ready to import, need fixing; an orange warning listing months that already have entries ("added alongside, not replaced"); a By year table; problems grouped by `code`, each group with a hint and its sheet and row references (with "+ N more"); "Download file with problems marked"; a footer saying nothing is saved yet, with "Upload fixed file" and "Import N entries".
+- **Importing:** a large percent figure and progress bar (`role="progressbar"` with `aria-valuetext`), entries done of total, the month being written and time left from the server's `eta_seconds`; per-year progress rows; a note that the user can leave the page; "Go to Summary while it runs" and "Cancel import" (alert dialog: the entries already added are removed).
+- **Finished:** "Import finished" with counts, Open Yearly, Download skipped rows, Import another file.
+- **Import history** (Upload and Finished stages): file, date, entries, years, status chip, and Undo for completed imports (alert dialog: deletes every entry it added, including edited ones; hand-added entries stay).
+- **Progress banner** across every screen while an import runs, under the page header area: blue while running (name, percent, entries, time left, View progress, and a thin progress line), green when finished (counts, View details, dismiss), red when it stopped (nothing was saved, Try again, dismiss). On load the app checks `GET /v1/imports?status=running`.
+- **Canvas difference:** the Importing stage's note says imported months appear once the whole import finishes. Entries actually appear as each batch is written (root §10); word the note as "Months fill in as the import runs."
+- **Progress stream:** read `/v1/imports/{id}/events` with `fetch` and a stream reader (not `EventSource`, which cannot send the token), in one module under `src/api`. Reconnect if it drops before `finished`. When it finishes, invalidate the queries for every affected month, year and trend. Caddy must not buffer the stream (check `flush_interval` for this route).
 
 ### Empty states
 - **New account** (first sign-in, no data)

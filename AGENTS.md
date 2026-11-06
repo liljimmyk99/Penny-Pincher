@@ -49,14 +49,15 @@ The schema is defined in `backend/migrations/0001_init.sql` (SQLite). That file 
 
 - **User**: id, Firebase uid, role (`admin` | `member`)
 - **IncomeSource**: user, name, sort order, `is_protected`. Seeded: Other (protected)
-- **IncomeEntry**: user, source, date, gross, gross taxable, net, optional note, `confirmed` flag, optional template apply. One row per paycheck or one-off job.
+- **IncomeEntry**: user, source, date, gross, gross taxable, net, optional note, `confirmed` flag, optional template apply, optional import. One row per paycheck or one-off job.
 - **Category**: user, name, sort order, color, `is_saving` flag, `is_protected`. Seeded: Saving (`is_saving`), Housing, Utilities, Food, Transportation, Entertainment, Debt, Other (protected)
 - **Merchant**: user, name (case-insensitive, unique per user). Expenses reference a merchant row; autocomplete reads from this table.
-- **Expense**: user, category, merchant, date, amount, optional note, type (`expense` | `refund`, derived from the amount's sign), optional `refunded_expense_id`, `confirmed` flag, optional template apply
+- **Expense**: user, category, merchant, date, amount, optional note, type (`expense` | `refund`, derived from the amount's sign), optional `refunded_expense_id`, `confirmed` flag, optional template apply, optional import
 - **Template**: user, name. A template is a full filled-out month (like a spreadsheet "Example Month" tab). A user may have several.
 - **TemplateExpenseItem**: template, category, merchant, **day of month** (1–31), amount, optional note, sort order
 - **TemplateIncomeItem**: template, income source, **day of month** (1–31), gross, gross taxable, net, optional note, sort order
 - **TemplateApply**: user, template, month (`YYYY-MM`), applied at. One row per "start month from template"; the entries it creates point at it so it can be undone.
+- **Import**: user, file name, status (`review` | `running` | `completed` | `cancelled` | `failed` | `undone` | `expired`), counts, timestamps. One row per uploaded Excel file. Its checked rows and their problems are kept with it; the entries it creates point at it (`import_id`) so it can be undone as a batch.
 - **SavedTrend**: user, name, match type (`merchant` | `category` | `note`), the matched merchant, category or note text, measure (`amount` | `count`)
 
 Rules:
@@ -126,14 +127,23 @@ Rules:
     - Status: API health and version (from `/healthz`), database size and last write, backup schedule and last run, sign-in provider connectivity.
     - Backups: a list of snapshots, "Back up now", and download of the encrypted snapshot.
     - **Not in v1:** account-specific tiles and actions (user list, user counts, create account, invites, password reset, disable/enable). Those stay in the Firebase console until v2.
-13. Export to CSV/Excel. **This is the last v1 item**, built after the UI and backend for everything above are complete.
+13. Export to CSV/Excel. **Export and import (14) are the last v1 items**, built after the UI and backend for everything above are complete.
+14. **Import past years from Excel** (web and Mac; reached from the sidebar's **Import** item and the account menu's "Import transactions"):
+    - **Download the template:** an `.xlsx` with an **Expenses** sheet (Date, Category, Merchant, Amount, Note) and an **Income** sheet (Date, Source, Gross, Gross taxable, Net, Note). Category and Source are dropdowns filled with the user's current categories and sources. Amounts are dollars in the file and integer cents everywhere else. Refunds are negative amounts. One file may hold any number of years.
+    - **Upload and review first.** The server checks every row; **nothing is saved until the user starts the import.** The review shows rows found, date range, rows ready, rows with problems, a per-year table, and problems grouped by type with their sheet and row number. The user can download the problem rows (with a Problem column), fix them and upload again, or import only the valid rows.
+    - **Unknown categories and income sources are problems**, never created automatically. Merchants are matched or created, as when adding an expense.
+    - **Months that already have entries:** imported entries are **added alongside** them, never replacing them. The review warns which months these are.
+    - **Runs in the background** with a progress bar (percent, entries done, current month, time left, per-year progress). The user can leave the page; a **progress banner** shows at the top of every screen until the import finishes (running, finished and dismissable, or stopped).
+    - **Cancel** stops the import and removes everything it already added. If the server stops mid-import, the import is marked failed and everything it added is removed, so nothing from the file stays.
+    - **Undo** a finished import as one batch from the import history. It deletes every entry the import added, including ones edited since; entries added by hand are never touched.
+    - Imported entries are **confirmed** (not flagged like template copies).
 
 ## 7. Scope
 
 **In v1:** everything in section 6; web + Mac clients; online-only; Dockerized backend.
 
 **Out of v1 (do not build):**
-- Bank/card syncing, CSV/statement import, importing the user's old spreadsheet (the app starts empty)
+- Bank/card syncing and bank CSV/statement import. The only import is the Excel template in §6.14; the user's old spreadsheet is copied into that template by hand.
 - Budgets, budget-vs-actual, recommended percentages, what-if calculations (v2)
 - Debt tracking, net worth
 - Recurring-item automation (users copy a template instead)
@@ -208,6 +218,13 @@ Rules:
   - **Admin panel:** no sidecar. The backup code lives inside the API (one container, one process). Admin-only endpoints list the bucket, start a manual backup, and stream the encrypted object for download; the status tiles read the last run from the same data. The API never decrypts.
   - **Restore** is a documented manual procedure (download, `age -d` with the private key, replace the DB file with the API stopped) and must be tested end to end before v1 ships, per section 8.
 
+- **Excel import** (decided 2026-11-06; design: the **Penny-Pincher Screens · Import** canvas, https://claude.ai/artifact/Whsrs2CRLpZ2aCArpdbuAa)
+  - **Flow and API:** see §6.14 and the `imports` routes in `api/openapi.yaml`. Upload checks the file synchronously and stores the parsed rows and their problems (status `review`); "start" runs the import in the background.
+  - **Limits:** 10 MB per file, 50,000 rows across both sheets, one running import per user. An import left in `review` expires after 24 hours.
+  - **Progress is pushed with Server-Sent Events** (`GET /v1/imports/{id}/events`): `progress` events, then one `finished` event. Web reads it with `fetch` and a stream reader, because `EventSource` cannot send the bearer token; the Mac app uses `URLSession` bytes. `GET /v1/imports/{id}` returns the same progress for a fresh load.
+  - **Writes:** batches, oldest month first, each in its own transaction, every row tagged with `import_id`. Entries appear in reads as their batch lands. Cancel, undo and a failed import delete every row with that `import_id` in one transaction. On start-up the API marks any import still `running` as `failed` and removes its rows.
+  - **Excel files** (import template, problem rows, and export) are read and written by one Go library; which one is the open decision below.
+
 ### Open
 
-- None at the moment.
+- **Go library for `.xlsx`** (import template, reading uploads, problem rows, export). Leaning `github.com/xuri/excelize/v2`: pure Go, supports data-validation dropdowns and streaming large sheets. Decide before building import or export.

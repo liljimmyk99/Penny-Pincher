@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"time"
 
@@ -40,19 +41,19 @@ func (e AdminStatusAuthProviderStatus) Valid() bool {
 
 // Defines values for BackupStatus.
 const (
-	Failed    BackupStatus = "failed"
-	Running   BackupStatus = "running"
-	Succeeded BackupStatus = "succeeded"
+	BackupStatusFailed    BackupStatus = "failed"
+	BackupStatusRunning   BackupStatus = "running"
+	BackupStatusSucceeded BackupStatus = "succeeded"
 )
 
 // Valid indicates whether the value is a known member of the BackupStatus enum.
 func (e BackupStatus) Valid() bool {
 	switch e {
-	case Failed:
+	case BackupStatusFailed:
 		return true
-	case Running:
+	case BackupStatusRunning:
 		return true
-	case Succeeded:
+	case BackupStatusSucceeded:
 		return true
 	default:
 		return false
@@ -103,8 +104,12 @@ const (
 	ErrorErrorCodeAdminRequired     ErrorErrorCode = "admin_required"
 	ErrorErrorCodeBackupInProgress  ErrorErrorCode = "backup_in_progress"
 	ErrorErrorCodeBackupNotReady    ErrorErrorCode = "backup_not_ready"
+	ErrorErrorCodeFileTooLarge      ErrorErrorCode = "file_too_large"
 	ErrorErrorCodeHasLinkedRefunds  ErrorErrorCode = "has_linked_refunds"
+	ErrorErrorCodeImportInProgress  ErrorErrorCode = "import_in_progress"
+	ErrorErrorCodeImportWrongStatus ErrorErrorCode = "import_wrong_status"
 	ErrorErrorCodeInternal          ErrorErrorCode = "internal"
+	ErrorErrorCodeInvalidImportFile ErrorErrorCode = "invalid_import_file"
 	ErrorErrorCodeInvalidRefundLink ErrorErrorCode = "invalid_refund_link"
 	ErrorErrorCodeInvalidRequest    ErrorErrorCode = "invalid_request"
 	ErrorErrorCodeMonthNotEmpty     ErrorErrorCode = "month_not_empty"
@@ -126,9 +131,17 @@ func (e ErrorErrorCode) Valid() bool {
 		return true
 	case ErrorErrorCodeBackupNotReady:
 		return true
+	case ErrorErrorCodeFileTooLarge:
+		return true
 	case ErrorErrorCodeHasLinkedRefunds:
 		return true
+	case ErrorErrorCodeImportInProgress:
+		return true
+	case ErrorErrorCodeImportWrongStatus:
+		return true
 	case ErrorErrorCodeInternal:
+		return true
+	case ErrorErrorCodeInvalidImportFile:
 		return true
 	case ErrorErrorCodeInvalidRefundLink:
 		return true
@@ -185,6 +198,102 @@ func (e HealthStatus) Valid() bool {
 	case HealthStatusDegraded:
 		return true
 	case HealthStatusOk:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ImportIssueCode.
+const (
+	InvalidDate         ImportIssueCode = "invalid_date"
+	InvalidNumber       ImportIssueCode = "invalid_number"
+	MissingValue        ImportIssueCode = "missing_value"
+	NegativeIncome      ImportIssueCode = "negative_income"
+	NetExceedsGross     ImportIssueCode = "net_exceeds_gross"
+	TaxableExceedsGross ImportIssueCode = "taxable_exceeds_gross"
+	TextTooLong         ImportIssueCode = "text_too_long"
+	TooManyDecimals     ImportIssueCode = "too_many_decimals"
+	UnknownCategory     ImportIssueCode = "unknown_category"
+	UnknownIncomeSource ImportIssueCode = "unknown_income_source"
+	ZeroAmount          ImportIssueCode = "zero_amount"
+)
+
+// Valid indicates whether the value is a known member of the ImportIssueCode enum.
+func (e ImportIssueCode) Valid() bool {
+	switch e {
+	case InvalidDate:
+		return true
+	case InvalidNumber:
+		return true
+	case MissingValue:
+		return true
+	case NegativeIncome:
+		return true
+	case NetExceedsGross:
+		return true
+	case TaxableExceedsGross:
+		return true
+	case TextTooLong:
+		return true
+	case TooManyDecimals:
+		return true
+	case UnknownCategory:
+		return true
+	case UnknownIncomeSource:
+		return true
+	case ZeroAmount:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ImportSheet.
+const (
+	Expenses ImportSheet = "expenses"
+	Income   ImportSheet = "income"
+)
+
+// Valid indicates whether the value is a known member of the ImportSheet enum.
+func (e ImportSheet) Valid() bool {
+	switch e {
+	case Expenses:
+		return true
+	case Income:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ImportStatus.
+const (
+	ImportStatusCancelled ImportStatus = "cancelled"
+	ImportStatusCompleted ImportStatus = "completed"
+	ImportStatusExpired   ImportStatus = "expired"
+	ImportStatusFailed    ImportStatus = "failed"
+	ImportStatusReview    ImportStatus = "review"
+	ImportStatusRunning   ImportStatus = "running"
+	ImportStatusUndone    ImportStatus = "undone"
+)
+
+// Valid indicates whether the value is a known member of the ImportStatus enum.
+func (e ImportStatus) Valid() bool {
+	switch e {
+	case ImportStatusCancelled:
+		return true
+	case ImportStatusCompleted:
+		return true
+	case ImportStatusExpired:
+		return true
+	case ImportStatusFailed:
+		return true
+	case ImportStatusReview:
+		return true
+	case ImportStatusRunning:
+		return true
+	case ImportStatusUndone:
 		return true
 	default:
 		return false
@@ -506,6 +615,9 @@ type Expense struct {
 	// Examples: 42
 	Id Id `json:"id"`
 
+	// ImportId The import that created this entry, if any. Undoing that import deletes it.
+	ImportId nullable.Nullable[string] `json:"import_id,omitempty"`
+
 	// LastRefundDate On an expense, the date of its latest linked refund, computed at read time and never
 	// stored. Null when no refund is linked, and always null on a refund.
 	LastRefundDate nullable.Nullable[openapi_types.Date] `json:"last_refund_date,omitempty"`
@@ -588,6 +700,174 @@ type HealthStatus string
 // Examples: 42
 type Id = string
 
+// Import defines model for Import.
+type Import struct {
+	CreatedAt *Timestamp `json:"created_at,omitempty"`
+
+	// EntriesImported Entries of this import currently in the app (0 once cancelled, failed or undone).
+	EntriesImported int `json:"entries_imported"`
+
+	// ExpenseRows Data rows found on the Expenses sheet (ready + with problems).
+	ExpenseRows int `json:"expense_rows"`
+
+	// FailureReason Safe to show. Set only when `failed` (for example, the server restarted).
+	FailureReason nullable.Nullable[string] `json:"failure_reason"`
+	FileName      string                    `json:"file_name"`
+
+	// FinishedAt When it completed, was cancelled, failed or was undone.
+	FinishedAt nullable.Nullable[time.Time] `json:"finished_at,omitempty"`
+
+	// FirstMonth Earliest month among ready rows (`YYYY-MM`); null if none are ready.
+	FirstMonth nullable.Nullable[string] `json:"first_month"`
+
+	// Id Opaque identifier.
+	//
+	// Examples: 42
+	Id Id `json:"id"`
+
+	// IncomeRows Data rows found on the Income sheet (ready + with problems).
+	IncomeRows int `json:"income_rows"`
+
+	// Issues Rows with problems, in sheet and row order. At most 500 are listed; the rest are in
+	// `downloadImportProblems`. A row may have several issues.
+	Issues []ImportIssue `json:"issues"`
+
+	// IssuesTruncated True when more than 500 issues exist.
+	IssuesTruncated bool `json:"issues_truncated"`
+
+	// LastMonth Latest month among ready rows (`YYYY-MM`).
+	LastMonth nullable.Nullable[string] `json:"last_month"`
+
+	// MonthsWithExistingEntries Months in the file that already had entries in the app when it was checked.
+	// Imported rows are added alongside them, never replacing them.
+	MonthsWithExistingEntries []struct {
+		ExistingEntries int `json:"existing_entries"`
+
+		// FileEntries Ready rows in the file for this month.
+		FileEntries int `json:"file_entries"`
+
+		// Month Examples: 2026-10
+		Month YearMonth `json:"month"`
+	} `json:"months_with_existing_entries"`
+
+	// Progress Present only while `running`.
+	Progress         *ImportProgress `json:"progress,omitempty"`
+	RowsReady        int             `json:"rows_ready"`
+	RowsWithProblems int             `json:"rows_with_problems"`
+
+	// Status `review` (checked, nothing saved) → `running` → `completed` | `cancelled` | `failed`;
+	// `completed` → `undone`. A `review` import not started within 24 hours becomes `expired`.
+	// `cancelled`, `failed` and `undone` imports have no entries left in the app.
+	Status ImportStatus `json:"status"`
+
+	// Years Ready rows per calendar year, oldest first, for the review table.
+	Years []ImportYear `json:"years"`
+}
+
+// ImportIssue defines model for ImportIssue.
+type ImportIssue struct {
+	// Code Stable; clients group and word issues by this.
+	Code ImportIssueCode `json:"code"`
+
+	// Column The column header as written in the template, for example `Category`.
+	//
+	// Examples: Category
+	Column string `json:"column"`
+
+	// Message Human-readable; safe to show.
+	Message string `json:"message"`
+
+	// Row The Excel row number (row 1 is the header), so the user can find it.
+	Row   int         `json:"row"`
+	Sheet ImportSheet `json:"sheet"`
+
+	// Value The cell's original text; empty when the cell was blank.
+	Value string `json:"value"`
+}
+
+// ImportIssueCode Stable; clients group and word issues by this.
+type ImportIssueCode string
+
+// ImportProgress defines model for ImportProgress.
+type ImportProgress struct {
+	// CurrentMonth The month (`YYYY-MM`) of the batch being written.
+	CurrentMonth nullable.Nullable[string] `json:"current_month"`
+
+	// EtaSeconds Estimated seconds left, from the rate so far; null until the first batch is written.
+	EtaSeconds nullable.Nullable[int] `json:"eta_seconds"`
+	RowsDone   int                    `json:"rows_done"`
+
+	// RowsTotal Ready rows being imported (rows with problems are skipped).
+	RowsTotal int `json:"rows_total"`
+
+	// Status `review` (checked, nothing saved) → `running` → `completed` | `cancelled` | `failed`;
+	// `completed` → `undone`. A `review` import not started within 24 hours becomes `expired`.
+	// `cancelled`, `failed` and `undone` imports have no entries left in the app.
+	Status ImportStatus `json:"status"`
+
+	// Years Per-year progress, oldest first.
+	Years []struct {
+		RowsDone  int  `json:"rows_done"`
+		RowsTotal int  `json:"rows_total"`
+		Year      Year `json:"year"`
+	} `json:"years"`
+}
+
+// ImportSheet defines model for ImportSheet.
+type ImportSheet string
+
+// ImportStatus `review` (checked, nothing saved) → `running` → `completed` | `cancelled` | `failed`;
+// `completed` → `undone`. A `review` import not started within 24 hours becomes `expired`.
+// `cancelled`, `failed` and `undone` imports have no entries left in the app.
+type ImportStatus string
+
+// ImportSummary One row of the import history.
+type ImportSummary struct {
+	CreatedAt *Timestamp `json:"created_at,omitempty"`
+
+	// EntriesImported Entries of this import currently in the app (0 once cancelled, failed or undone).
+	EntriesImported int    `json:"entries_imported"`
+	FileName        string `json:"file_name"`
+
+	// FinishedAt When it completed, was cancelled, failed or was undone.
+	FinishedAt nullable.Nullable[time.Time] `json:"finished_at,omitempty"`
+
+	// FirstMonth Earliest month among ready rows (`YYYY-MM`); null if none are ready.
+	FirstMonth nullable.Nullable[string] `json:"first_month"`
+
+	// Id Opaque identifier.
+	//
+	// Examples: 42
+	Id Id `json:"id"`
+
+	// LastMonth Latest month among ready rows (`YYYY-MM`).
+	LastMonth        nullable.Nullable[string] `json:"last_month"`
+	RowsReady        int                       `json:"rows_ready"`
+	RowsWithProblems int                       `json:"rows_with_problems"`
+
+	// Status `review` (checked, nothing saved) → `running` → `completed` | `cancelled` | `failed`;
+	// `completed` → `undone`. A `review` import not started within 24 hours becomes `expired`.
+	// `cancelled`, `failed` and `undone` imports have no entries left in the app.
+	Status ImportStatus `json:"status"`
+}
+
+// ImportYear defines model for ImportYear.
+type ImportYear struct {
+	// ExpenseRows Ready expense rows (refunds included).
+	ExpenseRows int `json:"expense_rows"`
+
+	// IncomeRows Ready income rows.
+	IncomeRows int `json:"income_rows"`
+
+	// Months Months in this year that have at least one ready row.
+	Months           int `json:"months"`
+	RowsWithProblems int `json:"rows_with_problems"`
+
+	// SpentCents Sum of ready expense amounts (refunds lower it), the same way totals count elsewhere.
+	SpentCents Cents `json:"spent_cents"`
+	Year       Year  `json:"year"`
+}
+
 // IncomeEntry defines model for IncomeEntry.
 type IncomeEntry struct {
 	Confirmed bool       `json:"confirmed"`
@@ -604,6 +884,9 @@ type IncomeEntry struct {
 	//
 	// Examples: 42
 	Id Id `json:"id"`
+
+	// ImportId The import that created this entry, if any. Undoing that import deletes it.
+	ImportId nullable.Nullable[string] `json:"import_id,omitempty"`
 
 	// IncomeSourceId Opaque identifier.
 	//
@@ -1190,6 +1473,9 @@ type Forbidden = Error
 // NotFound defines model for NotFound.
 type NotFound = Error
 
+// PayloadTooLarge defines model for PayloadTooLarge.
+type PayloadTooLarge = Error
+
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
 
@@ -1236,6 +1522,17 @@ type ExportDataParams struct {
 
 // ExportDataParamsFormat defines parameters for ExportData.
 type ExportDataParamsFormat string
+
+// ListImportsParams defines parameters for ListImports.
+type ListImportsParams struct {
+	Status *ImportStatus `form:"status,omitempty" json:"status,omitempty"`
+}
+
+// UploadImportMultipartBody defines parameters for UploadImport.
+type UploadImportMultipartBody struct {
+	// File The filled-out template. Its file name is kept for the history list.
+	File openapi_types.File `json:"file"`
+}
 
 // ListIncomeEntriesParams defines parameters for ListIncomeEntries.
 type ListIncomeEntriesParams struct {
@@ -1342,6 +1639,9 @@ type CreateExpensesBatchJSONRequestBody CreateExpensesBatchJSONBody
 // UpdateExpenseJSONRequestBody defines body for UpdateExpense for application/json ContentType.
 type UpdateExpenseJSONRequestBody = ExpenseUpdate
 
+// UploadImportMultipartRequestBody defines body for UploadImport for multipart/form-data ContentType.
+type UploadImportMultipartRequestBody UploadImportMultipartBody
+
 // CreateIncomeEntryJSONRequestBody defines body for CreateIncomeEntry for application/json ContentType.
 type CreateIncomeEntryJSONRequestBody = IncomeEntryCreate
 
@@ -1443,6 +1743,36 @@ type ServerInterface interface {
 	// ExportData Export expenses and income
 	// (GET /v1/export)
 	ExportData(w http.ResponseWriter, r *http.Request, params ExportDataParams)
+	// ListImports Import history
+	// (GET /v1/imports)
+	ListImports(w http.ResponseWriter, r *http.Request, params ListImportsParams)
+	// UploadImport Upload a filled-out template and check it
+	// (POST /v1/imports)
+	UploadImport(w http.ResponseWriter, r *http.Request)
+	// DownloadImportTemplate Download the Excel import template
+	// (GET /v1/imports/template)
+	DownloadImportTemplate(w http.ResponseWriter, r *http.Request)
+	// DiscardImport Discard an import that was never started
+	// (DELETE /v1/imports/{id})
+	DiscardImport(w http.ResponseWriter, r *http.Request, id Id)
+	// GetImport One import, with its check results and progress
+	// (GET /v1/imports/{id})
+	GetImport(w http.ResponseWriter, r *http.Request, id Id)
+	// CancelImport Cancel a running import and remove what it added
+	// (POST /v1/imports/{id}/cancel)
+	CancelImport(w http.ResponseWriter, r *http.Request, id Id)
+	// StreamImportEvents Live progress (Server-Sent Events)
+	// (GET /v1/imports/{id}/events)
+	StreamImportEvents(w http.ResponseWriter, r *http.Request, id Id)
+	// DownloadImportProblems Download the rows that have problems
+	// (GET /v1/imports/{id}/problems)
+	DownloadImportProblems(w http.ResponseWriter, r *http.Request, id Id)
+	// StartImport Start importing the rows that passed the check
+	// (POST /v1/imports/{id}/start)
+	StartImport(w http.ResponseWriter, r *http.Request, id Id)
+	// UndoImport Undo a finished import as one batch
+	// (POST /v1/imports/{id}/undo)
+	UndoImport(w http.ResponseWriter, r *http.Request, id Id)
 	// ListIncomeEntries List income entries
 	// (GET /v1/income-entries)
 	ListIncomeEntries(w http.ResponseWriter, r *http.Request, params ListIncomeEntriesParams)
@@ -2070,6 +2400,249 @@ func (siw *ServerInterfaceWrapper) ExportData(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ExportData(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListImports operation middleware
+func (siw *ServerInterfaceWrapper) ListImports(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListImportsParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListImports(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UploadImport operation middleware
+func (siw *ServerInterfaceWrapper) UploadImport(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UploadImport(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DownloadImportTemplate operation middleware
+func (siw *ServerInterfaceWrapper) DownloadImportTemplate(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DownloadImportTemplate(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DiscardImport operation middleware
+func (siw *ServerInterfaceWrapper) DiscardImport(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DiscardImport(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetImport operation middleware
+func (siw *ServerInterfaceWrapper) GetImport(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetImport(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CancelImport operation middleware
+func (siw *ServerInterfaceWrapper) CancelImport(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CancelImport(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StreamImportEvents operation middleware
+func (siw *ServerInterfaceWrapper) StreamImportEvents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StreamImportEvents(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DownloadImportProblems operation middleware
+func (siw *ServerInterfaceWrapper) DownloadImportProblems(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DownloadImportProblems(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartImport operation middleware
+func (siw *ServerInterfaceWrapper) StartImport(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartImport(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UndoImport operation middleware
+func (siw *ServerInterfaceWrapper) UndoImport(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UndoImport(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3381,6 +3954,16 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/admin/backups", wrapper.ListBackups)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/admin/backups", wrapper.StartBackup)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/admin/backups/{id}/download", wrapper.DownloadBackup)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/imports/template", wrapper.DownloadImportTemplate)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/imports", wrapper.ListImports)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/imports", wrapper.UploadImport)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/v1/imports/{id}", wrapper.DiscardImport)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/imports/{id}", wrapper.GetImport)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/imports/{id}/problems", wrapper.DownloadImportProblems)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/imports/{id}/start", wrapper.StartImport)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/imports/{id}/events", wrapper.StreamImportEvents)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/imports/{id}/cancel", wrapper.CancelImport)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/imports/{id}/undo", wrapper.UndoImport)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/export", wrapper.ExportData)
 
 	return m
@@ -3393,6 +3976,8 @@ type ConflictJSONResponse Error
 type ForbiddenJSONResponse Error
 
 type NotFoundJSONResponse Error
+
+type PayloadTooLargeJSONResponse Error
 
 type UnauthorizedJSONResponse Error
 
@@ -4624,6 +5209,754 @@ func (response ExportData403JSONResponse) VisitExportDataResponse(w http.Respons
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListImportsRequestObject struct {
+	Params ListImportsParams
+}
+
+type ListImportsResponseObject interface {
+	VisitListImportsResponse(w http.ResponseWriter) error
+}
+
+type ListImports200JSONResponse struct {
+	Items []ImportSummary `json:"items"`
+}
+
+func (response ListImports200JSONResponse) VisitListImportsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListImports400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ListImports400JSONResponse) VisitListImportsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListImports401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListImports401JSONResponse) VisitListImportsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListImports403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListImports403JSONResponse) VisitListImportsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadImportRequestObject struct {
+	Body *multipart.Reader
+}
+
+type UploadImportResponseObject interface {
+	VisitUploadImportResponse(w http.ResponseWriter) error
+}
+
+type UploadImport201JSONResponse Import
+
+func (response UploadImport201JSONResponse) VisitUploadImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadImport400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UploadImport400JSONResponse) VisitUploadImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadImport401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UploadImport401JSONResponse) VisitUploadImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadImport403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response UploadImport403JSONResponse) VisitUploadImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadImport413JSONResponse struct{ PayloadTooLargeJSONResponse }
+
+func (response UploadImport413JSONResponse) VisitUploadImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(413)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadImportTemplateRequestObject struct {
+}
+
+type DownloadImportTemplateResponseObject interface {
+	VisitDownloadImportTemplateResponse(w http.ResponseWriter) error
+}
+
+type DownloadImportTemplate200ResponseHeaders struct {
+	ContentDisposition *string
+}
+
+type DownloadImportTemplate200ApplicationvndOpenxmlformatsOfficedocumentSpreadsheetmlSheetResponse struct {
+	Body          io.Reader
+	Headers       DownloadImportTemplate200ResponseHeaders
+	ContentLength int64
+}
+
+func (response DownloadImportTemplate200ApplicationvndOpenxmlformatsOfficedocumentSpreadsheetmlSheetResponse) VisitDownloadImportTemplateResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	if response.Headers.ContentDisposition != nil {
+		w.Header().Set("Content-Disposition", fmt.Sprint(*response.Headers.ContentDisposition))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type DownloadImportTemplate401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DownloadImportTemplate401JSONResponse) VisitDownloadImportTemplateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadImportTemplate403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DownloadImportTemplate403JSONResponse) VisitDownloadImportTemplateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DiscardImportRequestObject struct {
+	Id Id `json:"id"`
+}
+
+type DiscardImportResponseObject interface {
+	VisitDiscardImportResponse(w http.ResponseWriter) error
+}
+
+type DiscardImport204Response struct {
+}
+
+func (response DiscardImport204Response) VisitDiscardImportResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DiscardImport401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DiscardImport401JSONResponse) VisitDiscardImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DiscardImport403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DiscardImport403JSONResponse) VisitDiscardImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DiscardImport404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DiscardImport404JSONResponse) VisitDiscardImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DiscardImport409JSONResponse struct{ ConflictJSONResponse }
+
+func (response DiscardImport409JSONResponse) VisitDiscardImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetImportRequestObject struct {
+	Id Id `json:"id"`
+}
+
+type GetImportResponseObject interface {
+	VisitGetImportResponse(w http.ResponseWriter) error
+}
+
+type GetImport200JSONResponse Import
+
+func (response GetImport200JSONResponse) VisitGetImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetImport401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetImport401JSONResponse) VisitGetImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetImport403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetImport403JSONResponse) VisitGetImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetImport404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetImport404JSONResponse) VisitGetImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelImportRequestObject struct {
+	Id Id `json:"id"`
+}
+
+type CancelImportResponseObject interface {
+	VisitCancelImportResponse(w http.ResponseWriter) error
+}
+
+type CancelImport200JSONResponse Import
+
+func (response CancelImport200JSONResponse) VisitCancelImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelImport401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response CancelImport401JSONResponse) VisitCancelImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelImport403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response CancelImport403JSONResponse) VisitCancelImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelImport404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response CancelImport404JSONResponse) VisitCancelImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelImport409JSONResponse struct{ ConflictJSONResponse }
+
+func (response CancelImport409JSONResponse) VisitCancelImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StreamImportEventsRequestObject struct {
+	Id Id `json:"id"`
+}
+
+type StreamImportEventsResponseObject interface {
+	VisitStreamImportEventsResponse(w http.ResponseWriter) error
+}
+
+type StreamImportEvents200TexteventStreamResponse struct {
+	Body          io.Reader
+	ContentLength int64
+}
+
+func (response StreamImportEvents200TexteventStreamResponse) VisitStreamImportEventsResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		// If w doesn't support flushing, fall back to io.Copy.
+		_, err := io.Copy(w, response.Body)
+		return err
+	}
+	// text/event-stream messages are typically small; use a
+	// modest buffer and flush after each chunk so clients see
+	// events immediately instead of waiting on OS buffering.
+	buf := make([]byte, 4096)
+	for {
+		n, err := response.Body.Read(buf)
+		if n > 0 {
+			if _, writeErr := w.Write(buf[:n]); writeErr != nil {
+				return writeErr
+			}
+			flusher.Flush()
+		}
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return err
+		}
+	}
+}
+
+type StreamImportEvents401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response StreamImportEvents401JSONResponse) VisitStreamImportEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StreamImportEvents403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response StreamImportEvents403JSONResponse) VisitStreamImportEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StreamImportEvents404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response StreamImportEvents404JSONResponse) VisitStreamImportEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadImportProblemsRequestObject struct {
+	Id Id `json:"id"`
+}
+
+type DownloadImportProblemsResponseObject interface {
+	VisitDownloadImportProblemsResponse(w http.ResponseWriter) error
+}
+
+type DownloadImportProblems200ResponseHeaders struct {
+	ContentDisposition *string
+}
+
+type DownloadImportProblems200ApplicationvndOpenxmlformatsOfficedocumentSpreadsheetmlSheetResponse struct {
+	Body          io.Reader
+	Headers       DownloadImportProblems200ResponseHeaders
+	ContentLength int64
+}
+
+func (response DownloadImportProblems200ApplicationvndOpenxmlformatsOfficedocumentSpreadsheetmlSheetResponse) VisitDownloadImportProblemsResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	if response.Headers.ContentDisposition != nil {
+		w.Header().Set("Content-Disposition", fmt.Sprint(*response.Headers.ContentDisposition))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type DownloadImportProblems401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DownloadImportProblems401JSONResponse) VisitDownloadImportProblemsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadImportProblems403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DownloadImportProblems403JSONResponse) VisitDownloadImportProblemsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadImportProblems404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DownloadImportProblems404JSONResponse) VisitDownloadImportProblemsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartImportRequestObject struct {
+	Id Id `json:"id"`
+}
+
+type StartImportResponseObject interface {
+	VisitStartImportResponse(w http.ResponseWriter) error
+}
+
+type StartImport202JSONResponse Import
+
+func (response StartImport202JSONResponse) VisitStartImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartImport401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response StartImport401JSONResponse) VisitStartImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartImport403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response StartImport403JSONResponse) VisitStartImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartImport404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response StartImport404JSONResponse) VisitStartImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartImport409JSONResponse struct{ ConflictJSONResponse }
+
+func (response StartImport409JSONResponse) VisitStartImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UndoImportRequestObject struct {
+	Id Id `json:"id"`
+}
+
+type UndoImportResponseObject interface {
+	VisitUndoImportResponse(w http.ResponseWriter) error
+}
+
+type UndoImport200JSONResponse Import
+
+func (response UndoImport200JSONResponse) VisitUndoImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UndoImport401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UndoImport401JSONResponse) VisitUndoImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UndoImport403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response UndoImport403JSONResponse) VisitUndoImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UndoImport404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UndoImport404JSONResponse) VisitUndoImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UndoImport409JSONResponse struct{ ConflictJSONResponse }
+
+func (response UndoImport409JSONResponse) VisitUndoImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -7314,6 +8647,36 @@ type StrictServerInterface interface {
 	// ExportData Export expenses and income
 	// (GET /v1/export)
 	ExportData(ctx context.Context, request ExportDataRequestObject) (ExportDataResponseObject, error)
+	// ListImports Import history
+	// (GET /v1/imports)
+	ListImports(ctx context.Context, request ListImportsRequestObject) (ListImportsResponseObject, error)
+	// UploadImport Upload a filled-out template and check it
+	// (POST /v1/imports)
+	UploadImport(ctx context.Context, request UploadImportRequestObject) (UploadImportResponseObject, error)
+	// DownloadImportTemplate Download the Excel import template
+	// (GET /v1/imports/template)
+	DownloadImportTemplate(ctx context.Context, request DownloadImportTemplateRequestObject) (DownloadImportTemplateResponseObject, error)
+	// DiscardImport Discard an import that was never started
+	// (DELETE /v1/imports/{id})
+	DiscardImport(ctx context.Context, request DiscardImportRequestObject) (DiscardImportResponseObject, error)
+	// GetImport One import, with its check results and progress
+	// (GET /v1/imports/{id})
+	GetImport(ctx context.Context, request GetImportRequestObject) (GetImportResponseObject, error)
+	// CancelImport Cancel a running import and remove what it added
+	// (POST /v1/imports/{id}/cancel)
+	CancelImport(ctx context.Context, request CancelImportRequestObject) (CancelImportResponseObject, error)
+	// StreamImportEvents Live progress (Server-Sent Events)
+	// (GET /v1/imports/{id}/events)
+	StreamImportEvents(ctx context.Context, request StreamImportEventsRequestObject) (StreamImportEventsResponseObject, error)
+	// DownloadImportProblems Download the rows that have problems
+	// (GET /v1/imports/{id}/problems)
+	DownloadImportProblems(ctx context.Context, request DownloadImportProblemsRequestObject) (DownloadImportProblemsResponseObject, error)
+	// StartImport Start importing the rows that passed the check
+	// (POST /v1/imports/{id}/start)
+	StartImport(ctx context.Context, request StartImportRequestObject) (StartImportResponseObject, error)
+	// UndoImport Undo a finished import as one batch
+	// (POST /v1/imports/{id}/undo)
+	UndoImport(ctx context.Context, request UndoImportRequestObject) (UndoImportResponseObject, error)
 	// ListIncomeEntries List income entries
 	// (GET /v1/income-entries)
 	ListIncomeEntries(ctx context.Context, request ListIncomeEntriesRequestObject) (ListIncomeEntriesResponseObject, error)
@@ -7954,6 +9317,269 @@ func (sh *strictHandler) ExportData(w http.ResponseWriter, r *http.Request, para
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ExportDataResponseObject); ok {
 		if err := validResponse.VisitExportDataResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListImports operation middleware
+func (sh *strictHandler) ListImports(w http.ResponseWriter, r *http.Request, params ListImportsParams) {
+	var request ListImportsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListImports(ctx, request.(ListImportsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListImports")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListImportsResponseObject); ok {
+		if err := validResponse.VisitListImportsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UploadImport operation middleware
+func (sh *strictHandler) UploadImport(w http.ResponseWriter, r *http.Request) {
+	var request UploadImportRequestObject
+
+	if reader, err := r.MultipartReader(); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode multipart body: %w", err))
+		return
+	} else {
+		request.Body = reader
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UploadImport(ctx, request.(UploadImportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UploadImport")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UploadImportResponseObject); ok {
+		if err := validResponse.VisitUploadImportResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DownloadImportTemplate operation middleware
+func (sh *strictHandler) DownloadImportTemplate(w http.ResponseWriter, r *http.Request) {
+	var request DownloadImportTemplateRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DownloadImportTemplate(ctx, request.(DownloadImportTemplateRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DownloadImportTemplate")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DownloadImportTemplateResponseObject); ok {
+		if err := validResponse.VisitDownloadImportTemplateResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DiscardImport operation middleware
+func (sh *strictHandler) DiscardImport(w http.ResponseWriter, r *http.Request, id Id) {
+	var request DiscardImportRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DiscardImport(ctx, request.(DiscardImportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DiscardImport")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DiscardImportResponseObject); ok {
+		if err := validResponse.VisitDiscardImportResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetImport operation middleware
+func (sh *strictHandler) GetImport(w http.ResponseWriter, r *http.Request, id Id) {
+	var request GetImportRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetImport(ctx, request.(GetImportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetImport")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetImportResponseObject); ok {
+		if err := validResponse.VisitGetImportResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CancelImport operation middleware
+func (sh *strictHandler) CancelImport(w http.ResponseWriter, r *http.Request, id Id) {
+	var request CancelImportRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CancelImport(ctx, request.(CancelImportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CancelImport")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CancelImportResponseObject); ok {
+		if err := validResponse.VisitCancelImportResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// StreamImportEvents operation middleware
+func (sh *strictHandler) StreamImportEvents(w http.ResponseWriter, r *http.Request, id Id) {
+	var request StreamImportEventsRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StreamImportEvents(ctx, request.(StreamImportEventsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StreamImportEvents")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StreamImportEventsResponseObject); ok {
+		if err := validResponse.VisitStreamImportEventsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DownloadImportProblems operation middleware
+func (sh *strictHandler) DownloadImportProblems(w http.ResponseWriter, r *http.Request, id Id) {
+	var request DownloadImportProblemsRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DownloadImportProblems(ctx, request.(DownloadImportProblemsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DownloadImportProblems")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DownloadImportProblemsResponseObject); ok {
+		if err := validResponse.VisitDownloadImportProblemsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// StartImport operation middleware
+func (sh *strictHandler) StartImport(w http.ResponseWriter, r *http.Request, id Id) {
+	var request StartImportRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StartImport(ctx, request.(StartImportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StartImport")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StartImportResponseObject); ok {
+		if err := validResponse.VisitStartImportResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UndoImport operation middleware
+func (sh *strictHandler) UndoImport(w http.ResponseWriter, r *http.Request, id Id) {
+	var request UndoImportRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UndoImport(ctx, request.(UndoImportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UndoImport")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UndoImportResponseObject); ok {
+		if err := validResponse.VisitUndoImportResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

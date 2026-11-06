@@ -71,6 +71,8 @@ tags:
     description: Trends the user saved to reopen later.
   - name: admin
     description: Admins only. Members get `403 admin_required`. No user-management routes in v1.
+  - name: imports
+    description: Multi-year import from the Excel template, checked before anything is saved. Built with export, last in v1.
   - name: export
     description: CSV and Excel export. Built last in v1.
 
@@ -1326,6 +1328,283 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
 
   # ---------------------------------------------------------------------------
+  # Import (multi-year Excel import; built with export, last in v1)
+  # ---------------------------------------------------------------------------
+  /v1/imports/template:
+    get:
+      tags: [imports]
+      operationId: downloadImportTemplate
+      summary: Download the Excel import template
+      description: |
+        An `.xlsx` workbook built for the signed-in user:
+
+        - **Expenses** sheet: `Date`, `Category`, `Merchant`, `Amount`, `Note`.
+        - **Income** sheet: `Date`, `Source`, `Gross`, `Gross taxable`, `Net`, `Note`.
+
+        `Category` and `Source` are dropdowns (data validation) filled with the user's current
+        categories and income sources. Amounts in the file are **dollars** with at most two
+        decimals; the server converts them to integer cents. Refunds are negative amounts.
+        The data sheets start empty below the header row. A third sheet, **How to fill this in**,
+        shows example rows and the rules; it is ignored on upload.
+      responses:
+        '200':
+          description: The template workbook.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              example: attachment; filename="penny-pincher-import.xlsx"
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                contentMediaType: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1/imports:
+    get:
+      tags: [imports]
+      operationId: listImports
+      summary: Import history
+      description: |
+        Newest first. Filter by `status=running` to find an import in progress (the app-wide
+        progress banner does this on load). Imports still in `review` are included.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/ImportStatus' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/ImportSummary' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [imports]
+      operationId: uploadImport
+      summary: Upload a filled-out template and check it
+      description: |
+        Parses and checks **every row** and returns the import in status `review`.
+        **Nothing is saved to expenses or income entries yet**; call `startImport` to do that.
+
+        - Max file size **10 MB** (`413 file_too_large`) and **50,000 rows** across both sheets.
+        - Not an `.xlsx`, missing an `Expenses` or `Income` sheet, or changed column headers:
+          `400 invalid_import_file`. A file with no data rows: `400 invalid_import_file`.
+        - Rows with problems are listed in `issues` and are skipped if the import is started.
+          Categories and sources are matched by name, case-insensitively; unknown names are
+          problems (never created automatically). Merchants are matched or created, as on
+          `createExpense`.
+        - Months in the file that already have entries in the app are listed in
+          `months_with_existing_entries`. Imported entries are **added alongside** them.
+        - An import left in `review` expires after 24 hours (status `expired`).
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  contentMediaType: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+                  description: The filled-out template. Its file name is kept for the history list.
+      responses:
+        '201':
+          description: Checked; waiting for the user to review and start it.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Import' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+
+  /v1/imports/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [imports]
+      operationId: getImport
+      summary: One import, with its check results and progress
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Import' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [imports]
+      operationId: discardImport
+      summary: Discard an import that was never started
+      description: |
+        Only for status `review` (the user chose a different file). Removes the checked rows.
+        Any other status: `409 import_wrong_status`; use `cancelImport` or `undoImport` instead.
+      responses:
+        '204': { description: Discarded. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /v1/imports/{id}/problems:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [imports]
+      operationId: downloadImportProblems
+      summary: Download the rows that have problems
+      description: |
+        An `.xlsx` in the template's layout holding only the rows listed in `issues`, with their
+        original values and an extra `Problem` column. The user can fix it and upload it as a new
+        import. Used for "Download file with problems marked" before starting and "Download
+        skipped rows" after finishing. Available in any status; empty sheets if there were none.
+      responses:
+        '200':
+          description: The problem rows.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              example: attachment; filename="my-history-problems.xlsx"
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                contentMediaType: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/imports/{id}/start:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [imports]
+      operationId: startImport
+      summary: Start importing the rows that passed the check
+      description: |
+        Moves the import from `review` to `running` and returns at once (`202`). The server writes
+        the ready rows in the background, in batches, oldest month first. Follow progress with
+        `streamImportEvents` (or poll `getImport`).
+
+        - Imported entries are `confirmed` and carry this import's id (`import_id`).
+        - Entries appear in reads as their batch is written.
+        - If the server stops before the import finishes, on the next start-up the import is
+          marked `failed` and every entry it wrote is removed, so nothing from the file stays.
+        - Only one import per user may be `running`: `409 import_in_progress`.
+        - Any status other than `review`: `409 import_wrong_status`.
+      responses:
+        '202':
+          description: Started.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Import' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /v1/imports/{id}/events:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [imports]
+      operationId: streamImportEvents
+      summary: Live progress (Server-Sent Events)
+      description: |
+        A `text/event-stream`. Requires the usual bearer token, so web clients read it with
+        `fetch` and a stream reader (the browser's `EventSource` cannot send headers); the Mac app
+        uses `URLSession` bytes.
+
+        Events:
+
+        - `progress`: data is an `ImportProgress` JSON object. Sent right after connecting, then
+          after each written batch (at most a few per second).
+        - `finished`: data is the final `Import` JSON object (status `completed`, `cancelled` or
+          `failed`). The server then closes the stream.
+        - A comment line (`: ping`) every 15 seconds keeps proxies from closing an idle stream.
+
+        For an import that is not `running`, the server sends one `finished` event and closes.
+        Clients reconnect if the stream drops before `finished`, and refetch `getImport`.
+      responses:
+        '200':
+          description: The event stream.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  Server-Sent Events. Example:
+
+                      event: progress
+                      data: {"status":"running","rows_done":2275,"rows_total":4946,"current_month":"2024-03","eta_seconds":67}
+
+                      event: finished
+                      data: {"id":"7","status":"completed", ...}
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/imports/{id}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [imports]
+      operationId: cancelImport
+      summary: Cancel a running import and remove what it added
+      description: |
+        Stops the import after its current batch and deletes **every** entry it wrote, in one
+        transaction, then sets status `cancelled`. Returns once the rollback is done.
+        Not `running`: `409 import_wrong_status`.
+      responses:
+        '200':
+          description: Cancelled and rolled back.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Import' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /v1/imports/{id}/undo:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [imports]
+      operationId: undoImport
+      summary: Undo a finished import as one batch
+      description: |
+        Deletes every expense and income entry that still carries this import's id, **including
+        ones the user edited after importing**, in one transaction, and sets status `undone`.
+        Entries the user added by hand are never touched. A manual refund linked to a deleted
+        expense is unlinked, not deleted (as when deleting any expense).
+        Not `completed`: `409 import_wrong_status`.
+      responses:
+        '200':
+          description: Undone.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Import' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  # ---------------------------------------------------------------------------
   # Export (built last in v1)
   # ---------------------------------------------------------------------------
   /v1/export:
@@ -1434,7 +1713,7 @@ components:
 
   responses:
     BadRequest:
-      description: Malformed JSON or a value that fails validation (`invalid_request`, `invalid_refund_link`).
+      description: Malformed JSON or a value that fails validation (`invalid_request`, `invalid_refund_link`, `invalid_import_file`).
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
@@ -1456,6 +1735,11 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
+    PayloadTooLarge:
+      description: The upload is over the size limit (`file_too_large`).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
     NotFound:
       description: No such resource for this user (`not_found`). Another user's rows are also reported as not found.
       content:
@@ -1464,7 +1748,8 @@ components:
     Conflict:
       description: |
         A business rule blocked the request. Codes: `protected_resource`, `source_has_entries`,
-        `name_taken`, `has_linked_refunds`, `month_not_empty`, `backup_in_progress`, `backup_not_ready`.
+        `name_taken`, `has_linked_refunds`, `month_not_empty`, `backup_in_progress`, `backup_not_ready`,
+        `import_in_progress`, `import_wrong_status`.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
@@ -1535,6 +1820,184 @@ components:
           items: { $ref: '#/components/schemas/Id' }
 
     # ---- Errors -------------------------------------------------------------
+    # ---- Imports -------------------------------------------------------------
+    ImportStatus:
+      type: string
+      description: |
+        `review` (checked, nothing saved) → `running` → `completed` | `cancelled` | `failed`;
+        `completed` → `undone`. A `review` import not started within 24 hours becomes `expired`.
+        `cancelled`, `failed` and `undone` imports have no entries left in the app.
+      enum: [review, running, completed, cancelled, failed, undone, expired]
+    ImportSheet:
+      type: string
+      enum: [expenses, income]
+    ImportSummary:
+      type: object
+      description: One row of the import history.
+      required:
+        - id
+        - file_name
+        - status
+        - created_at
+        - finished_at
+        - first_month
+        - last_month
+        - rows_ready
+        - rows_with_problems
+        - entries_imported
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        file_name: { type: string }
+        status: { $ref: '#/components/schemas/ImportStatus' }
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+        finished_at:
+          type: [string, 'null']
+          format: date-time
+          readOnly: true
+          description: When it completed, was cancelled, failed or was undone.
+        first_month:
+          type: [string, 'null']
+          description: Earliest month among ready rows (`YYYY-MM`); null if none are ready.
+        last_month:
+          type: [string, 'null']
+          description: Latest month among ready rows (`YYYY-MM`).
+        rows_ready: { type: integer, minimum: 0 }
+        rows_with_problems: { type: integer, minimum: 0 }
+        entries_imported:
+          type: integer
+          minimum: 0
+          description: Entries of this import currently in the app (0 once cancelled, failed or undone).
+    Import:
+      allOf:
+        - $ref: '#/components/schemas/ImportSummary'
+        - type: object
+          required:
+            - expense_rows
+            - income_rows
+            - years
+            - months_with_existing_entries
+            - issues
+            - issues_truncated
+            - failure_reason
+          properties:
+            expense_rows:
+              type: integer
+              minimum: 0
+              description: Data rows found on the Expenses sheet (ready + with problems).
+            income_rows:
+              type: integer
+              minimum: 0
+              description: Data rows found on the Income sheet (ready + with problems).
+            years:
+              type: array
+              description: Ready rows per calendar year, oldest first, for the review table.
+              items: { $ref: '#/components/schemas/ImportYear' }
+            months_with_existing_entries:
+              type: array
+              description: |
+                Months in the file that already had entries in the app when it was checked.
+                Imported rows are added alongside them, never replacing them.
+              items:
+                type: object
+                required: [month, existing_entries, file_entries]
+                properties:
+                  month: { $ref: '#/components/schemas/YearMonth' }
+                  existing_entries: { type: integer, minimum: 0 }
+                  file_entries:
+                    type: integer
+                    minimum: 0
+                    description: Ready rows in the file for this month.
+            issues:
+              type: array
+              description: |
+                Rows with problems, in sheet and row order. At most 500 are listed; the rest are in
+                `downloadImportProblems`. A row may have several issues.
+              items: { $ref: '#/components/schemas/ImportIssue' }
+            issues_truncated:
+              type: boolean
+              description: True when more than 500 issues exist.
+            progress:
+              allOf: [{ $ref: '#/components/schemas/ImportProgress' }]
+              description: Present only while `running`.
+            failure_reason:
+              type: [string, 'null']
+              description: Safe to show. Set only when `failed` (for example, the server restarted).
+    ImportYear:
+      type: object
+      required: [year, months, expense_rows, income_rows, spent_cents, rows_with_problems]
+      properties:
+        year: { $ref: '#/components/schemas/Year' }
+        months:
+          type: integer
+          minimum: 1
+          maximum: 12
+          description: Months in this year that have at least one ready row.
+        expense_rows: { type: integer, minimum: 0, description: Ready expense rows (refunds included). }
+        income_rows: { type: integer, minimum: 0, description: Ready income rows. }
+        spent_cents:
+          allOf: [{ $ref: '#/components/schemas/Cents' }]
+          description: Sum of ready expense amounts (refunds lower it), the same way totals count elsewhere.
+        rows_with_problems: { type: integer, minimum: 0 }
+    ImportIssue:
+      type: object
+      required: [sheet, row, column, code, value, message]
+      properties:
+        sheet: { $ref: '#/components/schemas/ImportSheet' }
+        row:
+          type: integer
+          minimum: 2
+          description: The Excel row number (row 1 is the header), so the user can find it.
+        column:
+          type: string
+          description: The column header as written in the template, for example `Category`.
+          examples: ['Category']
+        code:
+          type: string
+          description: Stable; clients group and word issues by this.
+          enum:
+            - unknown_category
+            - unknown_income_source
+            - invalid_date
+            - missing_value
+            - invalid_number
+            - too_many_decimals
+            - zero_amount
+            - negative_income
+            - taxable_exceeds_gross
+            - net_exceeds_gross
+            - text_too_long
+        value:
+          type: string
+          description: The cell's original text; empty when the cell was blank.
+        message: { type: string, description: Human-readable; safe to show. }
+    ImportProgress:
+      type: object
+      required: [status, rows_done, rows_total, current_month, eta_seconds, years]
+      properties:
+        status: { $ref: '#/components/schemas/ImportStatus' }
+        rows_done: { type: integer, minimum: 0 }
+        rows_total:
+          type: integer
+          minimum: 0
+          description: Ready rows being imported (rows with problems are skipped).
+        current_month:
+          type: [string, 'null']
+          description: The month (`YYYY-MM`) of the batch being written.
+        eta_seconds:
+          type: [integer, 'null']
+          minimum: 0
+          description: Estimated seconds left, from the rate so far; null until the first batch is written.
+        years:
+          type: array
+          description: Per-year progress, oldest first.
+          items:
+            type: object
+            required: [year, rows_done, rows_total]
+            properties:
+              year: { $ref: '#/components/schemas/Year' }
+              rows_done: { type: integer, minimum: 0 }
+              rows_total: { type: integer, minimum: 0 }
+
     Error:
       type: object
       required: [error]
@@ -1560,6 +2023,10 @@ components:
                 - month_not_empty
                 - backup_in_progress
                 - backup_not_ready
+                - invalid_import_file
+                - file_too_large
+                - import_in_progress
+                - import_wrong_status
                 - not_implemented
                 - internal
             message:
@@ -1717,6 +2184,7 @@ components:
         - last_refund_date
         - confirmed
         - template_apply_id
+        - import_id
         - created_at
         - updated_at
       properties:
@@ -1751,6 +2219,10 @@ components:
         template_apply_id:
           type: [string, 'null']
           readOnly: true
+        import_id:
+          type: [string, 'null']
+          readOnly: true
+          description: The import that created this entry, if any. Undoing that import deletes it.
         created_at: { $ref: '#/components/schemas/Timestamp' }
         updated_at: { $ref: '#/components/schemas/Timestamp' }
     ExpenseCreate:
@@ -1800,6 +2272,7 @@ components:
         - note
         - confirmed
         - template_apply_id
+        - import_id
         - created_at
         - updated_at
       properties:
@@ -1814,6 +2287,10 @@ components:
         template_apply_id:
           type: [string, 'null']
           readOnly: true
+        import_id:
+          type: [string, 'null']
+          readOnly: true
+          description: The import that created this entry, if any. Undoing that import deletes it.
         created_at: { $ref: '#/components/schemas/Timestamp' }
         updated_at: { $ref: '#/components/schemas/Timestamp' }
     IncomeEntryCreate:

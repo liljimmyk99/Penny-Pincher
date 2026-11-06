@@ -88,6 +88,46 @@ func (Unimplemented) ExportData(context.Context, ExportDataRequestObject) (Expor
 	return nil, ErrNotImplemented
 }
 
+func (Unimplemented) ListImports(context.Context, ListImportsRequestObject) (ListImportsResponseObject, error) {
+	return nil, ErrNotImplemented
+}
+
+func (Unimplemented) UploadImport(context.Context, UploadImportRequestObject) (UploadImportResponseObject, error) {
+	return nil, ErrNotImplemented
+}
+
+func (Unimplemented) DownloadImportTemplate(context.Context, DownloadImportTemplateRequestObject) (DownloadImportTemplateResponseObject, error) {
+	return nil, ErrNotImplemented
+}
+
+func (Unimplemented) DiscardImport(context.Context, DiscardImportRequestObject) (DiscardImportResponseObject, error) {
+	return nil, ErrNotImplemented
+}
+
+func (Unimplemented) GetImport(context.Context, GetImportRequestObject) (GetImportResponseObject, error) {
+	return nil, ErrNotImplemented
+}
+
+func (Unimplemented) CancelImport(context.Context, CancelImportRequestObject) (CancelImportResponseObject, error) {
+	return nil, ErrNotImplemented
+}
+
+func (Unimplemented) StreamImportEvents(context.Context, StreamImportEventsRequestObject) (StreamImportEventsResponseObject, error) {
+	return nil, ErrNotImplemented
+}
+
+func (Unimplemented) DownloadImportProblems(context.Context, DownloadImportProblemsRequestObject) (DownloadImportProblemsResponseObject, error) {
+	return nil, ErrNotImplemented
+}
+
+func (Unimplemented) StartImport(context.Context, StartImportRequestObject) (StartImportResponseObject, error) {
+	return nil, ErrNotImplemented
+}
+
+func (Unimplemented) UndoImport(context.Context, UndoImportRequestObject) (UndoImportResponseObject, error) {
+	return nil, ErrNotImplemented
+}
+
 func (Unimplemented) ListIncomeEntries(context.Context, ListIncomeEntriesRequestObject) (ListIncomeEntriesResponseObject, error) {
 	return nil, ErrNotImplemented
 }
