@@ -31,6 +31,11 @@ Read the root `AGENTS.md` first. This file adds rules specific to the React web 
 - **Online-only in v1:** no offline cache and no storing financial data in localStorage/sessionStorage. Show a clear error when a request fails. (UI preferences such as theme and sidebar state may be stored locally.)
 - Keep server state in a data-fetching layer (e.g. TanStack Query or equivalent), not copied into component state.
 - Auth is Firebase Authentication; keep the SDK behind a small wrapper module so the rest of the app never imports it directly.
+- **Content-Security-Policy** (set by the proxy in `deploy/Caddyfile`; `docs/security.md`): no inline `<script>`, no inline `<style>` elements, no `eval`.
+  - Code that must run before first paint goes in a file in `public/` (as `theme-init.js` does).
+  - Style with CSS files or React's `style` prop, which the CSP allows.
+  - A dependency that injects `<style>` elements needs a stand-in like `src/lib/cspStyleSingleton.ts`.
+  - Loading anything from a new origin (scripts, fonts, frames, API calls) means updating the policy in the same change.
 
 ## Design reference
 

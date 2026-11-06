@@ -40,8 +40,22 @@ export async function createAccount(label = "user"): Promise<TestAccount> {
 }
 
 /** Adds the account to the API's users table, the way an admin does in v1. */
-export function allowlist(account: TestAccount, role: "admin" | "member" = "member"): void {
+export function allowlist(account: Pick<TestAccount, "uid" | "email">, role: "admin" | "member" = "member"): void {
   compose("exec", "-T", "api", "/api", "user", "add", "--uid", account.uid, "--email", account.email, "--role", role);
+}
+
+/** The uid of an emulator account made somewhere else (the Google popup), by its email. */
+export async function uidOf(email: string): Promise<string> {
+  const res = await fetch(`${EMULATOR_URL}/identitytoolkit.googleapis.com/v1/projects/${PROJECT_ID}/accounts:lookup`, {
+    method: "POST",
+    // The emulator accepts "owner" as admin credentials.
+    headers: { "content-type": "application/json", authorization: "Bearer owner" },
+    body: JSON.stringify({ email: [email] }),
+  });
+  if (!res.ok) throw new Error(`emulator lookup failed: ${res.status} ${await res.text()}`);
+  const users = ((await res.json()) as { users?: { localId: string }[] }).users ?? [];
+  if (users.length !== 1) throw new Error(`expected one emulator account for ${email}, found ${users.length}`);
+  return users[0].localId;
 }
 
 async function idToken(account: TestAccount): Promise<string> {

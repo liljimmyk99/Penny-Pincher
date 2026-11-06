@@ -2,7 +2,7 @@
 
 Policy: AGENTS.md §4 (tenancy), §8 (non-functional requirements) and §10 (decisions). This page lists the security measures in the project, what is still planned, and the risks we accept. Encryption is covered in more depth in `docs/encryption.md`, and backups in `docs/backups.md`.
 
-Last audit: 2026-11-06, a code and configuration review against a widely used list of 100 common web vulnerabilities (scorecard below). It is not a penetration test. Server and Firebase console settings live outside the repo, so they are checked through the runbooks and checklists, not the code.
+Last audit: 2026-11-06, a code and configuration review against a widely used list of 100 common web vulnerabilities (scorecard below). It is not a penetration test. The scorecard is updated as M6 issues close (so far: #105). Server and Firebase console settings live outside the repo, so they are checked through the runbooks and checklists, not the code.
 
 Remaining work is tracked in the **M6 · Cyber Security** milestone, which must be done before the first deployment (#42).
 
@@ -51,7 +51,7 @@ The design doesn't try to protect a running, unlocked server from someone who al
 | Server-side limits: names ≤ 100 characters, notes ≤ 500, trend text bounded, batches ≤ 200 items, pages ≤ 1000 rows. Pagination cursors are decoded and validated. | `backend/internal/store`, `backend/internal/http/expenses.go` |
 | Money is integer cents everywhere. Derived values (refund type, tax rate) are computed, never accepted from clients. | AGENTS.md §5 |
 | **No code-execution paths:** the backend doesn't use `os/exec`, server-side templates, XML, `gob` or redirects. JSON is decoded into typed structs only. The server never fetches a URL that came from a user (no SSRF). | `backend/` |
-| **XSS:** React escapes all output, and there is no `dangerouslySetInnerHTML`, `eval` or `postMessage`. `localStorage` holds only UI preferences (theme, sidebar, welcome dismissed), never financial data or tokens. | `web/src/` |
+| **XSS:** React escapes all output, and there is no `dangerouslySetInnerHTML`, `eval` or `postMessage`. `localStorage` holds only UI preferences (theme, sidebar, welcome dismissed), never financial data or tokens. The Content-Security-Policy (below) is a second layer if an escaping bug ever lands. | `web/src/` |
 
 ### Transport and data at rest
 
@@ -64,6 +64,21 @@ See `docs/encryption.md` for details and the server runbook.
 | Every outbound connection uses TLS (Firebase, backup bucket). Plain HTTP to the bucket is refused outside `demo-` projects. | `backend/internal/config/config.go` |
 | The database, Docker's data, `.env` and `secrets/` live on a LUKS2 volume that is unlocked by hand after each reboot. | `docs/encryption.md` |
 | Backups are `VACUUM INTO` copies in a memory-only `tmpfs`, encrypted with `age` to a public key before upload. The server can't decrypt its own backups, and admins can download only the encrypted file. | `backend/internal/backup`, `docs/backups.md` |
+
+### Browser security headers
+
+The public proxy adds these to every response, from the web app and the API alike, and checks them in the e2e suite (`e2e/tests/security-headers.spec.ts`).
+
+| Measure | Where |
+|---|---|
+| **Content-Security-Policy:** `default-src 'self'`. Scripts only from our own files and `https://apis.google.com` (the loader the Firebase Auth popup uses): no inline script, no `eval`. Connections to the API and Firebase Auth's two token hosts. Frames only from the Firebase auth domain. Styles from our CSS and Google Fonts, fonts from Google Fonts. `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`. | `deploy/Caddyfile` |
+| **No inline code to allow:** the theme script that runs before first paint is a file (`theme-init.js`), not inline. Radix's scroll lock would inject a `<style>` element, so a stand-in adds that CSS as a constructed stylesheet, which the policy doesn't restrict. Neither `script-src` nor `style-src` has `'unsafe-inline'`. | `web/public/theme-init.js`, `web/src/lib/cspStyleSingleton.ts`, `web/vite.config.ts` |
+| **Clickjacking:** `frame-ancestors 'none'`, plus `X-Frame-Options: DENY` for older browsers. | `deploy/Caddyfile` |
+| **MIME sniffing:** `X-Content-Type-Options: nosniff`. | `deploy/Caddyfile` |
+| `Referrer-Policy: strict-origin-when-cross-origin` (no paths or query strings to other sites), `Permissions-Policy` turning off camera, microphone, geolocation and payment, and `Cross-Origin-Opener-Policy: same-origin-allow-popups` (isolates the window but keeps the Google sign-in popup working). | `deploy/Caddyfile` |
+| **No caching of financial data:** `Cache-Control: no-store` on every `/v1/*` and `/healthz` response. | `deploy/Caddyfile` |
+| The `Server` and `Via` headers, which name Caddy, are removed. | `deploy/Caddyfile` |
+| The Firebase Auth emulator's origin is allowed only by the e2e stack (`FIREBASE_AUTH_EMULATOR_URL` in `e2e/compose.yml`). The root `docker-compose.yml` never passes it to the proxy. | `e2e/compose.yml` |
 
 ### Secrets, logging and errors
 
@@ -87,7 +102,6 @@ See `docs/encryption.md` for details and the server runbook.
 
 | Issue | What it adds | Audit items |
 |---|---|---|
-| #105 | CSP, `frame-ancestors`/`X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `no-store` on API responses, no `Server` header | 26, 36, 59, 70, 71, 89, 90, 91 |
 | #106 | Request body caps, Caddy timeouts, per-IP and per-user rate limits (413 / 429) | 50, 62, 63, 64, 75 |
 | #107 | Dependabot, `govulncheck`, `npm audit`, image scanning, pinned Caddy tag, secret scanning | 34, 99 |
 | #108 | Token revocation check, maximum session age, MFA decision, password policy | 16, 21, 72, 85 |
@@ -108,13 +122,13 @@ When an issue is closed, update its rows in the scorecard below.
 
 ✅ guarded · ⚠️ partly guarded · ❌ not guarded · — doesn't apply.
 
-**Totals: 56 ✅ · 13 ⚠️ · 11 ❌ · 20 —.** Of the 80 that apply, 70% are fully guarded. M6 targets every ⚠️ and ❌ except item 61.
+**Totals: 64 ✅ · 13 ⚠️ · 3 ❌ · 20 —.** Of the 80 that apply, 80% are fully guarded (70% at the audit; #105 closed 8 items). M6 targets every remaining ⚠️ and ❌ except item 61.
 
 | # | Item | Status | Notes / issue |
 |---|---|---|---|
 | **Injection** ||||
 | 1 | SQL injection | ✅ | Parameterized queries only |
-| 2 | Cross-site scripting | ✅ | React escaping. CSP adds depth in #105 |
+| 2 | Cross-site scripting | ✅ | React escaping, plus a strict CSP (#105) |
 | 3 | CSRF | ✅ | Bearer header, no cookies |
 | 4 | Remote code execution | ✅ | No exec, templates or dynamic code; distroless image |
 | 5 | Command injection | ✅ | No `os/exec` |
@@ -129,7 +143,7 @@ When an issue is closed, update its rows in the scorecard below.
 | **Authentication and sessions** ||||
 | 14 | Session fixation | ✅ | Firebase-issued tokens, no server sessions |
 | 15 | Brute force | ✅ | Firebase throttling. API rate limits in #106 |
-| 16 | Session hijacking | ⚠️ | HTTPS/HSTS, but no revocation check (#108) or CSP (#105) |
+| 16 | Session hijacking | ⚠️ | HTTPS/HSTS and CSP, but no revocation check (#108) |
 | 17 | Password cracking | ✅ | Firebase hashing |
 | 18 | Weak password storage | ✅ | No passwords stored by the app |
 | 19 | Insecure authentication | ✅ | Token on every request + allowlist |
@@ -140,7 +154,7 @@ When an issue is closed, update its rows in the scorecard below.
 | 23 | IDOR | ✅ | `user_id` scoping + composite FKs + tests |
 | 24 | Data leakage | ✅ | Redacting logger, generic errors |
 | 25 | Unencrypted data storage | ✅ | LUKS, `tmpfs` for snapshots |
-| 26 | Missing security headers | ❌ | #105 |
+| 26 | Missing security headers | ✅ | CSP, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, COOP (#105) |
 | 27 | Insecure file handling | ✅ | Backup ids mapped to known keys only |
 | **Security misconfiguration** ||||
 | 28 | Default passwords | ✅ | None exist |
@@ -148,10 +162,10 @@ When an issue is closed, update its rows in the scorecard below.
 | 30 | Unprotected API endpoints | ✅ | Auth middleware wraps every route |
 | 31 | Open ports and services | ✅ | Only 80/443 published. Host firewall in #109 |
 | 32 | Improper access controls | ✅ | Server-side role check |
-| 33 | Information disclosure | ⚠️ | Version on `/healthz` (accepted), `Server` header (#105), no audit log (#110) |
+| 33 | Information disclosure | ⚠️ | Version on `/healthz` (accepted), no audit log (#110). `Server`/`Via` removed (#105) |
 | 34 | Unpatched software | ⚠️ | No automated scanning or updates (#107) |
 | 35 | Misconfigured CORS | ✅ | No CORS headers sent |
-| 36 | Security headers misconfiguration | ❌ | #105 |
+| 36 | Security headers misconfiguration | ✅ | One policy for every response, checked in e2e (#105) |
 | **XML** ||||
 | 37 | XXE | — | No XML. Go's parser doesn't load external entities |
 | 38 | XML entity expansion | — | See M8 note |
@@ -179,8 +193,8 @@ When an issue is closed, update its rows in the scorecard below.
 | **Client-side** ||||
 | 56 | DOM-based XSS | ✅ | No `innerHTML`/`eval` |
 | 57 | Insecure cross-origin communication | ✅ | No `postMessage` |
-| 58 | Browser cache poisoning | ✅ | No reflected headers. `no-store` added in #105 |
-| 59 | Clickjacking | ❌ | #105 |
+| 58 | Browser cache poisoning | ✅ | No reflected headers. API responses `no-store` (#105) |
+| 59 | Clickjacking | ✅ | `frame-ancestors 'none'` + `X-Frame-Options: DENY` (#105) |
 | 60 | HTML5 security issues | ✅ | Storage holds UI preferences only |
 | **Denial of service** ||||
 | 61 | DDoS | ❌ | Accepted risk |
@@ -193,8 +207,8 @@ When an issue is closed, update its rows in the scorecard below.
 | 67 | HTTP parameter pollution | ✅ | Generated typed parameter binding |
 | 68 | Open redirects | ✅ | No redirects from input |
 | 69 | File inclusion | ✅ | Migrations embedded; static root only |
-| 70 | Security header bypass | ❌ | No headers yet (#105) |
-| 71 | Clickjacking (repeat) | ❌ | #105 |
+| 70 | Security header bypass | ✅ | Set by the proxy after the upstreams, on every response (#105) |
+| 71 | Clickjacking (repeat) | ✅ | See 59 |
 | 72 | Inadequate session timeout | ⚠️ | #108 |
 | 73 | Insufficient logging and monitoring | ⚠️ | #110 |
 | 74 | Business logic | ✅ | Triggers + transactions + tests |
@@ -213,9 +227,9 @@ When an issue is closed, update its rows in the scorecard below.
 | 87 | Blind SSRF | ✅ | |
 | 88 | Time-based blind SSRF | ✅ | |
 | **Content spoofing** ||||
-| 89 | MIME sniffing | ❌ | #105 |
-| 90 | X-Content-Type-Options bypass | ❌ | #105 |
-| 91 | CSP bypass | ❌ | No CSP yet (#105) |
+| 89 | MIME sniffing | ✅ | `X-Content-Type-Options: nosniff` (#105) |
+| 90 | X-Content-Type-Options bypass | ✅ | On every response, correct content types (#105) |
+| 91 | CSP bypass | ✅ | No `'unsafe-inline'`, `'unsafe-eval'` or wildcards; `object-src 'none'`, `base-uri 'self'` (#105) |
 | **Business logic flaws** ||||
 | 92 | Inconsistent validation | ✅ | One spec; DB triggers back up the backend |
 | 93 | Race conditions | ✅ | SQLite transactions, unique constraints, backup lock |

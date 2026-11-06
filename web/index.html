@@ -11,18 +11,8 @@
       href="https://fonts.googleapis.com/css2?family=Manrope:wght@400..800&display=swap"
       rel="stylesheet"
     />
-    <!-- Set the theme before first paint so there is no flash. Mirrors src/theme/theme.ts. -->
-    <script>
-      (function () {
-        var pref = "system";
-        try {
-          var stored = localStorage.getItem("pp.theme");
-          if (stored === "light" || stored === "dark" || stored === "system") pref = stored;
-        } catch (e) {}
-        var dark = pref === "dark" || (pref === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-        document.documentElement.dataset.theme = dark ? "dark" : "light";
-      })();
-    </script>
+    <!-- Sets the theme before first paint (no flash). A file, not inline, so the CSP allows it. -->
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>

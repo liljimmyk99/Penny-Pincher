@@ -27,7 +27,12 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: [
-    { name: "smoke", testIgnore: /resilience\.spec\.ts/ },
+    { name: "smoke", testIgnore: /(resilience|security-headers)\.spec\.ts/ },
+    // Full Chromium rather than the default headless shell: in the shell, an
+    // iframe created while a popup opens often never runs its scripts, so the
+    // Firebase SDK's auth iframe stalls and the Google sign-in popup can't
+    // return. A separate project, so smoke keeps running in one worker.
+    { name: "security", testMatch: /security-headers\.spec\.ts/, use: { channel: "chromium" } },
     // Stops and restarts the API container, so it runs after everything else.
     { name: "resilience", testMatch: /resilience\.spec\.ts/, dependencies: ["smoke"] },
   ],
