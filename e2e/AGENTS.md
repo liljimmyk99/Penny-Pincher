@@ -1,6 +1,6 @@
 # AGENTS.md — /e2e
 
-Read the root `AGENTS.md` first. This folder is the end-to-end suite: Playwright driving the real Docker stack. It automates the **M1 testing gate**'s smoke checklist and the **M2 acceptance tests** (AT-1 to AT-24).
+Read the root `AGENTS.md` first. This folder is the end-to-end suite: Playwright driving the real Docker stack. It automates the **M1 testing gate**'s smoke checklist, the **M2 acceptance tests** (AT-1 to AT-24) and the **M3 acceptance tests** (MS, RB, YS, ED).
 
 ## Running it
 
@@ -90,6 +90,24 @@ Each test builds the doc's "Test Month" fixture (6 expense items, 2 paychecks, d
 | AT-24 Dark mode | `templates` · AT-24 (axe colour contrast + screenshots) |
 
 - **"Review in Transactions"** (AT-9) belongs to the Summary banner, which is M3 (#32). On Transactions the page is the review, so the test checks the button is absent there.
+
+### M3 acceptance tests (`summaries.spec.ts`)
+
+Each test seeds the doc's golden month (Dec 2026 to Mar 2027, generic names) for its own user through the API, then checks the Summary and Yearly screens. Expected figures are copied from the doc, not computed from the app.
+
+| Doc ids | Test |
+| --- | --- |
+| MS-1, MS-2, MS-3 | `summaries` · January tiles, income per source, income modal |
+| MS-4, MS-5, MS-6 | `summaries` · January spending, change vs. December, colours |
+| MS-7, MS-8, MS-9 | `summaries` · Dec, Feb, Mar and the month switcher |
+| MS-10, MS-11 | `summaries` · Bars/Donut; Back and Forward |
+| RB-1, RB-2, RB-3 | `summaries` · refund month; delete and edit update Summary without a reload |
+| YS-1 to YS-10 | `summaries` · yearly tiles, averages, table, charts and their text alternatives, row and bar navigation, 2026 / 2030, sum check |
+| ED-1 to ED-6 | `summaries` · empty month, zero taxable, applied-template banner, time zone, phone width in dark mode, second user |
+
+- **Percentages:** the app rounds to whole numbers (27%, +33%, −13%, −71%); the doc says one decimal. The tests assert the app's form. Tax rates are one decimal in both.
+- **MS-7:** the doc expects no change figures for the first month; the app compares with an empty prior month and shows them. Not asserted.
+- **Manual:** screen-reader use (YS-10) and whether dark mode looks right are still a human call.
 
 ### Where the automation differs from the manual checklist
 
