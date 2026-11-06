@@ -63,6 +63,7 @@ const incomeEntry = (id: string, source: string, extra: Partial<Schemas["IncomeE
   note: "Paycheck",
   confirmed: true,
   template_apply_id: null,
+  import_id: null,
   created_at: stamp,
   updated_at: stamp,
   ...extra,

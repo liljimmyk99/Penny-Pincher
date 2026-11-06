@@ -46,6 +46,7 @@ function expense(id: string, merchantId: string, amount: number, confirmed = tru
     last_refund_date: null,
     confirmed,
     template_apply_id: null,
+    import_id: null,
     created_at: stamp,
     updated_at: stamp,
   };
@@ -62,6 +63,7 @@ function income(id: string, note: string | null, net: number, confirmed = true):
     note,
     confirmed,
     template_apply_id: null,
+    import_id: null,
     created_at: stamp,
     updated_at: stamp,
   };

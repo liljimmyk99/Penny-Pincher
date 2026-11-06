@@ -46,6 +46,7 @@ function expense(id: string, merchant: Schemas["Merchant"], extra: Partial<Schem
     last_refund_date: null,
     confirmed: true,
     template_apply_id: null,
+    import_id: null,
     created_at: stamp,
     updated_at: stamp,
     ...extra,
@@ -116,6 +117,7 @@ function fakeBackend() {
         note: body.note ?? null,
         confirmed: true,
         template_apply_id: null,
+        import_id: null,
         created_at: stamp,
         updated_at: stamp,
       };
