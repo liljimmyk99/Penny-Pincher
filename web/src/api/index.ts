@@ -47,6 +47,7 @@ export {
   merchantSearchQueryKey,
   monthExpensesQueryKey,
   monthIncomeQueryKey,
+  useAllMerchants,
   useEntryMutations,
   useExpensesBetween,
   useExpensesById,
@@ -55,3 +56,11 @@ export {
   useMonthExpenses,
   useMonthIncome,
 } from "./entries";
+export {
+  customTrendQueryKey,
+  savedTrendsQueryKey,
+  useCustomTrend,
+  useSavedTrendMutations,
+  useSavedTrends,
+  type TrendRange,
+} from "./trends";
