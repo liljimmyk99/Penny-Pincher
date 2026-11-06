@@ -6,6 +6,13 @@
 # localhost gets a certificate from Caddy's internal CA automatically;
 # a real domain gets one from Let's Encrypt.
 {$DOMAIN} {
+	# HSTS: once a browser has seen this, it refuses plain HTTP to the host for
+	# a year, so a first visit can't be downgraded. Not sent for localhost (dev
+	# and e2e), where browsers would apply it to every local server on any port.
+	# No includeSubDomains: other subdomains of DOMAIN are not ours to force.
+	@hsts not host localhost
+	header @hsts Strict-Transport-Security "max-age=31536000"
+
 	# API and health check go to the backend; everything else is the web app.
 	@api path /v1/* /healthz
 	handle @api {

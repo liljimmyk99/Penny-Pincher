@@ -7,6 +7,10 @@ services:
     volumes:
       - api-data:/data # SQLite file lives here (DB_PATH=/data/spend.db)
       - ./secrets/firebase-sa.json:/run/secrets/firebase-sa.json:ro
+    # Memory-only /tmp: backups write a plaintext VACUUM INTO copy here before
+    # encrypting it, and it must never touch disk (docs/encryption.md).
+    tmpfs:
+      - /tmp
     environment:
       PORT: "8080"
       DB_PATH: ${DB_PATH:-/data/spend.db}

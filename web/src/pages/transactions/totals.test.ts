@@ -27,6 +27,7 @@ const expense = (id: string, categoryId: string, cents: number, extra: Partial<S
   last_refund_date: null,
   confirmed: true,
   template_apply_id: null,
+  import_id: null,
   created_at: stamp,
   updated_at: stamp,
   ...extra,
