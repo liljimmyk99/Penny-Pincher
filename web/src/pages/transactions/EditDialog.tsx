@@ -10,6 +10,8 @@ interface Props {
   alert: string | null;
   onSubmit: () => void;
   onClose: () => void;
+  /** The submit button; "Save changes" unless given. */
+  submitLabel?: string;
   children: ReactNode;
 }
 
@@ -17,7 +19,17 @@ interface Props {
  * The modal frame shared by the expense and income editors: focus trapped,
  * Esc and Cancel close it (unless a save is in flight), labelled by its heading.
  */
-export function EditDialog({ open, title, description, pending, alert, onSubmit, onClose, children }: Props) {
+export function EditDialog({
+  open,
+  title,
+  description,
+  pending,
+  alert,
+  onSubmit,
+  onClose,
+  submitLabel = "Save changes",
+  children,
+}: Props) {
   return (
     <Dialog.Root open={open} onOpenChange={(next) => !next && !pending && onClose()}>
       <Dialog.Portal>
@@ -47,7 +59,7 @@ export function EditDialog({ open, title, description, pending, alert, onSubmit,
                 Cancel
               </Dialog.Close>
               <button type="submit" className="btn btn--primary" disabled={pending}>
-                {pending ? "Saving…" : "Save changes"}
+                {pending ? "Saving…" : submitLabel}
               </button>
             </div>
           </form>

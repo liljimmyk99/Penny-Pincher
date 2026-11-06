@@ -128,7 +128,7 @@ Define these as tokens (CSS custom properties or the UI library's theme) in one 
   - The address holds the month (`?month=`, via `useMonthParam`, which Summary and Add entries share), the category filter (`?category=<id>`) and the search (`?q=`), so these views can be linked to.
   - Reads `GET /v1/expenses?month=` and `GET /v1/income-entries?month=` (all pages). Category totals, the income total row and its tax rate are summed in the client from those lists, so edits and deletes refresh them with the lists. Categories with no entries in the month are left out.
   - Edit opens a modal (`@radix-ui/react-dialog`) and sends only the changed fields (`PATCH`); a negative amount is a refund. Delete uses the shared `DeleteDialog`, which notes that a deleted expense's refunds stay, unlinked.
-  - Unconfirmed rows get their colour and the unconfirmed pill; the Confirm buttons and banner are built with the template flow. Refunds are as built under Refunds below.
+  - Unconfirmed rows get their colour, the unconfirmed pill and a per-row Confirm (`PATCH` with `confirmed: true` only). The banner and the template actions are as built under Empty states → New month. Refunds are as built under Refunds below.
 
 ### Refunds (in the transaction list)
 - **Refund rows:** negative amount in refund green on a light-green row. Below the merchant: "Refund for <merchant · date · amount>", linking to the original.
@@ -224,6 +224,11 @@ Reached from the account menu; hidden from members. **v1 builds only app status 
   - Summary offers **"Start <Month> from your template?"** with a preview of its bills and paychecks and their totals.
   - Actions: Copy into <Month>, Start blank, Edit template. Previous-month values are shown for reference.
   - After copying, an orange banner reads "N items copied … unconfirmed until you check each one", with Review in Transactions and Undo. Tiles and tables show the planned amounts with unconfirmed dots.
+  - As built (`src/pages/months`, hooks in `src/api/months.ts`), shared by Transactions now and Summary when it is built (#32):
+    - `NewMonthOffer` shows for a month with no expenses and no income. It offers the first template with items (a picker when there are several) and previews its paychecks and bills in day order, each beside last month's figure for the same merchant (or source and label), plus planned vs. last month's net, spending and left over. "Start blank" hides it for that visit only.
+    - `UnconfirmedBanner` shows while any entry in the month is unconfirmed: the count, "Confirm all as-is" (`confirm-all`), Undo for the newest apply whose `unconfirmed_count` is above 0, and "Review in Transactions" where asked (`showReview`, for Summary).
+    - `useApplyTemplate` applies without `reset_month`; on `month_not_empty` it opens the full-reset alert dialog (the month's expense and income counts, that confirmed entries go too, and that Undo can't bring them back), then retries with `reset_month: true`.
+    - Transactions' header has "Apply template…" (pick a template, then the same flow) and "Save as template…" (named after the month by default; off for an empty month; `name_taken` shows on the field).
 
 ## Interaction patterns
 
