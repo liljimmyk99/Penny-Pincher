@@ -11,13 +11,17 @@ import {
   type Schemas,
 } from "../../api";
 import { DeleteDialog } from "../../components/DeleteDialog";
-import { AlertIcon, LinkIcon, PencilIcon, PlusIcon, SearchIcon, TrashIcon } from "../../components/icons";
+import { AlertIcon, CheckIcon, CopyIcon, LinkIcon, PencilIcon, PlusIcon, SearchIcon, TrashIcon } from "../../components/icons";
 import { MonthSwitcher } from "../../components/MonthSwitcher";
 import { Toast } from "../../components/Toast";
 import { formatShortDate, monthName, monthOf } from "../../lib/dates";
 import { formatCents } from "../../lib/money";
 import { formatTaxRate } from "../../lib/taxRate";
 import { useMonthParam } from "../../lib/useMonthParam";
+import { ApplyTemplateDialog } from "../months/ApplyTemplateDialog";
+import { NewMonthOffer } from "../months/NewMonthOffer";
+import { SaveAsTemplateDialog } from "../months/SaveAsTemplateDialog";
+import { UnconfirmedBanner } from "../months/UnconfirmedBanner";
 import { Page } from "../Page";
 import { EditExpenseDialog } from "./EditExpenseDialog";
 import { EditIncomeDialog } from "./EditIncomeDialog";
@@ -68,8 +72,34 @@ export function TransactionsPage() {
   const [linking, setLinking] = useState<Schemas["Expense"] | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const dismissToast = useCallback(() => setToast(null), []);
+  const [monthDialog, setMonthDialog] = useState<"apply" | "save" | null>(null);
+  // Months the user chose to start blank (this visit only; it's not data).
+  const [blank, setBlank] = useState<ReadonlySet<string>>(() => new Set());
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const categories = useCategories();
   const categoryName = (id: string) => categories.data?.find((c) => c.id === id)?.name ?? "—";
+  const expenses = useMonthExpenses(month);
+  const income = useMonthIncome(month);
+  const loaded = expenses.isSuccess && income.isSuccess;
+  const isEmpty = loaded && expenses.data.length === 0 && income.data.length === 0;
+  const { updateExpense, updateIncome } = useEntryMutations();
+
+  const onApplied = (r: Schemas["TemplateApplyResult"]) => {
+    setMonthDialog(null);
+    const n = r.created_expense_count + r.created_income_entry_count;
+    setToast(`Copied ${plural(n, "item", "items")} into ${monthName(month)}`);
+  };
+
+  /** Per-row Confirm: marks one template copy as checked, as-is. */
+  async function confirmOne(target: Target) {
+    setConfirmError(null);
+    try {
+      if (target.kind === "expense") await updateExpense.mutateAsync({ id: target.item.id, body: { confirmed: true } });
+      else await updateIncome.mutateAsync({ id: target.item.id, body: { confirmed: true } });
+    } catch (err) {
+      setConfirmError(`Couldn’t confirm that entry. ${errorMessage(err)}`);
+    }
+  }
 
   function setParam(key: string, value: string | null) {
     setParams(
@@ -89,6 +119,18 @@ export function TransactionsPage() {
       actions={
         <>
           <MonthSwitcher month={month} onChange={setMonth} />
+          <button type="button" className="btn btn--ghost" onClick={() => setMonthDialog("apply")}>
+            <CopyIcon />
+            Apply template…
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            disabled={!loaded || isEmpty}
+            onClick={() => setMonthDialog("save")}
+          >
+            Save as template…
+          </button>
           <Link className="btn btn--primary" to={`/add?month=${month}`}>
             <PlusIcon />
             Add entries
@@ -96,7 +138,22 @@ export function TransactionsPage() {
         </>
       }
     >
-      <IncomeSection month={month} onEdit={(item) => setEditing({ kind: "income", item })} onDelete={(item) => setDeleting({ kind: "income", item })} />
+      <UnconfirmedBanner month={month} onDone={setToast} />
+      {confirmError && (
+        <p role="alert" className="alert alert--danger">
+          <AlertIcon width={18} height={18} />
+          {confirmError}
+        </p>
+      )}
+      {isEmpty && !blank.has(month) && (
+        <NewMonthOffer
+          key={month}
+          month={month}
+          onStartBlank={() => setBlank((b) => new Set(b).add(month))}
+          onApplied={onApplied}
+        />
+      )}
+      <IncomeSection month={month} onConfirm={(item) => void confirmOne({ kind: "income", item })} onEdit={(item) => setEditing({ kind: "income", item })} onDelete={(item) => setDeleting({ kind: "income", item })} />
       <SpendingSections
         month={month}
         categoryFilter={categoryFilter}
@@ -108,6 +165,7 @@ export function TransactionsPage() {
         onEdit={(item) => setEditing({ kind: "expense", item })}
         onDelete={(item) => setDeleting({ kind: "expense", item })}
         onLink={setLinking}
+        onConfirm={(item) => void confirmOne({ kind: "expense", item })}
       />
       {editing?.kind === "expense" && (
         <EditExpenseDialog key={editing.item.id} expense={editing.item} onClose={() => setEditing(null)} />
@@ -128,6 +186,24 @@ export function TransactionsPage() {
         />
       )}
       <ConfirmDelete target={deleting} onDone={() => setDeleting(null)} />
+      <ApplyTemplateDialog
+        key={`apply-${month}`}
+        month={month}
+        open={monthDialog === "apply"}
+        onClose={() => setMonthDialog(null)}
+        onApplied={onApplied}
+      />
+      {monthDialog === "save" && (
+        <SaveAsTemplateDialog
+          month={month}
+          open
+          onClose={() => setMonthDialog(null)}
+          onSaved={(t) => {
+            setMonthDialog(null);
+            setToast(`Saved ${monthName(month)} as the template “${t.name}”`);
+          }}
+        />
+      )}
       <Toast message={toast} onDismiss={dismissToast} />
     </Page>
   );
@@ -161,14 +237,23 @@ function RowActions({
   onEdit,
   onDelete,
   onLink,
+  onConfirm,
 }: {
   name: string;
   onEdit: () => void;
   onDelete: () => void;
   onLink?: () => void;
+  /** Only for unconfirmed template copies. */
+  onConfirm?: () => void;
 }) {
   return (
     <div className="tx-table__buttons">
+      {onConfirm && (
+        <button type="button" className="btn btn--ghost btn--xs tx-confirm" aria-label={`Confirm ${name}`} onClick={onConfirm}>
+          <CheckIcon width={14} height={14} />
+          Confirm
+        </button>
+      )}
       {onLink && (
         <button type="button" className="btn btn--ghost btn--xs" aria-label={`Link ${name}`} onClick={onLink}>
           Link…
@@ -188,10 +273,12 @@ function RowActions({
 
 function IncomeSection({
   month,
+  onConfirm,
   onEdit,
   onDelete,
 }: {
   month: string;
+  onConfirm: (entry: Schemas["IncomeEntry"]) => void;
   onEdit: (entry: Schemas["IncomeEntry"]) => void;
   onDelete: (entry: Schemas["IncomeEntry"]) => void;
 }) {
@@ -248,7 +335,12 @@ function IncomeSection({
                   <td className="num tx-table__net">{formatCents(e.net_cents)}</td>
                   <td className="num">{formatTaxRate(e.gross_taxable_cents, e.net_cents)}</td>
                   <td className="tx-table__actions">
-                    <RowActions name={`income ${name}`} onEdit={() => onEdit(e)} onDelete={() => onDelete(e)} />
+                    <RowActions
+                      name={`income ${name}`}
+                      onEdit={() => onEdit(e)}
+                      onDelete={() => onDelete(e)}
+                      onConfirm={e.confirmed ? undefined : () => onConfirm(e)}
+                    />
                   </td>
                 </tr>
               );
@@ -296,6 +388,7 @@ interface SpendingProps {
   onEdit: (expense: Schemas["Expense"]) => void;
   onDelete: (expense: Schemas["Expense"]) => void;
   onLink: (refund: Schemas["Expense"]) => void;
+  onConfirm: (expense: Schemas["Expense"]) => void;
 }
 
 function SpendingSections({ month, categoryFilter, ...rest }: SpendingProps) {
@@ -446,6 +539,7 @@ function ExpenseSection({
   onEdit,
   onDelete,
   onLink,
+  onConfirm,
 }: {
   month: string;
   expenses: Schemas["Expense"][];
@@ -576,6 +670,7 @@ function ExpenseSection({
                       onEdit={() => onEdit(e)}
                       onDelete={() => onDelete(e)}
                       onLink={refund && !e.refunded_expense_id ? () => onLink(e) : undefined}
+                      onConfirm={e.confirmed ? undefined : () => onConfirm(e)}
                     />
                   </td>
                 </tr>
