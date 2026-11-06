@@ -200,6 +200,14 @@ Rules:
   - **Sign-in uses the Firebase Auth emulator**, not the real project. It is enabled by `FIREBASE_AUTH_EMULATOR_HOST` (API) and `VITE_FIREBASE_AUTH_EMULATOR_URL` (web build). **Both are honored only for a `demo-` project id**, and the API refuses to start otherwise, so a production deployment can't accept emulator tokens by mistake.
   - Each test creates its own allowlisted user with the real `api user add` CLI. It runs in CI as the `e2e` job. `e2e/AGENTS.md` maps each gate item to its test and lists what stays manual.
 
+- **Backups: tooling, destination and admin integration** (decided 2026-11-06)
+  - **Snapshot: SQLite `VACUUM INTO`** run by the API process, which gives a consistent copy of a live WAL database with no extra binaries (pure Go, no CGO). **Encryption: `age`** (Go library, `filippo.io/age`). The API writes one `.sqlite.age` file per snapshot. `restic` and Litestream were rejected: restic needs an extra binary and makes "download one encrypted archive" clumsy, and Litestream is continuous replication, not weekly/monthly snapshots.
+  - **Key handling:** the server holds only the age **public key** (recipient), set in `.env`. The private key is kept offline by the owner and is used only to restore or to open a downloaded snapshot. A compromised server cannot read past backups.
+  - **Destination: any S3-compatible bucket** (for example Backblaze B2, Cloudflare R2, Wasabi or AWS S3), configured by endpoint, bucket, region and access keys in `.env`. Not tied to one provider.
+  - **Layout and retention:** snapshots are stored under `weekly/` and `monthly/` prefixes with UTC timestamped names; manual "Back up now" snapshots go under `manual/`. After each run the API prunes to the last 8 weekly and 12 monthly (manual snapshots are not pruned automatically). Weekly runs on Sundays and monthly on the 1st, both from a scheduler goroutine in the API.
+  - **Admin panel:** no sidecar. The backup code lives inside the API (one container, one process). Admin-only endpoints list the bucket, start a manual backup, and stream the encrypted object for download; the status tiles read the last run from the same data. The API never decrypts.
+  - **Restore** is a documented manual procedure (download, `age -d` with the private key, replace the DB file with the API stopped) and must be tested end to end before v1 ships, per section 8.
+
 ### Open
 
-- Backup tooling and destination (e.g. restic to object storage)
+- None at the moment.
