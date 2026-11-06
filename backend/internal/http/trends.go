@@ -228,3 +228,42 @@ func toAPISavedTrend(st store.SavedTrend) api.SavedTrend {
 	out.MerchantId, out.CategoryId = nullableOf(m), nullableOf(c)
 	return out
 }
+
+// GetCategoryTrends implements GET /v1/trends/by-category.
+func (s *Server) GetCategoryTrends(ctx context.Context, req api.GetCategoryTrendsRequestObject) (api.GetCategoryTrendsResponseObject, error) {
+	uid, ok := userID(ctx)
+	if !ok {
+		return nil, errNoIdentity
+	}
+	tr, err := s.trends.ByCategory(ctx, uid, req.Params.Year)
+	if status, e, ok := trendError(err); ok && status == http.StatusBadRequest {
+		return api.GetCategoryTrends400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse(e)}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	out := api.CategoryTrends{
+		Year:        tr.Year,
+		AllSpending: toAPICategorySeries(tr.AllSpending),
+		Categories:  make([]api.CategoryTrendSeries, len(tr.Categories)),
+	}
+	for i, c := range tr.Categories {
+		out.Categories[i] = toAPICategorySeries(c)
+	}
+	return api.GetCategoryTrends200JSONResponse(out), nil
+}
+
+func toAPICategorySeries(c store.CategorySeries) api.CategoryTrendSeries {
+	out := api.CategoryTrendSeries{
+		Name: c.Name, Color: nullableOf(c.Color), IsSaving: c.IsSaving,
+		ThisYearCents: c.ThisYearCents[:], LastYearCents: c.LastYearCents[:],
+	}
+	if c.CategoryID != nil {
+		out.CategoryId = nullableOf(ptrOf2(formatID(*c.CategoryID)))
+	} else {
+		out.CategoryId = nullableOf[string](nil)
+	}
+	return out
+}
+
+func ptrOf2[T any](v T) *T { return &v }

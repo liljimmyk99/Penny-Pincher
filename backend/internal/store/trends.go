@@ -439,3 +439,76 @@ func scanSavedTrend(r interface{ Scan(...any) error }) (SavedTrend, error) {
 	}
 	return st, nil
 }
+
+// CategorySeries is one category's monthly totals for a year and the one before.
+type CategorySeries struct {
+	CategoryID    *int64 // nil for the "all spending" series
+	Name          string
+	Color         *string
+	IsSaving      bool
+	ThisYearCents [12]int64 // index 0 is January of the year
+	LastYearCents [12]int64 // index 0 is January of year-1
+}
+
+// CategoryTrends is the by-category view's data.
+type CategoryTrends struct {
+	Year        int
+	AllSpending CategorySeries
+	Categories  []CategorySeries // every category, in sort order
+}
+
+// ByCategory returns monthly totals for year and year-1 for every category
+// plus an "all spending" series (Saving included). Refunds are netted into the
+// month of their own date. Zero-filled; clients derive changes and colours.
+func (t Trends) ByCategory(ctx context.Context, userID int64, year int) (CategoryTrends, error) {
+	if err := checkYear(year); err != nil {
+		return CategoryTrends{}, err
+	}
+	cats, err := listCategories(ctx, t.DB, userID)
+	if err != nil {
+		return CategoryTrends{}, err
+	}
+	out := CategoryTrends{
+		Year:        year,
+		AllSpending: CategorySeries{Name: "All spending"},
+		Categories:  make([]CategorySeries, len(cats)),
+	}
+	index := make(map[int64]int, len(cats))
+	for i, c := range cats {
+		out.Categories[i] = CategorySeries{CategoryID: ptrTo(c.ID), Name: c.Name, Color: c.Color, IsSaving: c.IsSaving}
+		index[c.ID] = i
+	}
+
+	rows, err := t.DB.QueryContext(ctx, `
+		SELECT category_id, CAST(substr(year_month, 1, 4) AS INTEGER),
+		       CAST(substr(year_month, 6, 2) AS INTEGER), total_cents
+		  FROM v_monthly_category_spend
+		 WHERE user_id = ? AND CAST(substr(year_month, 1, 4) AS INTEGER) IN (?, ?)`,
+		userID, year, year-1)
+	if err != nil {
+		return CategoryTrends{}, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var catID int64
+		var y, m int
+		var total int64
+		if err := rows.Scan(&catID, &y, &m, &total); err != nil {
+			return CategoryTrends{}, err
+		}
+		i, ok := index[catID]
+		if !ok || m < 1 || m > 12 {
+			continue
+		}
+		if y == year {
+			out.Categories[i].ThisYearCents[m-1] += total
+			out.AllSpending.ThisYearCents[m-1] += total
+		} else {
+			out.Categories[i].LastYearCents[m-1] += total
+			out.AllSpending.LastYearCents[m-1] += total
+		}
+	}
+	return out, rows.Err()
+}
+
+func ptrTo[T any](v T) *T { return &v }

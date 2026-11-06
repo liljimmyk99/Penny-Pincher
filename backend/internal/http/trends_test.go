@@ -91,3 +91,29 @@ func TestSavedTrendsHTTP(t *testing.T) {
 	wantError(t, a.call("GET", path, tokMember, ""), http.StatusNotFound, api.ErrorErrorCodeNotFound)
 	wantError(t, a.call("GET", "/v1/saved-trends", "", ""), http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated)
 }
+
+func TestCategoryTrendsHTTP(t *testing.T) {
+	a := newTestAPI(t)
+	a.createExpense(tokMember, a.expenseBody(tokMember, "2025-12-05", 1234, "Shop"))
+	a.createExpense(tokMember, a.expenseBody(tokMember, "2026-01-05", 100, "Shop"))
+	a.createExpense(tokAdmin, a.expenseBody(tokAdmin, "2026-01-05", 99999, "Shop"))
+
+	rec := a.call("GET", "/v1/trends/by-category?year=2026", tokMember, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d (%s)", rec.Code, rec.Body)
+	}
+	var got api.CategoryTrends
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Year != 2026 || len(got.Categories) == 0 || len(got.AllSpending.ThisYearCents) != 12 ||
+		got.AllSpending.ThisYearCents[0] != 100 || got.AllSpending.LastYearCents[11] != 1234 {
+		t.Errorf("trends = %+v", got.AllSpending)
+	}
+	if got.AllSpending.CategoryId.IsSpecified() && !got.AllSpending.CategoryId.IsNull() {
+		t.Error("all spending category_id should be null")
+	}
+
+	wantError(t, a.call("GET", "/v1/trends/by-category?year=1900", tokMember, ""), http.StatusBadRequest, api.ErrorErrorCodeInvalidRequest)
+	wantError(t, a.call("GET", "/v1/trends/by-category?year=2026", "", ""), http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated)
+}
