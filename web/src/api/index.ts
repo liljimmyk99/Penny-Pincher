@@ -15,6 +15,14 @@ export {
   type ApiErrorCode,
   type ServerErrorCode,
 } from "./errors";
+export {
+  adminStatusQueryKey,
+  backupsQueryKey,
+  useAdminStatus,
+  useBackups,
+  useDownloadBackup,
+  useStartBackup,
+} from "./admin";
 export { useMe, meQueryKey } from "./me";
 export { createQueryClient } from "./queryClient";
 export {

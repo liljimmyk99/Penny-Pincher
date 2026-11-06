@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { AddEntriesPage } from "./pages/add/AddEntriesPage";
+import { AdminPage } from "./pages/admin/AdminPage";
 import { AdminOnly } from "./pages/AdminOnly";
 import { CategoriesPage } from "./pages/categories/CategoriesPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
@@ -61,7 +62,7 @@ export function AppRoutes() {
           path={ADMIN_PATH}
           element={
             <AdminOnly>
-              <PlaceholderPage title="Admin dashboard" description="App status and backups." />
+              <AdminPage />
             </AdminOnly>
           }
         />
