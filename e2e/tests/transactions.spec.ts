@@ -18,6 +18,9 @@ const notReloaded = async (page: Page) =>
 
 test("open a past month", async ({ signedIn: page, api }) => {
   await api.createExpense({ date: `${lastMonth()}-03`, amount_cents: 2500, category: "Food", merchant: "Past Grocer" });
+  // The empty month's template offer has already loaded last month (for its
+  // "last month" figures), before this expense existed: start from a fresh page.
+  await page.reload();
   await page.getByRole("button", { name: `Previous month, ${formatMonth(lastMonth())}` }).click();
   await expect(page.getByRole("group", { name: "Month" })).toContainText(formatMonth(lastMonth()));
   await expect(page).toHaveURL(new RegExp(`month=${lastMonth()}`));
