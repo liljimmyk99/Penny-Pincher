@@ -1,0 +1,114 @@
+/* Hand-built charts (root AGENTS.md §6.11). Colours come from tokens.css. */
+
+.ranked {
+  list-style: none;
+  margin: 0;
+  padding: 0 12px 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ranked__row {
+  display: grid;
+  grid-template-columns: minmax(110px, 170px) minmax(60px, 1fr) 96px 110px minmax(0, 150px);
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ranked__row:hover {
+  background: var(--color-surface-soft);
+}
+
+.ranked__row.is-highlighted {
+  background: var(--color-selected-bg);
+  border-color: var(--color-selected-line);
+}
+
+.ranked__row.is-dimmed {
+  opacity: 0.55;
+}
+
+.ranked__name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-weight: 700;
+  min-width: 0;
+}
+
+.ranked__track {
+  height: 12px;
+  border-radius: var(--radius-pill);
+  background: var(--color-divider);
+  overflow: hidden;
+}
+
+.ranked__bar {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+}
+
+.ranked__amount {
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ranked__detail {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.ranked__extra {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+  .ranked__row {
+    grid-template-columns: 1fr auto;
+  }
+  .ranked__track {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+  .ranked__detail,
+  .ranked__extra {
+    grid-column: 1 / -1;
+  }
+}
+
+.donut {
+  --size: 200px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+}
+
+.donut__hole {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--size) * 0.62);
+  height: calc(var(--size) * 0.62);
+  border-radius: 50%;
+  background: var(--color-surface);
+  text-align: center;
+}

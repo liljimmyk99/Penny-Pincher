@@ -4,6 +4,7 @@ import { AddEntriesPage } from "./pages/add/AddEntriesPage";
 import { AdminOnly } from "./pages/AdminOnly";
 import { CategoriesPage } from "./pages/categories/CategoriesPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { SummaryPage } from "./pages/summary/SummaryPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { TemplatesPage } from "./pages/templates/TemplatesPage";
 import { TransactionsPage } from "./pages/transactions/TransactionsPage";
@@ -12,7 +13,6 @@ import { ADMIN_PATH, EXPORT_PATH, NAV_ITEMS, SETTINGS_PATH } from "./shell/navig
 
 /** What each placeholder says until its screen is built. */
 const DESCRIPTIONS: Record<string, string> = {
-  "/summary": "This month's income, spending and what's left over.",
   "/yearly": "Month-by-month totals, category totals and monthly averages for a year.",
   "/trends": "Custom trends and spending by category over time.",
 };
@@ -21,6 +21,7 @@ const DESCRIPTIONS: Record<string, string> = {
 const SCREENS: Record<string, ReactElement> = {
   "/add": <AddEntriesPage />,
   "/categories": <CategoriesPage />,
+  "/summary": <SummaryPage />,
   "/templates": <TemplatesPage />,
   "/transactions": <TransactionsPage />,
 };

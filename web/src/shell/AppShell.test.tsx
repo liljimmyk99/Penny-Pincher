@@ -7,6 +7,7 @@ import { AppRoutes } from "../App";
 import { createSession } from "../auth";
 import { SessionProvider } from "../auth/SessionProvider";
 import { fakeAuth, testUser } from "../test/fakeAuth";
+import { shellFetch } from "../test/summary";
 import { ThemeProvider } from "../theme/ThemeProvider";
 import { THEME_STORAGE_KEY } from "../theme/theme";
 
@@ -30,7 +31,7 @@ function renderShell({ me = member, path = "/" }: { me?: Schemas["Me"]; path?: s
     baseUrl: "http://api.test",
     getToken: auth.getToken,
     onSessionError: session.end,
-    fetch: vi.fn(async () => Response.json(me)) as unknown as typeof fetch,
+    fetch: vi.fn(shellFetch(me)) as unknown as typeof fetch,
   });
   // AuthGate has loaded /v1/me before the shell renders.
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });

@@ -29,6 +29,7 @@ export {
   useIncomeSources,
   useIncomeSourceStats,
 } from "./manage";
+export { monthlySummaryQueryKey, useMonthlySummary } from "./summaries";
 export { templateAppliesQueryKey, useMonthMutations, useTemplateApplies, type ApplyTemplateInput } from "./months";
 export {
   templateQueryKey,

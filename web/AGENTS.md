@@ -106,6 +106,14 @@ Define these as tokens (CSS custom properties or the UI library's theme) in one 
 - Income per source. Clicking a source opens a **modal** with that month's entries (gross, taxable, net, tax rate) and an "All sources combined" total.
 - Spending by category as ranked bars, with a **Bars / Donut** toggle. Clicking a category row only **highlights** it.
 - If template items are still unconfirmed, show an orange banner with a count.
+- As built (`src/pages/summary`, charts in `src/charts`):
+  - Reads `GET /v1/summaries/monthly/{month}` (`useMonthlySummary`); the month is `?month=` via `useMonthParam`. Percent of income (of combined net) and the change vs. last month are computed in the client (`summary.ts`, `lib/change.ts`).
+  - Tiles: Net income, Spent (with change vs. last month), Saved & invested (counted in Spent; its change uses the Saving flip), Left over. They are muted for an empty month.
+  - Income lists sources that have entries; a source opens `IncomeDialog` (that source's entries from `useMonthIncome`, its own total row and "All sources combined", with tax rates).
+  - Spending is `RankedBars` (default) or the `Donut` with a legend, toggled by "Bars / Donut" (`aria-pressed`). Categories that net to zero or less get no bar. Rows are `aria-pressed` buttons that only highlight; their accessible name carries amount, percent of income and the change in words. Saving always uses `--color-saving-bar` and a "Saving" badge; other categories use their own colour, else `--chart-1…8`.
+  - Change colours are the tokens `--color-worse` (orange) and `--color-better` (blue), always with ▲/▼ and a +/− sign.
+  - Banner: the shared `UnconfirmedBanner` (with "Review in Transactions"). An empty month shows `NewMonthOffer` and dashed Income / Spending panels with "Add income" / "Add expenses".
+  - Welcome card (`Welcome.tsx`): shown only on the current month while it is empty. Step 1 and "Hide" are remembered in localStorage (a per-viewer convenience); step 2 comes from the templates list, step 3 from the month having entries. It disappears once all three are done.
 
 ### Add entries
 - Quick single entry plus a batch table ("Add row", remove row) for logging several at once. Keyboard-first.
