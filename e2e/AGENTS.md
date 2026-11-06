@@ -1,6 +1,6 @@
 # AGENTS.md — /e2e
 
-Read the root `AGENTS.md` first. This folder is the end-to-end suite: Playwright driving the real Docker stack. It automates the **M1 testing gate**'s smoke checklist.
+Read the root `AGENTS.md` first. This folder is the end-to-end suite: Playwright driving the real Docker stack. It automates the **M1 testing gate**'s smoke checklist and the **M2 acceptance tests** (AT-1 to AT-24).
 
 ## Running it
 
@@ -57,6 +57,39 @@ npm test                 # builds + starts compose.yml, runs every spec, removes
 | "Other" recolorable, not renamable or deletable | `categories` · Other (recolour via API, see below) |
 | Deleting a category moves its expenses to Other | `categories` · delete |
 | Source with entries: renamable, not deletable | `categories` · source |
+
+### M2 acceptance tests (`templates.spec.ts`)
+
+Each test builds the doc's "Test Month" fixture (6 expense items, 2 paychecks, days 1/15/29/30/31) for its own user, so the tests don't share months.
+
+| AT | Test |
+| --- | --- |
+| AT-1 Create "Test Month"; totals match | `templates` · AT-1 (built through the editor) |
+| AT-2 Day 0 / 32 rejected; 1 and 31 save | `templates` · AT-2 (form and API) |
+| AT-3 85.5 round-trips as $85.50 | `templates` · AT-3 |
+| AT-4 Merchant autocomplete, no duplicate | `templates` · AT-4 |
+| AT-5 Rename and delete persist | `templates` · AT-5 |
+| AT-6 Rebuild your own Example Month | **manual** (your real data) |
+| AT-7 Empty month offers the template | `templates` · AT-7 |
+| AT-8 Copy: 8 entries, fixture dates, totals | `templates` · AT-8 |
+| AT-9 Tint, pill, banner | `templates` · AT-9 |
+| AT-10 April 2027, Feb 2027, Feb 2028 clamping | `templates` · AT-10 |
+| AT-11 Start blank; Edit template | `templates` · AT-11 |
+| AT-12 After 7 pm Eastern | `templates` · AT-12 (off-UTC time zone, as M1) |
+| AT-13 Edit confirms; total +$6.60 | `templates` · AT-13 |
+| AT-14 Undo removes only unconfirmed copies | `templates` · AT-14 |
+| AT-15 Confirm all; Undo removes nothing | `templates` · AT-15 (also the per-row Confirm) |
+| AT-16 Reset confirmation; Cancel | `templates` · AT-16 |
+| AT-17 Reset replaces the month; others untouched | `templates` · AT-17 |
+| AT-18 Reset unlinks a refund elsewhere | `templates` · AT-18 + AT-19 |
+| AT-19 Undo after reset | `templates` · AT-18 + AT-19 |
+| AT-20 Save as template skips refunds | `templates` · AT-20 + AT-21 |
+| AT-21 Day 31 lands on April 30 | `templates` · AT-20 + AT-21 |
+| AT-22 Second user isolation | `templates` · AT-22 (UI and API, incl. 404 on another user's template) |
+| AT-23 Source delete moves template items to Other | `templates` · AT-23 |
+| AT-24 Dark mode | `templates` · AT-24 (axe colour contrast + screenshots) |
+
+- **"Review in Transactions"** (AT-9) belongs to the Summary banner, which is M3 (#32). On Transactions the page is the review, so the test checks the button is absent there.
 
 ### Where the automation differs from the manual checklist
 
