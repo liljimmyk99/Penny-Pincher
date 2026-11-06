@@ -83,7 +83,6 @@ func TestUnimplementedRoutesReturnStandard501(t *testing.T) {
 	for _, r := range [][2]string{
 		{"GET", "/v1/saved-trends"},
 		{"DELETE", "/v1/saved-trends/abc"},
-		{"GET", "/v1/summaries/monthly/2026-01"},
 		{"GET", "/v1/admin/status"},
 	} {
 		wantError(t, do(t, r[0], r[1], tokAdmin), http.StatusNotImplemented, api.ErrorErrorCodeNotImplemented)
