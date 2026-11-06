@@ -197,3 +197,53 @@ button.paired__group:hover {
   margin-right: 6px;
   border-radius: 3px;
 }
+
+/* ---- Custom trend bars and sparklines ------------------------------------------ */
+
+.period {
+  padding: 0 20px 20px;
+}
+
+.period__plot {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.period__bar-wrap {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 160px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.period__bar {
+  display: block;
+  width: min(22px, 60%);
+  border-radius: 4px 4px 0 0;
+  background: var(--color-spent);
+}
+
+.paired__group.is-selected {
+  background: var(--color-selected-bg);
+  border-color: var(--color-selected-line);
+}
+
+.spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  width: 72px;
+  height: 24px;
+  flex: none;
+}
+
+.spark__bar {
+  flex: 1;
+  min-height: 0;
+  border-radius: 2px 2px 0 0;
+  background: var(--color-spent);
+}

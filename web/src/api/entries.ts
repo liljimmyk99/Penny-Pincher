@@ -90,6 +90,17 @@ async function fetchAll<T>(page: (cursor?: string) => Promise<{ items: T[]; next
   return items;
 }
 
+/** Every merchant, by name (to show a saved trend's merchant). */
+export function useAllMerchants() {
+  const api = useApi();
+  return useQuery<Schemas["Merchant"][]>({
+    queryKey: ["merchants", "all"],
+    queryFn: ({ signal }) =>
+      fetchAll((cursor) => unwrap(api.GET("/v1/merchants", { params: { query: { limit: PAGE, cursor } }, signal }))),
+    staleTime: 60_000,
+  });
+}
+
 /** Every income entry in a month, newest first. */
 export function useMonthIncome(month: string) {
   const api = useApi();
