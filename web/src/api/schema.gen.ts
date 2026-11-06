@@ -813,6 +813,237 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/imports/template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download the Excel import template
+         * @description An `.xlsx` workbook built for the signed-in user:
+         *
+         *     - **Expenses** sheet: `Date`, `Category`, `Merchant`, `Amount`, `Note`.
+         *     - **Income** sheet: `Date`, `Source`, `Gross`, `Gross taxable`, `Net`, `Note`.
+         *
+         *     `Category` and `Source` are dropdowns (data validation) filled with the user's current
+         *     categories and income sources. Amounts in the file are **dollars** with at most two
+         *     decimals; the server converts them to integer cents. Refunds are negative amounts.
+         *     The data sheets start empty below the header row. A third sheet, **How to fill this in**,
+         *     shows example rows and the rules; it is ignored on upload.
+         */
+        get: operations["downloadImportTemplate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Import history
+         * @description Newest first. Filter by `status=running` to find an import in progress (the app-wide
+         *     progress banner does this on load). Imports still in `review` are included.
+         */
+        get: operations["listImports"];
+        put?: never;
+        /**
+         * Upload a filled-out template and check it
+         * @description Parses and checks **every row** and returns the import in status `review`.
+         *     **Nothing is saved to expenses or income entries yet**; call `startImport` to do that.
+         *
+         *     - Max file size **10 MB** (`413 file_too_large`) and **50,000 rows** across both sheets.
+         *     - Not an `.xlsx`, missing an `Expenses` or `Income` sheet, or changed column headers:
+         *       `400 invalid_import_file`. A file with no data rows: `400 invalid_import_file`.
+         *     - Rows with problems are listed in `issues` and are skipped if the import is started.
+         *       Categories and sources are matched by name, case-insensitively; unknown names are
+         *       problems (never created automatically). Merchants are matched or created, as on
+         *       `createExpense`.
+         *     - Months in the file that already have entries in the app are listed in
+         *       `months_with_existing_entries`. Imported entries are **added alongside** them.
+         *     - An import left in `review` expires after 24 hours (status `expired`).
+         */
+        post: operations["uploadImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/imports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** One import, with its check results and progress */
+        get: operations["getImport"];
+        put?: never;
+        post?: never;
+        /**
+         * Discard an import that was never started
+         * @description Only for status `review` (the user chose a different file). Removes the checked rows.
+         *     Any other status: `409 import_wrong_status`; use `cancelImport` or `undoImport` instead.
+         */
+        delete: operations["discardImport"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/imports/{id}/problems": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Download the rows that have problems
+         * @description An `.xlsx` in the template's layout holding only the rows listed in `issues`, with their
+         *     original values and an extra `Problem` column. The user can fix it and upload it as a new
+         *     import. Used for "Download file with problems marked" before starting and "Download
+         *     skipped rows" after finishing. Available in any status; empty sheets if there were none.
+         */
+        get: operations["downloadImportProblems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/imports/{id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start importing the rows that passed the check
+         * @description Moves the import from `review` to `running` and returns at once (`202`). The server writes
+         *     the ready rows in the background, in batches, oldest month first. Follow progress with
+         *     `streamImportEvents` (or poll `getImport`).
+         *
+         *     - Imported entries are `confirmed` and carry this import's id (`import_id`).
+         *     - Entries appear in reads as their batch is written.
+         *     - If the server stops before the import finishes, on the next start-up the import is
+         *       marked `failed` and every entry it wrote is removed, so nothing from the file stays.
+         *     - Only one import per user may be `running`: `409 import_in_progress`.
+         *     - Any status other than `review`: `409 import_wrong_status`.
+         */
+        post: operations["startImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/imports/{id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Live progress (Server-Sent Events)
+         * @description A `text/event-stream`. Requires the usual bearer token, so web clients read it with
+         *     `fetch` and a stream reader (the browser's `EventSource` cannot send headers); the Mac app
+         *     uses `URLSession` bytes.
+         *
+         *     Events:
+         *
+         *     - `progress`: data is an `ImportProgress` JSON object. Sent right after connecting, then
+         *       after each written batch (at most a few per second).
+         *     - `finished`: data is the final `Import` JSON object (status `completed`, `cancelled` or
+         *       `failed`). The server then closes the stream.
+         *     - A comment line (`: ping`) every 15 seconds keeps proxies from closing an idle stream.
+         *
+         *     For an import that is not `running`, the server sends one `finished` event and closes.
+         *     Clients reconnect if the stream drops before `finished`, and refetch `getImport`.
+         */
+        get: operations["streamImportEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/imports/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a running import and remove what it added
+         * @description Stops the import after its current batch and deletes **every** entry it wrote, in one
+         *     transaction, then sets status `cancelled`. Returns once the rollback is done.
+         *     Not `running`: `409 import_wrong_status`.
+         */
+        post: operations["cancelImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/imports/{id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Undo a finished import as one batch
+         * @description Deletes every expense and income entry that still carries this import's id, **including
+         *     ones the user edited after importing**, in one transaction, and sets status `undone`.
+         *     Entries the user added by hand are never touched. A manual refund linked to a deleted
+         *     expense is unlinked, not deleted (as when deleting any expense).
+         *     Not `completed`: `409 import_wrong_status`.
+         */
+        post: operations["undoImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/export": {
         parameters: {
             query?: never;
@@ -877,13 +1108,118 @@ export interface components {
         ReorderRequest: {
             ids: components["schemas"]["Id"][];
         };
+        /**
+         * @description `review` (checked, nothing saved) → `running` → `completed` | `cancelled` | `failed`;
+         *     `completed` → `undone`. A `review` import not started within 24 hours becomes `expired`.
+         *     `cancelled`, `failed` and `undone` imports have no entries left in the app.
+         * @enum {string}
+         */
+        ImportStatus: "review" | "running" | "completed" | "cancelled" | "failed" | "undone" | "expired";
+        /** @enum {string} */
+        ImportSheet: "expenses" | "income";
+        /** @description One row of the import history. */
+        ImportSummary: {
+            id: components["schemas"]["Id"];
+            file_name: string;
+            status: components["schemas"]["ImportStatus"];
+            created_at: components["schemas"]["Timestamp"];
+            /**
+             * Format: date-time
+             * @description When it completed, was cancelled, failed or was undone.
+             */
+            readonly finished_at: string | null;
+            /** @description Earliest month among ready rows (`YYYY-MM`); null if none are ready. */
+            first_month: string | null;
+            /** @description Latest month among ready rows (`YYYY-MM`). */
+            last_month: string | null;
+            rows_ready: number;
+            rows_with_problems: number;
+            /** @description Entries of this import currently in the app (0 once cancelled, failed or undone). */
+            entries_imported: number;
+        };
+        Import: components["schemas"]["ImportSummary"] & {
+            /** @description Data rows found on the Expenses sheet (ready + with problems). */
+            expense_rows: number;
+            /** @description Data rows found on the Income sheet (ready + with problems). */
+            income_rows: number;
+            /** @description Ready rows per calendar year, oldest first, for the review table. */
+            years: components["schemas"]["ImportYear"][];
+            /**
+             * @description Months in the file that already had entries in the app when it was checked.
+             *     Imported rows are added alongside them, never replacing them.
+             */
+            months_with_existing_entries: {
+                month: components["schemas"]["YearMonth"];
+                existing_entries: number;
+                /** @description Ready rows in the file for this month. */
+                file_entries: number;
+            }[];
+            /**
+             * @description Rows with problems, in sheet and row order. At most 500 are listed; the rest are in
+             *     `downloadImportProblems`. A row may have several issues.
+             */
+            issues: components["schemas"]["ImportIssue"][];
+            /** @description True when more than 500 issues exist. */
+            issues_truncated: boolean;
+            /** @description Present only while `running`. */
+            progress?: components["schemas"]["ImportProgress"];
+            /** @description Safe to show. Set only when `failed` (for example, the server restarted). */
+            failure_reason: string | null;
+        };
+        ImportYear: {
+            year: components["schemas"]["Year"];
+            /** @description Months in this year that have at least one ready row. */
+            months: number;
+            /** @description Ready expense rows (refunds included). */
+            expense_rows: number;
+            /** @description Ready income rows. */
+            income_rows: number;
+            /** @description Sum of ready expense amounts (refunds lower it), the same way totals count elsewhere. */
+            spent_cents: components["schemas"]["Cents"];
+            rows_with_problems: number;
+        };
+        ImportIssue: {
+            sheet: components["schemas"]["ImportSheet"];
+            /** @description The Excel row number (row 1 is the header), so the user can find it. */
+            row: number;
+            /**
+             * @description The column header as written in the template, for example `Category`.
+             * @example Category
+             */
+            column: string;
+            /**
+             * @description Stable; clients group and word issues by this.
+             * @enum {string}
+             */
+            code: "unknown_category" | "unknown_income_source" | "invalid_date" | "missing_value" | "invalid_number" | "too_many_decimals" | "zero_amount" | "negative_income" | "taxable_exceeds_gross" | "net_exceeds_gross" | "text_too_long";
+            /** @description The cell's original text; empty when the cell was blank. */
+            value: string;
+            /** @description Human-readable; safe to show. */
+            message: string;
+        };
+        ImportProgress: {
+            status: components["schemas"]["ImportStatus"];
+            rows_done: number;
+            /** @description Ready rows being imported (rows with problems are skipped). */
+            rows_total: number;
+            /** @description The month (`YYYY-MM`) of the batch being written. */
+            current_month: string | null;
+            /** @description Estimated seconds left, from the rate so far; null until the first batch is written. */
+            eta_seconds: number | null;
+            /** @description Per-year progress, oldest first. */
+            years: {
+                year: components["schemas"]["Year"];
+                rows_done: number;
+                rows_total: number;
+            }[];
+        };
         Error: {
             error: {
                 /**
                  * @description Stable, machine-readable. Clients branch on this, never on `message`.
                  * @enum {string}
                  */
-                code: "invalid_request" | "invalid_refund_link" | "unauthenticated" | "not_allowlisted" | "admin_required" | "not_found" | "protected_resource" | "source_has_entries" | "name_taken" | "has_linked_refunds" | "month_not_empty" | "backup_in_progress" | "backup_not_ready" | "not_implemented" | "internal";
+                code: "invalid_request" | "invalid_refund_link" | "unauthenticated" | "not_allowlisted" | "admin_required" | "not_found" | "protected_resource" | "source_has_entries" | "name_taken" | "has_linked_refunds" | "month_not_empty" | "backup_in_progress" | "backup_not_ready" | "invalid_import_file" | "file_too_large" | "import_in_progress" | "import_wrong_status" | "not_implemented" | "internal";
                 /** @description Human-readable; safe to show. Never contains internals. */
                 message: string;
                 details?: {
@@ -996,6 +1332,8 @@ export interface components {
             /** @description False for entries copied from a template that the user hasn't reviewed yet. */
             confirmed: boolean;
             readonly template_apply_id: string | null;
+            /** @description The import that created this entry, if any. Undoing that import deletes it. */
+            readonly import_id: string | null;
             created_at: components["schemas"]["Timestamp"];
             updated_at: components["schemas"]["Timestamp"];
         };
@@ -1031,6 +1369,8 @@ export interface components {
             note: components["schemas"]["Note"];
             confirmed: boolean;
             readonly template_apply_id: string | null;
+            /** @description The import that created this entry, if any. Undoing that import deletes it. */
+            readonly import_id: string | null;
             created_at: components["schemas"]["Timestamp"];
             updated_at: components["schemas"]["Timestamp"];
         };
@@ -1359,7 +1699,7 @@ export interface components {
         };
     };
     responses: {
-        /** @description Malformed JSON or a value that fails validation (`invalid_request`, `invalid_refund_link`). */
+        /** @description Malformed JSON or a value that fails validation (`invalid_request`, `invalid_refund_link`, `invalid_import_file`). */
         BadRequest: {
             headers: {
                 [name: string]: unknown;
@@ -1400,6 +1740,15 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /** @description The upload is over the size limit (`file_too_large`). */
+        PayloadTooLarge: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
         /** @description No such resource for this user (`not_found`). Another user's rows are also reported as not found. */
         NotFound: {
             headers: {
@@ -1411,7 +1760,8 @@ export interface components {
         };
         /**
          * @description A business rule blocked the request. Codes: `protected_resource`, `source_has_entries`,
-         *     `name_taken`, `has_linked_refunds`, `month_not_empty`, `backup_in_progress`, `backup_not_ready`.
+         *     `name_taken`, `has_linked_refunds`, `month_not_empty`, `backup_in_progress`, `backup_not_ready`,
+         *     `import_in_progress`, `import_wrong_status`.
          */
         Conflict: {
             headers: {
@@ -2965,6 +3315,267 @@ export interface operations {
                 };
                 content: {
                     "application/octet-stream": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    downloadImportTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The template workbook. */
+            200: {
+                headers: {
+                    /** @example attachment; filename="penny-pincher-import.xlsx" */
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listImports: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["ImportStatus"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["ImportSummary"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    uploadImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** @description The filled-out template. Its file name is kept for the history list. */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Checked; waiting for the user to review and start it. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Import"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+        };
+    };
+    getImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Import"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    discardImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Discarded. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    downloadImportProblems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The problem rows. */
+            200: {
+                headers: {
+                    /** @example attachment; filename="my-history-problems.xlsx" */
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    startImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Started. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Import"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    streamImportEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The event stream. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    cancelImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cancelled and rolled back. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Import"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    undoImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Undone. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Import"];
                 };
             };
             401: components["responses"]["Unauthorized"];
