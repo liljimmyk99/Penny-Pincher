@@ -81,11 +81,11 @@ describe("item forms", () => {
   });
 
   it("validates an expense item into a create body", () => {
-    expect(validateExpense({ merchant: " Rent ", categoryId: "2", day: "1", amount: "1,450.00" })).toEqual({
+    expect(validateExpense({ merchant: " Rent ", categoryId: "2", day: "1", amount: "1,450.00", note: " " })).toEqual({
       ok: true,
-      value: { merchant_name: "Rent", category_id: "2", day_of_month: 1, amount_cents: 145000 },
+      value: { merchant_name: "Rent", category_id: "2", day_of_month: 1, amount_cents: 145000, note: null },
     });
-    const bad = validateExpense({ merchant: "", categoryId: "2", day: "40", amount: "-5" });
+    const bad = validateExpense({ merchant: "", categoryId: "2", day: "40", amount: "-5", note: "" });
     expect(bad.ok).toBe(false);
     expect(!bad.ok && Object.keys(bad.errors)).toEqual(["merchant", "day", "amount"]);
   });
@@ -114,8 +114,14 @@ describe("item forms", () => {
   it("patches only what changed", () => {
     const item = expense("1", "2", 1000);
     expect(
-      expensePatch(item, { merchant_name: "Merchant 1", category_id: "1", day_of_month: 1, amount_cents: 1000 }),
-    ).toEqual({ category_id: "1" });
+      expensePatch(item, {
+        merchant_name: "Merchant 1",
+        category_id: "1",
+        day_of_month: 1,
+        amount_cents: 1000,
+        note: "Music",
+      }),
+    ).toEqual({ category_id: "1", note: "Music" });
     const inc = income("1", 100, 90, 80);
     expect(
       incomePatch(inc, {

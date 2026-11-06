@@ -235,7 +235,7 @@ describe("Templates", () => {
       expect(lastCall(backend, "POST")).toEqual({
         method: "POST",
         path: "/v1/templates/t1/expense-items",
-        body: { merchant_name: "Internet", category_id: "2", day_of_month: 31, amount_cents: 6000 },
+        body: { merchant_name: "Internet", category_id: "2", day_of_month: 31, amount_cents: 6000, note: null },
       }),
     );
     expect(await within(group("Housing")).findByRole("textbox", { name: "Amount, Internet" })).toHaveValue("60.00");
@@ -367,4 +367,52 @@ describe("Templates", () => {
     await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Holiday month"));
     expect(screen.queryByRole("button", { name: /Usual month/ })).not.toBeInTheDocument();
   });
+
+  it("adds several income items, one after another or side by side", async () => {
+    const { backend, user } = renderPage();
+    await loaded();
+    for (const [label, amount] of [["One", "100"], ["Two", "200"]]) {
+      await user.click(screen.getByRole("button", { name: "Add income" }));
+      const draft = group("New income item");
+      await user.type(within(draft).getByRole("textbox", { name: "Label, new income" }), label);
+      await user.type(within(draft).getByRole("textbox", { name: "Gross, new income" }), amount);
+      await user.type(within(draft).getByRole("textbox", { name: "Gross taxable, new income" }), amount);
+      await user.type(within(draft).getByRole("textbox", { name: "Net, new income" }), amount);
+      await user.click(within(draft).getByRole("button", { name: "Save new income" }));
+      await waitFor(() => expect(screen.queryByRole("group", { name: "New income item" })).not.toBeInTheDocument());
+    }
+    await user.click(screen.getByRole("button", { name: "Add income" }));
+    await user.click(screen.getByRole("button", { name: "Add income" }));
+    expect(screen.getAllByRole("group", { name: "New income item" })).toHaveLength(2);
+    expect(backend.calls.filter((c) => c.method === "POST")).toHaveLength(2);
+    await waitFor(() => expect(tile("Net income")).toHaveTextContent("$2,400.00"));
+  });
+
+  it("keeps two items from one merchant apart by their notes", async () => {
+    const { backend, user } = renderPage();
+    await loaded();
+    await user.click(screen.getByRole("button", { name: "Add item to Other" }));
+    const draft = group("New expense item");
+    for (const [note, amount] of [["Apple Music", "10.99"], ["iCloud+", "2.99"]]) {
+      await user.type(within(draft).getByRole("combobox", { name: "Name, new item" }), "Apple");
+      await user.type(within(draft).getByRole("textbox", { name: "Note, new item" }), note);
+      await user.type(within(draft).getByRole("textbox", { name: "Amount, new item" }), `${amount}{Enter}`);
+      await waitFor(() => expect(within(draft).getByRole("textbox", { name: "Note, new item" })).toHaveValue(""));
+    }
+    const posts = backend.calls.filter((c) => c.method === "POST").map((c) => c.body);
+    expect(posts).toEqual([
+      { merchant_name: "Apple", category_id: "9", day_of_month: 1, amount_cents: 1099, note: "Apple Music" },
+      { merchant_name: "Apple", category_id: "9", day_of_month: 1, amount_cents: 299, note: "iCloud+" },
+    ]);
+    const other = group("Other");
+    expect(await within(other).findByRole("group", { name: "Apple · Apple Music" })).toBeInTheDocument();
+    expect(within(other).getByRole("group", { name: "Apple · iCloud+" })).toBeInTheDocument();
+
+    // Editing a note sends just the note; clearing it sends null.
+    const note = within(other).getByRole("textbox", { name: "Note, Apple · iCloud+" });
+    await user.clear(note);
+    await user.click(document.body);
+    await waitFor(() => expect(lastCall(backend, "PATCH")?.body).toEqual({ note: null }));
+  });
 });
+

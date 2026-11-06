@@ -13,6 +13,7 @@ export interface ExpenseForm {
   categoryId: string;
   day: string;
   amount: string;
+  note: string;
 }
 
 export type ExpenseField = keyof ExpenseForm;
@@ -36,6 +37,7 @@ export const EXPENSE_API_FIELDS: Record<string, ExpenseField> = {
   category_id: "categoryId",
   day_of_month: "day",
   amount_cents: "amount",
+  note: "note",
 };
 
 export const INCOME_API_FIELDS: Record<string, IncomeField> = {
@@ -53,6 +55,7 @@ export function expenseForm(item: Schemas["TemplateExpenseItem"]): ExpenseForm {
     categoryId: item.category_id,
     day: String(item.day_of_month),
     amount: centsToInput(item.amount_cents),
+    note: item.note ?? "",
   };
 }
 
@@ -89,10 +92,18 @@ export function validateExpense(form: ExpenseForm):
   if (day === null) errors.day = DAY_ERROR;
   const amount = parseCents(form.amount);
   if (amount === null || amount <= 0) errors.amount = "Enter an amount above $0.00.";
+  const note = form.note.trim();
+  if (note.length > NOTE_MAX) errors.note = `Use ${NOTE_MAX} characters or fewer.`;
   if (Object.keys(errors).length > 0) return { ok: false, errors };
   return {
     ok: true,
-    value: { merchant_name: merchant, category_id: form.categoryId, day_of_month: day!, amount_cents: amount! },
+    value: {
+      merchant_name: merchant,
+      category_id: form.categoryId,
+      day_of_month: day!,
+      amount_cents: amount!,
+      note: note || null,
+    },
   };
 }
 
@@ -141,6 +152,7 @@ export function expensePatch(
   if (value.category_id !== item.category_id) patch.category_id = value.category_id;
   if (value.day_of_month !== item.day_of_month) patch.day_of_month = value.day_of_month;
   if (value.amount_cents !== item.amount_cents) patch.amount_cents = value.amount_cents;
+  if ((value.note ?? null) !== (item.note ?? null)) patch.note = value.note;
   return patch;
 }
 

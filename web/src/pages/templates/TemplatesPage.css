@@ -5,9 +5,24 @@
   align-items: start;
 }
 
-@media (max-width: 900px) {
+/* Below this the item rows need the full width: the list moves above the editor. */
+@media (max-width: 1400px) {
   .tpl-layout {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tpl-layout .tpl-list__items {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .tpl-layout .tpl-pick {
+    width: auto;
+    gap: var(--space-4);
+  }
+
+  .tpl-layout .tpl-new {
+    max-width: 360px;
   }
 }
 
@@ -150,7 +165,7 @@
 }
 
 .tpl-group {
-  min-width: 720px;
+  min-width: 820px;
   padding-bottom: var(--space-2);
   border-top: 1px solid var(--color-divider);
 }
@@ -215,12 +230,12 @@
   display: grid;
   column-gap: 10px;
   align-items: center;
-  min-width: 720px;
+  min-width: 820px;
   padding: 3px 20px;
 }
 
 .tpl-row--expense {
-  grid-template-columns: minmax(180px, 1fr) 170px 64px 130px 92px;
+  grid-template-columns: minmax(160px, 1fr) minmax(140px, 1fr) 160px 64px 120px 92px;
 }
 
 .tpl-row--income {

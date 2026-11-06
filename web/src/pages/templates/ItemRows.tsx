@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type FocusEvent, type KeyboardEvent, type ReactNode } from "react";
+import { useId, useRef, useState, type FocusEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { errorMessage, useTemplateItemMutations, type Schemas } from "../../api";
 import { AlertIcon, CheckIcon, TrashIcon } from "../../components/icons";
 import { MerchantCombobox } from "../../components/MerchantCombobox";
@@ -88,11 +88,12 @@ export function ExpenseItemRow({
   categories: Schemas["Category"][];
 }) {
   const id = useId();
-  const blank: ExpenseForm = { merchant: "", categoryId, day: "1", amount: "" };
+  const blank: ExpenseForm = { merchant: "", categoryId, day: "1", amount: "", note: "" };
   const [form, setForm] = useSyncedForm(item ? expenseForm(item) : null, blank);
   const { errors, setErrors, alert, setAlert, run } = useRowSave<keyof ExpenseForm>();
   const firstRef = useRef<HTMLInputElement>(null);
-  const label = item ? item.merchant.name : "new item";
+  // Merchant plus note tells apart several items from one merchant ("Apple · iCloud+").
+  const label = item ? [item.merchant.name, item.note].filter(Boolean).join(" · ") : "new item";
 
   function update(patch: Partial<ExpenseForm>) {
     setForm((f) => ({ ...f, ...patch }));
@@ -160,6 +161,16 @@ export function ExpenseItemRow({
         onCommit={() => {}}
         onKeyDown={onEnter}
         autoFocus={autoFocus}
+      />
+      <input
+        className="cell-input"
+        aria-label={`Note, ${label}`}
+        aria-invalid={errors.note ? true : undefined}
+        aria-describedby={errIds("note")}
+        placeholder="Note (optional)"
+        value={form.note}
+        onChange={(e) => update({ note: e.target.value })}
+        onKeyDown={onEnter}
       />
       <select
         className="cell-input"
@@ -356,8 +367,11 @@ function RowActions({
   onSave: () => void;
   onRemove: () => void;
 }) {
+  // Safari doesn't focus a clicked button, so the click would read as leaving
+  // the row (and save a draft that is being discarded). Keep focus where it is.
+  const keepFocus = (e: MouseEvent) => e.preventDefault();
   return (
-    <span className="tpl-row__actions">
+    <span className="tpl-row__actions" onMouseDown={keepFocus}>
       {draft && (
         <button type="button" className="icon-btn" aria-label={`Save ${label}`} onClick={onSave}>
           <CheckIcon width={18} height={18} />

@@ -117,6 +117,7 @@ export function TemplateEditor({ templateId }: { templateId: string }) {
 
         <div className="tpl-row tpl-row--expense tpl-colhead tpl-colhead--expense" aria-hidden="true">
           <span>Expense item</span>
+          <span>Note</span>
           <span>Category</span>
           <span className="num">Day</span>
           <span className="num">Amount</span>
