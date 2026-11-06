@@ -38,3 +38,20 @@ func TestAuthEmulatorOnlyForDemoProjects(t *testing.T) {
 		t.Fatal("expected an error for the emulator with no project")
 	}
 }
+
+func TestBackupConfig(t *testing.T) {
+	c, err := Load(env(nil))
+	if err != nil || c.Backup.Enabled() {
+		t.Fatalf("disabled by default: got %+v, %v", c.Backup, err)
+	}
+	if _, err := Load(env(map[string]string{"BACKUP_AGE_RECIPIENT": "age1x"})); err == nil {
+		t.Fatal("expected an error: recipient without S3 settings")
+	}
+	c, err = Load(env(map[string]string{
+		"BACKUP_AGE_RECIPIENT": "age1x", "BACKUP_S3_ENDPOINT": "s3.example.com", "BACKUP_S3_BUCKET": "b",
+		"BACKUP_S3_ACCESS_KEY": "k", "BACKUP_S3_SECRET_KEY": "s",
+	}))
+	if err != nil || !c.Backup.Enabled() {
+		t.Fatalf("got %+v, %v", c.Backup, err)
+	}
+}

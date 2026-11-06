@@ -22,6 +22,44 @@ type Config struct {
 	// allowed with a "demo-" project id (Firebase's emulator-only projects).
 	// The end-to-end suite in /e2e is the only thing that sets it.
 	AuthEmulatorHost string
+
+	// Backup settings. Backups are enabled only when BackupRecipient is set;
+	// then the S3 settings are required too (see Backup.Validate).
+	Backup Backup
+}
+
+// Backup configures encrypted off-server snapshots (AGENTS.md section 8).
+type Backup struct {
+	// Recipient is the age public key ("age1..."). The server never holds the
+	// private key, so it cannot read past backups.
+	Recipient string
+	// Endpoint is the S3-compatible host[:port] with no scheme.
+	Endpoint  string
+	Bucket    string
+	Region    string
+	AccessKey string
+	SecretKey string
+	// Insecure uses plain HTTP to the endpoint (local test buckets only).
+	Insecure bool
+}
+
+// Enabled reports whether backups are configured.
+func (b Backup) Enabled() bool { return b.Recipient != "" }
+
+// Validate checks that an enabled configuration is complete.
+func (b Backup) Validate() error {
+	if !b.Enabled() {
+		return nil
+	}
+	for name, v := range map[string]string{
+		"BACKUP_S3_ENDPOINT": b.Endpoint, "BACKUP_S3_BUCKET": b.Bucket,
+		"BACKUP_S3_ACCESS_KEY": b.AccessKey, "BACKUP_S3_SECRET_KEY": b.SecretKey,
+	} {
+		if v == "" {
+			return fmt.Errorf("%s is required when BACKUP_AGE_RECIPIENT is set", name)
+		}
+	}
+	return nil
 }
 
 // Version is overridden at build time: -ldflags "-X .../internal/config.Version=...".
@@ -41,6 +79,18 @@ func Load(getenv func(string) string) (Config, error) {
 	c.AuthEmulatorHost = getenv("FIREBASE_AUTH_EMULATOR_HOST")
 	if c.AuthEmulatorHost != "" && !strings.HasPrefix(c.FirebaseProjectID, "demo-") {
 		return c, fmt.Errorf("FIREBASE_AUTH_EMULATOR_HOST is set, but FIREBASE_PROJECT_ID %q is not a demo- project; refusing to accept emulator tokens", c.FirebaseProjectID)
+	}
+	c.Backup = Backup{
+		Recipient: getenv("BACKUP_AGE_RECIPIENT"),
+		Endpoint:  getenv("BACKUP_S3_ENDPOINT"),
+		Bucket:    getenv("BACKUP_S3_BUCKET"),
+		Region:    getenv("BACKUP_S3_REGION"),
+		AccessKey: getenv("BACKUP_S3_ACCESS_KEY"),
+		SecretKey: getenv("BACKUP_S3_SECRET_KEY"),
+		Insecure:  getenv("BACKUP_S3_INSECURE") == "1",
+	}
+	if err := c.Backup.Validate(); err != nil {
+		return c, err
 	}
 	if v := getenv("DB_PATH"); v != "" {
 		c.DBPath = v
