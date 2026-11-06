@@ -45,9 +45,9 @@ The canvas shows the web app. The Mac app matches its **behavior, content, data 
 
 ## Window, sidebar and menus
 
-- Main window uses `NavigationSplitView`. Sidebar items in this order: Summary, Add entries, Transactions, Yearly, Trends, Templates, Categories & sources.
+- Main window uses `NavigationSplitView`. Sidebar items in this order: Summary, Add entries, Transactions, Yearly, Trends, Templates, Categories & sources, Import.
 - The sidebar is **collapsible** with the standard toolbar sidebar button and ⌃⌘S. Remember its state.
-- Account: the signed-in user's name/avatar sits in the sidebar footer and opens a menu with Settings, Export data and Sign out. Appearance (Light / Dark / System) lives in the **Settings window (⌘,)**.
+- Account: the signed-in user's name/avatar sits in the sidebar footer and opens a menu with Settings, Import transactions, Export data and Sign out. Appearance (Light / Dark / System) lives in the **Settings window (⌘,)**.
 - **Admin dashboard is web-only.** For admins, the account menu item opens the web admin page in the default browser.
 - Use the menu bar for common commands, such as File ▸ New Expense (⌘N) and View ▸ Previous/Next Month.
 
@@ -84,6 +84,7 @@ Behavior for each screen is defined in `/web/AGENTS.md`. Native equivalents:
   - Delete with a confirmation stating how many entries move to Other.
   - Other can never be renamed, edited or deleted, so show it locked with no actions. Saving is badged "Counted as savings".
   - Income sources show entries, gross, net and tax rate. Every source except "Other" can be renamed. Delete is available only for a source with no entries (its template items move to "Other"); a source with entries can only be renamed.
+- **Import (Excel):** same stages and rules as web (`/web/AGENTS.md`, Import). "Download template" saves with an `NSSavePanel`; upload uses `.fileImporter` (or a drop target) limited to `.xlsx`. Review uses a `Table` for the By year rows and grouped problem lists. Progress reads the SSE stream with `URLSession.bytes(for:)` and shows a `ProgressView`; while it runs, show a progress bar at the top of the main window's detail area, and post a user notification when it finishes if the app is in the background. Cancel and Undo use confirmation dialogs.
 - **Empty states** (use `ContentUnavailableView` where available):
   - **New account:** a welcome checklist (categories, template, first entry).
   - **New month:** offers to copy the template, with a preview of its items and totals and Start blank as the alternative. After copying, show a banner with Review and Undo.

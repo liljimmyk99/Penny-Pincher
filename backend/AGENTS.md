@@ -66,6 +66,12 @@ migrations/       numbered SQL migrations
   - Saved trends (match type `merchant` | `category` | `note`, match value, measure `amount` | `count`) are per-user CRUD.
   - The by-category view needs monthly totals per category for the selected year **and the previous year**, so month-over-month (January compares with the previous December) and year-over-year changes can be computed. Compute totals in SQL; clients compute percentages and colours.
   - Whether a change counts as better or worse depends on `is_saving` (for Saving, up is better). Expose the flag rather than encoding colours in the API.
+- **Imports** (root §6.14 and §10):
+  - Upload parses the `.xlsx` (10 MB, 50,000 rows max), checks every row and stores the parsed rows and their problems with the `imports` row. It never writes expenses or income entries. Categories and sources match by name case-insensitively; unknown names are problems. Dollar amounts convert to cents exactly (more than two decimals is a problem; never via float).
+  - Start runs a background goroutine owned by the API process. It writes ready rows in batches, oldest month first, each batch in its own transaction, tagging every row with `import_id`, and publishes progress to the SSE stream. One running import per user.
+  - Cancel, undo and failure delete every expense and income entry with that `import_id` in one transaction (refunds linked to deleted expenses are unlinked, as usual). On start-up, any import still `running` becomes `failed` and its rows are deleted.
+  - The SSE handler (`text/event-stream`) needs flushing, which the strict server's response types don't give; write it as a custom response (or a plain handler) and keep auth and tenancy the same as every other route. Send a `: ping` comment every 15 seconds.
+  - Never log cell values, file contents or file names beyond the import id.
 - **Logging:** never log amounts, merchants, notes, or tokens.
 - **Config** comes from environment variables. Never commit secrets.
 - Errors are returned in the format defined in `/api`; do not leak internals.
@@ -105,6 +111,7 @@ migrations/       numbered SQL migrations
   - list backup snapshots
   - start a backup now
   - download an encrypted snapshot
+- Import (last, with export): template download, upload and check, start, progress stream, cancel, undo, problem rows, history
 - Export (last)
 
 **Not in v1:** any user or account management endpoints (list users, create, invite, reset password, disable). Those stay in the Firebase console until v2.

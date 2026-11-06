@@ -17,6 +17,7 @@ Read the root `AGENTS.md` first. This folder holds the OpenAPI spec (`openapi.ya
 - **Auth:** bearer token on every route except `/healthz`. All data is scoped to the authenticated user; `user_id` is never accepted from the client.
 - **Errors:** one consistent error body (code, message) across all routes.
 - **Lists:** filterable by month where relevant; paginated if they can grow large.
+- **Streams:** long-running work reports progress with Server-Sent Events (`text/event-stream`), documented on the route: event names and the schema of each event's JSON `data`.
 
 ## Resources (v1)
 
@@ -45,5 +46,10 @@ Read the root `AGENTS.md` first. This folder holds the OpenAPI spec (`openapi.ya
   - status
   - backups: list, run now, download encrypted snapshot
   - no user-management routes in v1
+- `imports` (Excel import; built last, with export):
+  - `GET imports/template` (per-user `.xlsx` with category and source dropdowns)
+  - upload (`multipart/form-data`) checks every row and returns status `review`; nothing is saved until `start`
+  - `start` (202, runs in the background), `events` (Server-Sent Events: `progress`, then `finished`), `cancel` (rolls back), `undo` (deletes the batch), `problems` (`.xlsx` of rows with problems), discard a `review` import
+  - `409 import_in_progress` (one running import per user), `409 import_wrong_status`, `400 invalid_import_file`, `413 file_too_large`
 - `export` (CSV/Excel; built last)
 - `/healthz` (no auth)
