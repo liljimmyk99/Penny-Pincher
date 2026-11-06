@@ -162,6 +162,12 @@ Rules:
 - Admins never see other users' entries through the app. Backup downloads are the encrypted archive only.
 - Secrets in environment files, never committed
 - No financial data in logs
+- **Security hardening** (required before the first deployment; tracked in the M6 · Cyber Security milestone; details and the audit scorecard in `docs/security.md`):
+  - The proxy sends browser security headers on every response: a Content-Security-Policy with `frame-ancestors 'none'`, `X-Frame-Options`, `X-Content-Type-Options: nosniff`, `Referrer-Policy` and `Permissions-Policy`. API responses also send `Cache-Control: no-store`.
+  - Request bodies are size-capped, slow connections time out, and the API is rate-limited per client IP and per user.
+  - CI checks dependencies and images for known vulnerabilities, and Dependabot keeps them updated. No floating image tags.
+  - Containers run with least privilege: non-root where possible, read-only root filesystem, dropped capabilities, `no-new-privileges`. The server accepts only SSH (key-only), 80 and 443.
+  - Security events (auth failures, admin actions) are logged, still with no financial data.
 - Performance is not a concern at this scale; favor simplicity
 
 ## 9. Rules for agents
@@ -173,6 +179,7 @@ Rules:
 - Prefer small, reviewable changes. Run the relevant tests before finishing.
 - Do not hard-code personal data (names, amounts, employers) in code, seeds, or tests; use generic fixtures.
 - When requirements are ambiguous, ask rather than guess, then record the answer here.
+- A change that adds, removes or weakens a security measure updates `docs/security.md` in the same change.
 
 ## 10. Decisions and open decisions
 
@@ -235,4 +242,8 @@ Rules:
 
 ### Open
 
-- **Go library for `.xlsx`** (import template, reading uploads, problem rows, export). Leaning `github.com/xuri/excelize/v2`: pure Go, supports data-validation dropdowns and streaming large sheets. Decide before building import or export.
+- **Go library for `.xlsx`** (import template, reading uploads, problem rows, export). Leaning `github.com/xuri/excelize/v2`: pure Go, supports data-validation dropdowns and streaming large sheets. Decide before building import or export. Whichever library is chosen must cap the unzipped and XML sizes of uploads (zip and XML bombs; `docs/security.md`).
+- **Token revocation, session lifetime and MFA** (#108).
+  - Leaning `VerifyIDTokenAndCheckRevoked` with a short per-user cache, plus a maximum session age from the token's `auth_time`.
+  - In-app MFA (Firebase TOTP, which needs Identity Platform) would change §6.1, so decide whether it is v1 or v2.
+- **Where rate limiting lives** (#106). Leaning in-memory token buckets in the Go API (per client IP before token verification, per user after), not Caddy, whose rate limiter is a plugin that needs a custom build.

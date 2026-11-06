@@ -1,0 +1,229 @@
+# Security
+
+Policy: AGENTS.md §4 (tenancy), §8 (non-functional requirements) and §10 (decisions). This page lists the security measures in the project, what is still planned, and the risks we accept. Encryption is covered in more depth in `docs/encryption.md`, and backups in `docs/backups.md`.
+
+Last audit: 2026-11-06, a code and configuration review against a widely used list of 100 common web vulnerabilities (scorecard below). It is not a penetration test. Server and Firebase console settings live outside the repo, so they are checked through the runbooks and checklists, not the code.
+
+Remaining work is tracked in the **M6 · Cyber Security** milestone, which must be done before the first deployment (#42).
+
+## Threat model in one paragraph
+
+Penny Pincher holds personal financial data for a handful of allowlisted users on one self-hosted server. The main threats are:
+- someone on the internet reading or changing a user's data
+- one user seeing another user's data
+- stolen sessions or passwords
+- a lost, stolen or snapshotted disk or backup
+- financial data leaking into logs or third-party services
+- the server being made unavailable or taken over through a vulnerable dependency
+
+The design doesn't try to protect a running, unlocked server from someone who already has root on it (see `docs/encryption.md`).
+
+## Measures in place
+
+### Authentication and access control
+
+| Measure | Where |
+|---|---|
+| Sign-in is delegated to Firebase Authentication (Google or email and password). The app never sees or stores a password. Firebase handles password hashing, brute-force throttling and reset emails. | `web/src/auth/firebase.ts` |
+| Every API request needs a Firebase ID token in the `Authorization: Bearer` header, verified by the Firebase Admin SDK (signature, issuer, audience, expiry). The only exception is `GET /healthz`. | `backend/internal/auth/middleware.go`, `firebase.go` |
+| **Allowlist:** a valid token is not enough. The uid must also exist in the local `users` table, or the API answers `403 not_allowlisted`. Accounts are added only by an admin with the `api user add` CLI. There is no sign-up screen. | `backend/internal/auth/middleware.go`, `backend/cmd/api/user.go` |
+| **Roles:** `/v1/admin/*` requires the `admin` role, checked on the server. The web hides admin pages from members and shows them "Page not found". A role can only be changed with the CLI, never through the API. | `backend/internal/auth/middleware.go`, `web/src/pages/AdminOnly.tsx` |
+| Routes not built yet return `501`, but only after authentication, so unfinished routes are never open. | `backend/internal/http/server.go` |
+| The Firebase Auth emulator (unsigned tokens) is accepted only for a `demo-` project id. Otherwise the API refuses to start. | `backend/internal/config/config.go` |
+| **No CSRF exposure:** auth is a bearer header, not a cookie, so another site can't make the browser send authenticated requests. No CORS headers are sent, so other origins can't read API responses. | — |
+| **No account enumeration in the UI:** a wrong email and a wrong password show the same message, and "Forgot password" never reveals whether an account exists. | `web/src/auth/errors.ts`, `web/src/auth/firebase.ts` |
+
+### Tenancy (one user can't reach another's data)
+
+| Measure | Where |
+|---|---|
+| Every table has `user_id`, and every query filters on the authenticated user's id, taken from the verified token and never from the request. | `backend/internal/store/*.go` |
+| **Composite foreign keys** `(id, user_id)` make it impossible at the database level to point an expense at another user's category, merchant, template or income source. | `backend/migrations/0001_init.sql` |
+| Triggers enforce the domain rules (protected "Other", refund links to the same user's positive expense, source deletion rules) even if backend code is wrong. | `backend/migrations/0001_init.sql` |
+| Tests check that one user can't see or change another user's records, including through reorder lists that mix in another user's ids. | `backend/internal/http/*_test.go` |
+
+### Input handling and injection
+
+| Measure | Where |
+|---|---|
+| **SQL injection:** every value is passed as a `?` parameter. Where SQL is built from parts (filters, partial updates), only constant fragments are joined. Table names come from code, never from input. | `backend/internal/store/*.go` |
+| Request parsing and types are generated from the OpenAPI spec, so malformed bodies and parameters are rejected with `400` before handlers run, and web and API share one contract. | `api/openapi.yaml`, `backend/internal/api`, `web/src/api/schema.gen.ts` |
+| Server-side limits: names ≤ 100 characters, notes ≤ 500, trend text bounded, batches ≤ 200 items, pages ≤ 1000 rows. Pagination cursors are decoded and validated. | `backend/internal/store`, `backend/internal/http/expenses.go` |
+| Money is integer cents everywhere. Derived values (refund type, tax rate) are computed, never accepted from clients. | AGENTS.md §5 |
+| **No code-execution paths:** the backend doesn't use `os/exec`, server-side templates, XML, `gob` or redirects. JSON is decoded into typed structs only. The server never fetches a URL that came from a user (no SSRF). | `backend/` |
+| **XSS:** React escapes all output, and there is no `dangerouslySetInnerHTML`, `eval` or `postMessage`. `localStorage` holds only UI preferences (theme, sidebar, welcome dismissed), never financial data or tokens. | `web/src/` |
+
+### Transport and data at rest
+
+See `docs/encryption.md` for details and the server runbook.
+
+| Measure | Where |
+|---|---|
+| HTTPS only through Caddy with automatic certificates. HTTP redirects to HTTPS. HSTS for one year (not for `localhost`). | `deploy/Caddyfile` |
+| `api` and `web` ports are only `expose`d on Docker's internal network. Only the proxy publishes 80/443. | `docker-compose.yml` |
+| Every outbound connection uses TLS (Firebase, backup bucket). Plain HTTP to the bucket is refused outside `demo-` projects. | `backend/internal/config/config.go` |
+| The database, Docker's data, `.env` and `secrets/` live on a LUKS2 volume that is unlocked by hand after each reboot. | `docs/encryption.md` |
+| Backups are `VACUUM INTO` copies in a memory-only `tmpfs`, encrypted with `age` to a public key before upload. The server can't decrypt its own backups, and admins can download only the encrypted file. | `backend/internal/backup`, `docs/backups.md` |
+
+### Secrets, logging and errors
+
+| Measure | Where |
+|---|---|
+| Secrets live in `.env` and `secrets/`, both git-ignored. The Firebase web API key is public by design and grants no data access on its own. | `.gitignore`, `.env.example` |
+| Logs are JSON through a **redacting handler** that blanks any attribute whose key looks like money, a merchant, a note, a token or a secret. Handlers log only error *types*, never error text. | `backend/internal/logging` |
+| Errors to clients are generic ("Something went wrong.") with stable codes. No stack traces or SQL errors leave the server. | `backend/internal/http/errors.go`, `server.go` |
+| Web server state (TanStack Query) is in memory only. Nothing financial is persisted in the browser. | `web/src/api/queryClient.ts` |
+
+### Containers, build and slow clients
+
+| Measure | Where |
+|---|---|
+| The API image is `distroless/static`, running as the `nonroot` user, with a static Go binary (no shell or package manager). | `backend/Dockerfile` |
+| The internal web Caddy has its admin API off, no directory listing, and serves static files only. | `web/Caddyfile` |
+| The API server has a 5-second `ReadHeaderTimeout` against slow-header attacks. | `backend/cmd/api/main.go` |
+| CI runs vet, tests, lint, type checks, spec lint, the generated-code checks and the end-to-end suite on every PR. GitHub Actions has read-only `contents` permission. | `.github/workflows/ci.yml` |
+
+## Planned: M6 · Cyber Security
+
+| Issue | What it adds | Audit items |
+|---|---|---|
+| #105 | CSP, `frame-ancestors`/`X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `no-store` on API responses, no `Server` header | 26, 36, 59, 70, 71, 89, 90, 91 |
+| #106 | Request body caps, Caddy timeouts, per-IP and per-user rate limits (413 / 429) | 50, 62, 63, 64, 75 |
+| #107 | Dependabot, `govulncheck`, `npm audit`, image scanning, pinned Caddy tag, secret scanning | 34, 99 |
+| #108 | Token revocation check, maximum session age, MFA decision, password policy | 16, 21, 72, 85 |
+| #109 | Read-only containers, dropped capabilities, `no-new-privileges`, resource limits; firewall, SSH and fail2ban runbook | 31, 98, 100 |
+| #110 | Auth-failure and admin-action logs, Caddy access logs without query strings, log rotation, alerting, Firebase console checklist | 33, 73, 96 |
+
+When an issue is closed, update its rows in the scorecard below.
+
+**Excel import (M8)** brings file uploads into scope. `.xlsx` files are zipped XML, so the library chosen in #93 must cap the unzipped size and the XML size (for example excelize's `UnzipSizeLimit` and `UnzipXMLSizeLimit`), on top of the 10 MB / 50,000-row limits in AGENTS.md §10. This covers audit items 39 and 65.
+
+## Accepted risks
+
+- **DDoS (item 61).** One server with no CDN. A large network flood will take the app down. At this scale that is acceptable, and the data stays safe.
+- **`/healthz` is public** and shows the version and uptime, because the admin status and container health checks read it (AGENTS.md §6.12). It shows no data.
+- **A running, unlocked server** is not protected from someone with root, or from a VPS provider reading memory (`docs/encryption.md`).
+
+## Audit scorecard (2026-11-06)
+
+✅ guarded · ⚠️ partly guarded · ❌ not guarded · — doesn't apply.
+
+**Totals: 56 ✅ · 13 ⚠️ · 11 ❌ · 20 —.** Of the 80 that apply, 70% are fully guarded. M6 targets every ⚠️ and ❌ except item 61.
+
+| # | Item | Status | Notes / issue |
+|---|---|---|---|
+| **Injection** ||||
+| 1 | SQL injection | ✅ | Parameterized queries only |
+| 2 | Cross-site scripting | ✅ | React escaping. CSP adds depth in #105 |
+| 3 | CSRF | ✅ | Bearer header, no cookies |
+| 4 | Remote code execution | ✅ | No exec, templates or dynamic code; distroless image |
+| 5 | Command injection | ✅ | No `os/exec` |
+| 6 | XML injection | — | No XML (see M8 note) |
+| 7 | LDAP injection | — | |
+| 8 | XPath injection | — | |
+| 9 | HTML injection | ✅ | React escaping |
+| 10 | SSI injection | — | Caddy `templates` not used |
+| 11 | OS command injection | ✅ | No `os/exec` |
+| 12 | Blind SQL injection | ✅ | Parameterized queries only |
+| 13 | Server-side template injection | — | No server templates |
+| **Authentication and sessions** ||||
+| 14 | Session fixation | ✅ | Firebase-issued tokens, no server sessions |
+| 15 | Brute force | ✅ | Firebase throttling. API rate limits in #106 |
+| 16 | Session hijacking | ⚠️ | HTTPS/HSTS, but no revocation check (#108) or CSP (#105) |
+| 17 | Password cracking | ✅ | Firebase hashing |
+| 18 | Weak password storage | ✅ | No passwords stored by the app |
+| 19 | Insecure authentication | ✅ | Token on every request + allowlist |
+| 20 | Cookie theft | ✅ | No auth cookies |
+| 21 | Credential reuse | ⚠️ | No MFA or password policy yet (#108) |
+| **Sensitive data exposure** ||||
+| 22 | Inadequate encryption | ✅ | TLS, LUKS, `age` |
+| 23 | IDOR | ✅ | `user_id` scoping + composite FKs + tests |
+| 24 | Data leakage | ✅ | Redacting logger, generic errors |
+| 25 | Unencrypted data storage | ✅ | LUKS, `tmpfs` for snapshots |
+| 26 | Missing security headers | ❌ | #105 |
+| 27 | Insecure file handling | ✅ | Backup ids mapped to known keys only |
+| **Security misconfiguration** ||||
+| 28 | Default passwords | ✅ | None exist |
+| 29 | Directory listing | ✅ | Not enabled |
+| 30 | Unprotected API endpoints | ✅ | Auth middleware wraps every route |
+| 31 | Open ports and services | ✅ | Only 80/443 published. Host firewall in #109 |
+| 32 | Improper access controls | ✅ | Server-side role check |
+| 33 | Information disclosure | ⚠️ | Version on `/healthz` (accepted), `Server` header (#105), no audit log (#110) |
+| 34 | Unpatched software | ⚠️ | No automated scanning or updates (#107) |
+| 35 | Misconfigured CORS | ✅ | No CORS headers sent |
+| 36 | Security headers misconfiguration | ❌ | #105 |
+| **XML** ||||
+| 37 | XXE | — | No XML. Go's parser doesn't load external entities |
+| 38 | XML entity expansion | — | See M8 note |
+| 39 | XML bomb | — | See M8 note |
+| **Broken access control** ||||
+| 40 | Inadequate authorization | ✅ | |
+| 41 | Privilege escalation | ✅ | Roles set only by the CLI |
+| 42 | IDOR (repeat) | ✅ | |
+| 43 | Forceful browsing | ✅ | API enforces; web shows "Page not found" |
+| 44 | Missing function-level access control | ✅ | `/v1/admin/*` checked in middleware |
+| **Insecure deserialization** ||||
+| 45 | RCE via deserialization | ✅ | JSON into typed structs only |
+| 46 | Data tampering | ✅ | Server validates; derived values computed |
+| 47 | Object injection | ✅ | |
+| **API security** ||||
+| 48 | Insecure API endpoints | ✅ | |
+| 49 | API key exposure | ✅ | Secrets git-ignored. Web key public by design (restrict in #110) |
+| 50 | Lack of rate limiting | ❌ | #106 |
+| 51 | Inadequate input validation | ✅ | Spec-generated parsing + server limits |
+| **Insecure communication** ||||
+| 52 | Man-in-the-middle | ✅ | TLS + HSTS |
+| 53 | Insufficient transport security | ✅ | |
+| 54 | Insecure TLS configuration | ✅ | Caddy's modern defaults |
+| 55 | Insecure protocols | ✅ | Plain HTTP redirected or refused |
+| **Client-side** ||||
+| 56 | DOM-based XSS | ✅ | No `innerHTML`/`eval` |
+| 57 | Insecure cross-origin communication | ✅ | No `postMessage` |
+| 58 | Browser cache poisoning | ✅ | No reflected headers. `no-store` added in #105 |
+| 59 | Clickjacking | ❌ | #105 |
+| 60 | HTML5 security issues | ✅ | Storage holds UI preferences only |
+| **Denial of service** ||||
+| 61 | DDoS | ❌ | Accepted risk |
+| 62 | Application-layer DoS | ⚠️ | #106 |
+| 63 | Resource exhaustion | ❌ | No body size limits (#106) |
+| 64 | Slowloris | ⚠️ | API has a header timeout; Caddy has none (#106) |
+| 65 | XML denial of service | — | See M8 note |
+| **Other** ||||
+| 66 | SSRF | ✅ | Outbound hosts come from config only |
+| 67 | HTTP parameter pollution | ✅ | Generated typed parameter binding |
+| 68 | Open redirects | ✅ | No redirects from input |
+| 69 | File inclusion | ✅ | Migrations embedded; static root only |
+| 70 | Security header bypass | ❌ | No headers yet (#105) |
+| 71 | Clickjacking (repeat) | ❌ | #105 |
+| 72 | Inadequate session timeout | ⚠️ | #108 |
+| 73 | Insufficient logging and monitoring | ⚠️ | #110 |
+| 74 | Business logic | ✅ | Triggers + transactions + tests |
+| 75 | API abuse | ⚠️ | Allowlist only; rate limits in #106 |
+| **Mobile** ||||
+| 76 | Insecure data storage on mobile | — | No mobile app (Mac app not built yet) |
+| 77 | Insecure data transmission on mobile | — | |
+| 78 | Insecure mobile API endpoints | ✅ | Same API and checks |
+| 79 | Mobile app reverse engineering | — | No secrets in clients |
+| **IoT and Web of Things** ||||
+| 80–84 | IoT device management, weak IoT auth, IoT device bugs, smart-home access, IoT data privacy | — | |
+| **Authentication bypass** ||||
+| 85 | Insecure "remember me" | ⚠️ | Indefinite sessions (#108) |
+| 86 | CAPTCHA bypass | — | No public sign-up |
+| **SSRF** ||||
+| 87 | Blind SSRF | ✅ | |
+| 88 | Time-based blind SSRF | ✅ | |
+| **Content spoofing** ||||
+| 89 | MIME sniffing | ❌ | #105 |
+| 90 | X-Content-Type-Options bypass | ❌ | #105 |
+| 91 | CSP bypass | ❌ | No CSP yet (#105) |
+| **Business logic flaws** ||||
+| 92 | Inconsistent validation | ✅ | One spec; DB triggers back up the backend |
+| 93 | Race conditions | ✅ | SQLite transactions, unique constraints, backup lock |
+| 94 | Order processing | — | |
+| 95 | Price manipulation | — | |
+| 96 | Account enumeration | ✅ | UI and reset hide it. Console setting checked in #110 |
+| 97 | User-based flaws | ✅ | |
+| **Zero-day** ||||
+| 98 | Unknown vulnerabilities | ⚠️ | Hardening in #109 |
+| 99 | Unpatched vulnerabilities | ⚠️ | #107 |
+| 100 | Day-zero exploits | ⚠️ | #109 |
