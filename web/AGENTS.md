@@ -226,6 +226,10 @@ Reached from the account menu; hidden from members. **v1 builds only app status 
   - Reset password, Disable/Enable, and Resend/Cancel invite
   - these stay in the Firebase console until v2; the canvas shows the v2 direction (admins cannot disable or demote themselves; admins never see other users' entries)
 - Keep a "Firebase console" link in the header for account tasks.
+- As built (`src/pages/admin`, hooks in `src/api/admin.ts`):
+  - Reads `GET /v1/admin/status` and `GET /v1/admin/backups`; the list polls every 2s while any backup is `running`. "Back up now" posts to `/v1/admin/backups`, toasts "Backup started", and toasts "Backup finished" (or "Backup failed") when that backup leaves `running`.
+  - Download fetches the encrypted archive through the API client (so the bearer token is sent) and saves it as a blob; it is offered only for succeeded backups.
+  - The "Firebase console" link goes to the project's Authentication users page, built from `VITE_FIREBASE_PROJECT_ID`.
 
 ### Empty states
 - **New account** (first sign-in, no data)
