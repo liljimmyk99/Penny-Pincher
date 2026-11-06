@@ -172,6 +172,10 @@ Define these as tokens (CSS custom properties or the UI library's theme) in one 
 - **Income vs. spent** paired bars per month. Clicking a month opens that month's Summary.
 - Ranked category bars of monthly averages.
 - Month-by-month table, where clicking a row opens that month; total and monthly-average rows at the bottom.
+- As built (`src/pages/yearly`, `PairedBars` in `src/charts`):
+  - Reads `GET /v1/summaries/yearly/{year}` (`useYearlySummary`); the year is `?year=` (default: current year). Tile averages and the table's average row are `total ÷ average_month_count` in integer cents, rounded half away from zero (`averageCents`).
+  - Income vs. spent (net income and spent) is `PairedBars`: each month's pair is a button whose accessible name carries the figures and opens `/summary?month=`; the chart also has a visually hidden year summary. Category bars are `RankedBars` of `monthly_average_cents` (zero averages left out).
+  - The table's month name is a link and the whole row is clickable; months without entries show "—".
 
 ### Trends
 Two tabs at the top: **Custom trends** and **By category**.

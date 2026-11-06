@@ -24,6 +24,28 @@ export function shellFetch(me: unknown) {
     if (path === "/v1/me") return Response.json(me);
     const month = /^\/v1\/summaries\/monthly\/(.+)$/.exec(path)?.[1];
     if (month) return Response.json(emptySummary(month));
+    const year = /^\/v1\/summaries\/yearly\/(\d+)$/.exec(path)?.[1];
+    if (year) return Response.json(emptyYearly(Number(year)));
     return Response.json({ items: [], next_cursor: null });
+  };
+}
+
+/** A year with nothing in it, as `GET /v1/summaries/yearly/{year}` returns it. */
+export function emptyYearly(year: number): Schemas["YearlySummary"] {
+  return {
+    year,
+    months: Array.from({ length: 12 }, (_, i) => ({
+      month: `${year}-${String(i + 1).padStart(2, "0")}`,
+      gross_cents: 0,
+      gross_taxable_cents: 0,
+      net_cents: 0,
+      spent_cents: 0,
+      saving_cents: 0,
+      left_over_cents: 0,
+      has_entries: false,
+    })),
+    categories: [],
+    totals: { gross_cents: 0, gross_taxable_cents: 0, net_cents: 0, spent_cents: 0, saving_cents: 0, left_over_cents: 0 },
+    average_month_count: 0,
   };
 }

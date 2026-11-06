@@ -16,3 +16,15 @@ export function useMonthlySummary(month: string) {
       unwrap(api.GET("/v1/summaries/monthly/{month}", { params: { path: { month } }, signal })),
   });
 }
+
+export const yearlySummaryQueryKey = (year: number) => ["summaries", "yearly", year] as const;
+
+/** One year's twelve months, category totals and averages, zero-filled. */
+export function useYearlySummary(year: number) {
+  const api = useApi();
+  return useQuery<Schemas["YearlySummary"]>({
+    queryKey: yearlySummaryQueryKey(year),
+    queryFn: ({ signal }) =>
+      unwrap(api.GET("/v1/summaries/yearly/{year}", { params: { path: { year } }, signal })),
+  });
+}

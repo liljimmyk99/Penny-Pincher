@@ -7,13 +7,13 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import { SummaryPage } from "./pages/summary/SummaryPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { TemplatesPage } from "./pages/templates/TemplatesPage";
+import { YearlyPage } from "./pages/yearly/YearlyPage";
 import { TransactionsPage } from "./pages/transactions/TransactionsPage";
 import { AppShell } from "./shell/AppShell";
 import { ADMIN_PATH, EXPORT_PATH, NAV_ITEMS, SETTINGS_PATH } from "./shell/navigation";
 
 /** What each placeholder says until its screen is built. */
 const DESCRIPTIONS: Record<string, string> = {
-  "/yearly": "Month-by-month totals, category totals and monthly averages for a year.",
   "/trends": "Custom trends and spending by category over time.",
 };
 
@@ -24,6 +24,7 @@ const SCREENS: Record<string, ReactElement> = {
   "/summary": <SummaryPage />,
   "/templates": <TemplatesPage />,
   "/transactions": <TransactionsPage />,
+  "/yearly": <YearlyPage />,
 };
 
 /** The signed-in app (AuthGate has already loaded `/v1/me`). */

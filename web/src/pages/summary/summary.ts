@@ -23,7 +23,7 @@ export function barWidth(cents: number, maxCents: number): number {
 export const CHART_PALETTE_SIZE = 8;
 
 /** The colour for a category's bar or slice. Saving always keeps its own colour. */
-export function categoryColor(category: Category, index: number): string {
+export function categoryColor(category: Pick<Category, "is_saving" | "color">, index: number): string {
   if (category.is_saving) return "var(--color-saving-bar)";
   return category.color ?? `var(--chart-${(index % CHART_PALETTE_SIZE) + 1})`;
 }
