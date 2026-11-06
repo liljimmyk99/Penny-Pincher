@@ -115,3 +115,9 @@ migrations/       numbered SQL migrations
 - Codegen options live in `internal/api/oapi-codegen.yaml`. `nullable-type` is on, so nullable fields are `nullable.Nullable[T]`: a PATCH handler uses `IsSpecified()` to tell an omitted field from `null` (which clears it). In responses, always set nullable fields (use `nullableOf` in `internal/http`); an unset one would marshal as the zero value, not `null`.
 - `internal/http.Server` implements the generated `StrictServerInterface` and embeds `api.Unimplemented`; any operation it does not override answers `501 not_implemented` with the standard error body. To build an endpoint, add a method on `Server`.
 - All error responses (decode errors, 501, 500) use the spec's `Error` body via `internal/http/errors.go`.
+
+## Backups
+
+- `internal/backup` takes `VACUUM INTO` snapshots, encrypts them to the age public key in `BACKUP_AGE_RECIPIENT`, and uploads to the S3 bucket (`BACKUP_S3_*`). The API never decrypts; only `api backup restore` does, with a private key file.
+- `Service.Run(ctx, backup.Manual)` is the manual path the admin API (#40) calls; it returns `ErrBusy` if a run is in progress (map to 409). `Service.Last()` and `Service.List()` feed the status tiles and backup list.
+- Never log snapshot contents or error text; log the error type only. Runbook: `/docs/backups.md`.

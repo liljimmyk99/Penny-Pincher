@@ -39,6 +39,18 @@ func run() error {
 		return runUser(context.Background(), cfg.DBPath, os.Args[2:], os.Stdout)
 	}
 
+	if len(os.Args) > 1 && os.Args[1] == "backup" {
+		if len(os.Args) > 2 && os.Args[2] == "restore" {
+			return runBackup(context.Background(), cfg, nil, os.Args[2:], os.Stdout)
+		}
+		db, err := store.Open(cfg.DBPath)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		return runBackup(context.Background(), cfg, db, os.Args[2:], os.Stdout)
+	}
+
 	if len(os.Args) > 1 && os.Args[1] == "migrate" {
 		db, err := store.Open(cfg.DBPath)
 		if err != nil {
@@ -72,6 +84,15 @@ func run() error {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	bsvc, err := newBackupService(cfg.Backup, db, "")
+	if err != nil {
+		return err
+	}
+	if bsvc != nil {
+		go bsvc.RunScheduled(ctx, 15*time.Minute, log)
+	} else {
+		log.Warn("backups are not configured; set BACKUP_AGE_RECIPIENT and BACKUP_S3_*")
+	}
 	go func() {
 		<-ctx.Done()
 		sctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

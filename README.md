@@ -65,6 +65,10 @@ npm run lint && npm run typecheck && npm test
 
 `web/.npmrc` sets `legacy-peer-deps` because npm's peer resolver currently crashes on the Vitest 4 peer set.
 
+## Backups
+
+Encrypted snapshots go to an S3-compatible bucket. Take one now with `docker compose exec api /api backup now`; restore with `api backup restore --in <file> --identity <key> --out restored.db`. Setup and the full restore runbook: [docs/backups.md](docs/backups.md).
+
 ## CI
 
 GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `master`:
