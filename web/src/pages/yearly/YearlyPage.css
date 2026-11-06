@@ -1,0 +1,71 @@
+/* Yearly (web/AGENTS.md "Yearly"). Colours come from tokens.css. */
+
+.yearly {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.yearly__head {
+  padding: 20px 20px 12px;
+}
+
+.yearly__head h2 {
+  margin: 0;
+  font: var(--text-section-title);
+}
+
+.yearly__desc {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.yearly__status,
+.yearly__empty {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.yearly__empty {
+  padding: 0 20px 20px;
+}
+
+.yearly__scroll {
+  overflow-x: auto;
+}
+
+.yearly__table {
+  min-width: 520px;
+}
+
+.yearly__table th[scope="row"] {
+  font-weight: 700;
+}
+
+.yearly__row {
+  cursor: pointer;
+}
+
+.yearly__row:hover {
+  background: var(--color-surface-soft);
+}
+
+.yearly__row.is-quiet {
+  color: var(--color-text-muted);
+}
+
+.yearly__income {
+  color: var(--color-income);
+}
+
+.yearly__table tfoot th,
+.yearly__table tfoot td {
+  font-weight: 800;
+  border-bottom: 0;
+}
+
+.yearly__table tfoot tr:first-child th,
+.yearly__table tfoot tr:first-child td {
+  border-top: 1px solid var(--color-border);
+}
