@@ -29,6 +29,7 @@ interface Props {
   onKeyDown?: (e: KeyboardEvent<HTMLInputElement>) => void;
   /** The input's class: a table cell by default, `field` in a form. */
   className?: string;
+  autoFocus?: boolean;
 }
 
 /**
@@ -49,6 +50,7 @@ export function MerchantCombobox({
   onCommit,
   onKeyDown,
   className = "cell-input",
+  autoFocus,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
@@ -144,6 +146,7 @@ export function MerchantCombobox({
         aria-invalid={invalid || undefined}
         aria-describedby={describedBy}
         autoComplete="off"
+        autoFocus={autoFocus}
         maxLength={MERCHANT_MAX}
         placeholder="Merchant"
         value={value}
