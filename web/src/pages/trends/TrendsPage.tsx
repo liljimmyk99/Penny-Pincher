@@ -15,6 +15,7 @@ import { formatMonth, formatShortDate, monthName, todayISO } from "../../lib/dat
 import { changeTone } from "../../lib/change";
 import { formatCents } from "../../lib/money";
 import { Page } from "../Page";
+import { CategoryTrends } from "./CategoryTrends";
 import { NewTrendDialog } from "./NewTrendDialog";
 import {
   describeMatch,
@@ -44,7 +45,7 @@ function useMatchNames(t: Trend | undefined) {
   };
 }
 
-/** Trends (web/AGENTS.md "Trends"). The By category tab is built separately. */
+/** Trends (web/AGENTS.md "Trends"). */
 export function TrendsPage() {
   const [params, setParams] = useSearchParams();
   const tab = params.get("tab") === "category" ? "category" : "custom";
@@ -73,7 +74,7 @@ export function TrendsPage() {
         {tab === "custom" ? (
           <CustomTrends />
         ) : (
-          <section className="card trends__empty"><p>Spending by category over time isn’t built yet.</p></section>
+          <CategoryTrends />
         )}
       </div>
     </Page>

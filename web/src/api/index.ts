@@ -57,8 +57,10 @@ export {
   useMonthIncome,
 } from "./entries";
 export {
+  categoryTrendsQueryKey,
   customTrendQueryKey,
   savedTrendsQueryKey,
+  useCategoryTrends,
   useCustomTrend,
   useSavedTrendMutations,
   useSavedTrends,

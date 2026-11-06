@@ -60,3 +60,14 @@ export function useSavedTrendMutations() {
   });
   return { create };
 }
+
+export const categoryTrendsQueryKey = (year: number) => ["trends", "by-category", year] as const;
+
+/** Twelve monthly totals for `year` and `year - 1`, per category and all spending. */
+export function useCategoryTrends(year: number) {
+  const api = useApi();
+  return useQuery<Schemas["CategoryTrends"]>({
+    queryKey: categoryTrendsQueryKey(year),
+    queryFn: ({ signal }) => unwrap(api.GET("/v1/trends/by-category", { params: { query: { year } }, signal })),
+  });
+}

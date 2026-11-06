@@ -247,3 +247,86 @@ button.paired__group:hover {
   border-radius: 2px 2px 0 0;
   background: var(--color-spent);
 }
+
+/* This year vs. last year: last year is the quieter bar. */
+.paired--years .paired__bar--a {
+  background: var(--color-spent);
+}
+
+.paired--years .paired__bar--b {
+  background: var(--color-border-strong, var(--color-text-muted));
+  opacity: 0.55;
+}
+
+/* ---- Diverging horizontal bars -------------------------------------------------- */
+
+.diverging {
+  list-style: none;
+  margin: 0;
+  padding: 0 20px 16px;
+}
+
+.diverging__row {
+  display: grid;
+  grid-template-columns: minmax(80px, 28%) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.diverging__row:hover {
+  background: var(--color-surface-soft);
+  border-color: var(--color-border);
+}
+
+.diverging__row.is-selected {
+  background: var(--color-selected-bg);
+  border-color: var(--color-selected-line);
+}
+
+.diverging__track {
+  position: relative;
+  height: 14px;
+}
+
+.diverging__track::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  bottom: -4px;
+  width: 1px;
+  background: var(--color-text-muted);
+}
+
+.diverging__bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.diverging__bar--up {
+  left: 50%;
+  border-radius: 0 4px 4px 0;
+}
+
+.diverging__bar--down {
+  right: 50%;
+  border-radius: 4px 0 0 4px;
+}
+
+.diverging__bar--worse {
+  background: var(--color-worse);
+}
+
+.diverging__bar--better {
+  background: var(--color-better);
+}

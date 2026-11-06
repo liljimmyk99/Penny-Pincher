@@ -20,6 +20,8 @@ export function PairedBars({
   aName,
   bName,
   onSelect,
+  selectedId,
+  variant,
   label,
   summary,
 }: {
@@ -27,6 +29,9 @@ export function PairedBars({
   aName: string;
   bName: string;
   onSelect?: (id: string) => void;
+  selectedId?: string | null;
+  /** "years" colours the pair as this year (a) vs. last year (b). */
+  variant?: "years";
   label: string;
   /** One sentence for screen readers, e.g. the year's totals. */
   summary: string;
@@ -34,7 +39,7 @@ export function PairedBars({
   const max = Math.max(0, ...groups.flatMap((g) => [g.a, g.b]));
   const height = (cents: number) => (cents <= 0 || max <= 0 ? 0 : Math.max(2, Math.round((cents / max) * 100)));
   return (
-    <div className="paired">
+    <div className={`paired${variant ? ` paired--${variant}` : ""}`}>
       <p className="visually-hidden">{summary}</p>
       <ul className="paired__plot" aria-label={label}>
         {groups.map((g) => {
@@ -50,7 +55,10 @@ export function PairedBars({
           return (
             <li key={g.id}>
               {onSelect ? (
-                <button type="button" className="paired__group" aria-label={g.name} onClick={() => onSelect(g.id)}>
+                <button type="button" className={`paired__group${selectedId === g.id ? " is-selected" : ""}`}
+                  aria-pressed={selectedId === undefined ? undefined : selectedId === g.id}
+                  aria-label={g.name}
+                  onClick={() => onSelect(g.id)}>
                   {inner}
                 </button>
               ) : (
