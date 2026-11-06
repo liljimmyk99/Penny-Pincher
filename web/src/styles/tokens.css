@@ -54,6 +54,20 @@
   --color-unconfirmed-text: #9a3412;
   --color-danger: #b91c1c;
 
+  /* Change indicators: orange = worse, blue = better (Saving flips). Text-safe on the surface. */
+  --color-worse: #9a3412;
+  --color-better: #1e40af;
+
+  /* Fallback slice colours for categories without their own (donut). Saving keeps --color-saving-bar. */
+  --chart-1: #0f766e;
+  --chart-2: #b45309;
+  --chart-3: #7c3aed;
+  --chart-4: #be123c;
+  --chart-5: #4d7c0f;
+  --chart-6: #0369a1;
+  --chart-7: #a21caf;
+  --chart-8: #64748b;
+
   /* Forms, links and alerts (sign-in screens onward) */
   --color-text-secondary: #374151; /* field labels */
   --color-placeholder: #6b7280;
@@ -132,6 +146,18 @@
   --color-unconfirmed-pill: #4a2a10;
   --color-unconfirmed-text: #fdba74;
   --color-danger: #dc2626;
+
+  --color-worse: #fdba74;
+  --color-better: #a9c4ff;
+
+  --chart-1: #2dd4bf;
+  --chart-2: #fbbf24;
+  --chart-3: #c4b5fd;
+  --chart-4: #fb7185;
+  --chart-5: #a3e635;
+  --chart-6: #38bdf8;
+  --chart-7: #e879f9;
+  --chart-8: #94a3b8;
 
   --color-text-secondary: #c9d2df;
   --color-placeholder: #7d889b;

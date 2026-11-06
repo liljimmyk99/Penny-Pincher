@@ -7,6 +7,7 @@ import { fakeAuth, testUser, type FakeAuth } from "../test/fakeAuth";
 import { ThemeProvider } from "../theme/ThemeProvider";
 import { AuthGate } from "./AuthGate";
 import { createSession } from "./session";
+import { shellFetch } from "../test/summary";
 import { SessionProvider } from "./SessionProvider";
 
 const me = { id: "1", email: testUser.email, display_name: null, role: "member" };
@@ -14,7 +15,12 @@ const error = (status: number, code: string) =>
   Response.json({ error: { code, message: code } }, { status });
 
 function renderApp(auth: FakeAuth, respond: (req: Request) => Response | Promise<Response>) {
-  const fetchMock = vi.fn(async (req: Request) => respond(req));
+  const fetchMock = vi.fn(async (req: Request) => {
+    const path = new URL(req.url).pathname;
+    // The app lands on Summary: give it an empty month rather than the /v1/me body.
+    if (path.startsWith("/v1/summaries/")) return shellFetch(null)(req);
+    return respond(req);
+  });
   const session = createSession(auth);
   const api = createApiClient({
     baseUrl: "http://api.test",

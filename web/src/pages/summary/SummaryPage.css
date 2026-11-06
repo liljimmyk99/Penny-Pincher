@@ -1,0 +1,374 @@
+/* Summary (web/AGENTS.md "Summary"). Colours come from tokens.css. */
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.summary__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  padding: 20px 20px 12px;
+}
+
+.summary__head h2 {
+  margin: 0;
+  font: var(--text-section-title);
+}
+
+.summary__desc {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.summary__status {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.summary__scroll {
+  overflow-x: auto;
+}
+
+.tile__value--muted {
+  color: var(--color-text-muted);
+}
+
+.tile__value--income {
+  color: var(--color-income);
+}
+
+.tile__value--saving {
+  color: var(--color-saving-text);
+}
+
+.tile__value--income.tile__value--muted,
+.tile__value--saving.tile__value--muted {
+  color: var(--color-text-muted);
+}
+
+/* ---- Change indicators --------------------------------------------------- */
+
+.change {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.change--worse {
+  color: var(--color-worse);
+}
+
+.change--better {
+  color: var(--color-better);
+}
+
+.change--none {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+/* ---- Income rows ------------------------------------------------------------ */
+
+.summary__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0 12px 12px;
+}
+
+.summary__row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.summary__row:hover {
+  background: var(--color-surface-soft);
+}
+
+.summary__row-name {
+  font-weight: 700;
+}
+
+.summary__row-sub {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.summary__row-amount {
+  min-width: 96px;
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary__row-amount--income {
+  color: var(--color-income);
+}
+
+.summary__total {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-top: 6px;
+  padding: 12px 8px 4px;
+  border-top: 1px solid var(--color-divider);
+  font-weight: 700;
+}
+
+/* ---- Dashed empty panels ------------------------------------------------------ */
+
+.summary__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin: 0 20px 20px;
+  padding: 20px;
+  border: 2px dashed var(--color-border-strong);
+  border-radius: var(--radius-card);
+  color: var(--color-text-muted);
+}
+
+.summary__empty p {
+  margin: 0;
+}
+
+/* ---- Bars / Donut toggle --------------------------------------------------------- */
+
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-field);
+}
+
+.segmented button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.segmented button[aria-pressed="true"] {
+  background: var(--color-selected-bg);
+  color: var(--color-selected-text);
+}
+
+/* ---- Donut + legend ------------------------------------------------------------------ */
+
+.summary__donut {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-6);
+  padding: 8px 20px 20px;
+}
+
+.summary__donut-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.legend {
+  list-style: none;
+  flex: 1 1 320px;
+  margin: 0;
+  padding: 0;
+}
+
+.legend__row {
+  display: grid;
+  grid-template-columns: 14px minmax(80px, 1fr) auto auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 40px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.legend__row:hover {
+  background: var(--color-surface-soft);
+}
+
+.legend__row.is-highlighted {
+  background: var(--color-selected-bg);
+  border-color: var(--color-selected-line);
+}
+
+.legend__row.is-dimmed {
+  opacity: 0.55;
+}
+
+.legend__swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.legend__name {
+  font-weight: 700;
+}
+
+.legend__amount,
+.legend__detail,
+.legend__change {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.legend__amount {
+  font-weight: 700;
+}
+
+.legend__detail {
+  color: var(--color-text-muted);
+}
+
+/* ---- Income dialog ---------------------------------------------------------------------- */
+
+.income-dialog {
+  width: min(720px, calc(100vw - 32px));
+}
+
+.income-dialog__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-table th,
+.summary-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--color-divider);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.summary-table thead th {
+  font: var(--text-eyebrow);
+  letter-spacing: var(--eyebrow-spacing);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.summary-table .num {
+  text-align: right;
+}
+
+.summary-table tfoot th,
+.summary-table tfoot td {
+  font-weight: 700;
+}
+
+/* ---- Welcome card ------------------------------------------------------------------------- */
+
+.welcome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 20px;
+}
+
+.welcome__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.welcome__title {
+  margin: 4px 0 0;
+  font: var(--text-section-title);
+}
+
+.welcome__progress {
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-divider);
+  overflow: hidden;
+}
+
+.welcome__progress span {
+  display: block;
+  height: 100%;
+  background: var(--color-primary);
+}
+
+.welcome__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.welcome__steps li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.welcome__tick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--color-border-strong);
+  border-radius: 50%;
+}
+
+.welcome__steps .is-done .welcome__tick {
+  border-color: var(--color-income);
+  background: var(--color-income);
+  color: var(--color-surface);
+}
+
+.welcome__steps .is-done a {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+.welcome__note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
