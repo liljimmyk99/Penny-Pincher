@@ -51,7 +51,27 @@ func TestBackupConfig(t *testing.T) {
 		"BACKUP_AGE_RECIPIENT": "age1x", "BACKUP_S3_ENDPOINT": "s3.example.com", "BACKUP_S3_BUCKET": "b",
 		"BACKUP_S3_ACCESS_KEY": "k", "BACKUP_S3_SECRET_KEY": "s",
 	}))
-	if err != nil || !c.Backup.Enabled() {
+	if err != nil || !c.Backup.Enabled() || c.Backup.Insecure {
 		t.Fatalf("got %+v, %v", c.Backup, err)
+	}
+}
+
+func TestBackupInsecureOnlyForDemoProjects(t *testing.T) {
+	m := map[string]string{
+		"BACKUP_AGE_RECIPIENT": "age1x", "BACKUP_S3_ENDPOINT": "minio:9000", "BACKUP_S3_BUCKET": "b",
+		"BACKUP_S3_ACCESS_KEY": "k", "BACKUP_S3_SECRET_KEY": "s", "BACKUP_S3_INSECURE": "1",
+	}
+	m["FIREBASE_PROJECT_ID"] = "demo-e2e"
+	c, err := Load(env(m))
+	if err != nil || !c.Backup.Insecure {
+		t.Fatalf("demo project: got %+v, %v", c.Backup, err)
+	}
+	m["FIREBASE_PROJECT_ID"] = "real-project"
+	if _, err := Load(env(m)); err == nil {
+		t.Fatal("expected an error for plain HTTP to the bucket with a real project")
+	}
+	delete(m, "FIREBASE_PROJECT_ID")
+	if _, err := Load(env(m)); err == nil {
+		t.Fatal("expected an error for plain HTTP to the bucket with no project")
 	}
 }

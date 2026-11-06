@@ -39,7 +39,8 @@ type Backup struct {
 	Region    string
 	AccessKey string
 	SecretKey string
-	// Insecure uses plain HTTP to the endpoint (local test buckets only).
+	// Insecure uses plain HTTP to the endpoint (BACKUP_S3_INSECURE=1). It is for
+	// local test buckets only, so Load allows it only with a "demo-" project.
 	Insecure bool
 }
 
@@ -91,6 +92,11 @@ func Load(getenv func(string) string) (Config, error) {
 	}
 	if err := c.Backup.Validate(); err != nil {
 		return c, err
+	}
+	// Everything leaving the server is encrypted in transit (AGENTS.md section 8).
+	// Snapshots are age-encrypted anyway, but the bucket credentials are not.
+	if c.Backup.Insecure && !strings.HasPrefix(c.FirebaseProjectID, "demo-") {
+		return c, fmt.Errorf("BACKUP_S3_INSECURE is set, but FIREBASE_PROJECT_ID %q is not a demo- project; refusing plain HTTP to the backup bucket", c.FirebaseProjectID)
 	}
 	if v := getenv("DB_PATH"); v != "" {
 		c.DBPath = v

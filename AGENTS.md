@@ -154,7 +154,8 @@ Rules:
 
 ## 8. Non-functional requirements
 
-- HTTPS only, via reverse proxy with automatic certificates
+- HTTPS only, via reverse proxy with automatic certificates, with HSTS. Every connection that leaves the server (Firebase, the backup bucket) uses TLS.
+- **Data encrypted at rest:** the database, Docker's data, `.env` and secrets live on an encrypted volume; plaintext backup snapshots never touch disk. See section 10 and `docs/encryption.md`.
 - Token verification on every API request; all data access scoped by `user_id`
 - Account admin tasks in v1 (list users, create accounts, password resets) use the Firebase console. Expose a `/healthz` endpoint for app status, which the admin panel also reads.
 - Backups: weekly (Sundays) and monthly (the 1st) snapshots of the SQLite database, encrypted, stored off the server. Keep the last 8 weekly and 12 monthly. Admins can also start one manually from the admin panel. Restore must be tested.
@@ -224,6 +225,13 @@ Rules:
   - **Progress is pushed with Server-Sent Events** (`GET /v1/imports/{id}/events`): `progress` events, then one `finished` event. Web reads it with `fetch` and a stream reader, because `EventSource` cannot send the bearer token; the Mac app uses `URLSession` bytes. `GET /v1/imports/{id}` returns the same progress for a fresh load.
   - **Writes:** batches, oldest month first, each in its own transaction, every row tagged with `import_id`. Entries appear in reads as their batch lands. Cancel, undo and a failed import delete every row with that `import_id` in one transaction. On start-up the API marks any import still `running` as `failed` and removes its rows.
   - **Excel files** (import template, problem rows, and export) are read and written by one Go library; which one is the open decision below.
+
+- **Encryption at rest and in transit** (decided 2026-11-06; runbook: `docs/encryption.md`)
+  - **At rest: a LUKS2 volume on the Linux server**, holding Docker's `data-root` (so the `api-data` volume, container layers, logs and Caddy's TLS keys) and the app checkout with `.env` and `secrets/`. It is **unlocked by hand over SSH after each reboot** (an unlock script); it is not in `fstab`/`crypttab`, and Docker stays disabled at boot so nothing starts before it is unlocked. The app is down after a reboot until then; automatic reboots after updates are off. Swap is off or encrypted.
+  - **Rejected:** SQLCipher (needs CGO, which reverses the `modernc.org/sqlite` decision, and its key would sit in `.env` on the same server); provider-managed volume encryption alone (the provider holds the key); encrypting columns in the app (breaks the SQL aggregations).
+  - **Backup temp files:** the API's `/tmp` is a `tmpfs`, so the plaintext `VACUUM INTO` copy lives only in memory before `age` encrypts it.
+  - **In transit:** Caddy terminates TLS and sends `Strict-Transport-Security: max-age=31536000` (not for `localhost`, and without `includeSubDomains`). Caddy talks to `api` and `web` over plain HTTP on Docker's internal network; their ports are never published. The API refuses `BACKUP_S3_INSECURE=1` unless the project is a `demo-` one, the same rule as the auth emulator.
+  - **Limits:** this protects data on a powered-off server or a detached disk or snapshot. It does not protect a running server from someone with root, or a VPS from its provider reading memory.
 
 ### Open
 
