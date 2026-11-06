@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type FocusEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { useId, useLayoutEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { errorMessage, useTemplateItemMutations, type Schemas } from "../../api";
 import { AlertIcon, CheckIcon, TrashIcon } from "../../components/icons";
 import { MerchantCombobox } from "../../components/MerchantCombobox";
@@ -31,42 +31,82 @@ interface RowProps {
   autoFocus?: boolean;
 }
 
-/** Keeps the form in step with the server copy unless the user is mid-edit. */
+/** Keeps the form in step with the server copy until the user types in it. */
 function useSyncedForm<F>(saved: F | null, blank: F) {
   const [form, setForm] = useState<F>(saved ?? blank);
   const [base, setBase] = useState<string>(JSON.stringify(saved ?? blank));
+  // Typed in since the form last matched the server copy. A newer copy leaves
+  // the text alone even if it equals the older copy (an edit undone mid-save).
+  const [edited, setEdited] = useState(false);
   const next = JSON.stringify(saved ?? blank);
   if (saved && next !== base) {
-    if (JSON.stringify(form) === base) setForm(saved);
+    if (!edited) setForm(saved);
+    else if (JSON.stringify(form) === next) setEdited(false);
     setBase(next);
   }
-  return [form, setForm] as const;
+  function edit(patch: Partial<F>) {
+    setForm((f) => ({ ...f, ...patch }));
+    setEdited(true);
+  }
+  return [form, setForm, edit] as const;
 }
 
-function useRowSave<F extends string>() {
+/**
+ * One save at a time per row. A saved item's save asked for while another is in
+ * flight is queued, not dropped, and runs when that one settles (the newest ask
+ * wins). Saves diff against `latest()`: a save's reply reaches the row before
+ * the template refetch re-renders it with a new `item`, so until then the reply
+ * is the newest server copy.
+ */
+function useRowSave<F extends string, T>(item: T | undefined) {
   const [errors, setErrors] = useState<Errors<F>>({});
   const [alert, setAlert] = useState<string | null>(null);
   const busy = useRef(false);
+  const queued = useRef<(() => void) | null>(null);
+  const shown = useRef(item);
+  const reply = useRef<{ copy: T; over: T | undefined } | null>(null);
+  useLayoutEffect(() => {
+    shown.current = item;
+  });
 
-  async function run(save: () => Promise<unknown>, fields: Record<string, F>): Promise<boolean> {
+  /** The newest server copy of the item: the last reply, until a newer `item` renders. */
+  function latest(): T | undefined {
+    const r = reply.current;
+    return r && r.over === shown.current ? r.copy : shown.current;
+  }
+
+  /** While a save is in flight, keeps `commit` to run after it and returns true. */
+  function queue(commit: () => void): boolean {
+    if (!busy.current) return false;
+    queued.current = commit;
+    return true;
+  }
+
+  async function run(save: () => Promise<T>, fields: Record<string, F>): Promise<boolean> {
+    // Only a draft gets here mid-save: its create already carries its values, so
+    // a second ask (Enter, then focus leaving) must not create it twice.
     if (busy.current) return false;
     busy.current = true;
     setAlert(null);
+    let ok = false;
     try {
-      await save();
+      const copy = await save();
+      reply.current = { copy, over: shown.current };
       setErrors({});
-      return true;
+      ok = true;
     } catch (err) {
       const { byField, other } = serverErrors(err, fields);
       setErrors(byField);
       const fieldsFlagged = Object.keys(byField).length > 0;
       setAlert(other.length > 0 ? other.join(" ") : fieldsFlagged ? null : errorMessage(err));
-      return false;
-    } finally {
-      busy.current = false;
     }
+    busy.current = false;
+    const next = queued.current;
+    queued.current = null;
+    next?.();
+    return ok;
   }
-  return { errors, setErrors, alert, setAlert, run };
+  return { errors, setErrors, alert, setAlert, latest, queue, run };
 }
 
 /** Leaving the row (not just moving between its fields) saves it. */
@@ -89,14 +129,17 @@ export function ExpenseItemRow({
 }) {
   const id = useId();
   const blank: ExpenseForm = { merchant: "", categoryId, day: "1", amount: "", note: "" };
-  const [form, setForm] = useSyncedForm(item ? expenseForm(item) : null, blank);
-  const { errors, setErrors, alert, setAlert, run } = useRowSave<keyof ExpenseForm>();
+  const [form, setForm, edit] = useSyncedForm(item ? expenseForm(item) : null, blank);
+  const { errors, setErrors, alert, setAlert, latest, queue, run } = useRowSave<
+    keyof ExpenseForm,
+    Schemas["TemplateExpenseItem"]
+  >(item);
   const firstRef = useRef<HTMLInputElement>(null);
   // Merchant plus note tells apart several items from one merchant ("Apple · iCloud+").
   const label = item ? [item.merchant.name, item.note].filter(Boolean).join(" · ") : "new item";
 
   function update(patch: Partial<ExpenseForm>) {
-    setForm((f) => ({ ...f, ...patch }));
+    edit(patch);
     const cleared = { ...errors };
     for (const key of Object.keys(patch) as (keyof ExpenseForm)[]) delete cleared[key];
     setErrors(cleared);
@@ -110,7 +153,8 @@ export function ExpenseItemRow({
       return;
     }
     if (item) {
-      const patch = expensePatch(item, result.value);
+      if (queue(() => void commit(how))) return;
+      const patch = expensePatch(latest() ?? item, result.value);
       if (Object.keys(patch).length === 0) return;
       await run(() => mutations.updateExpense.mutateAsync({ itemId: item.id, body: patch }), EXPENSE_API_FIELDS);
       return;
@@ -232,14 +276,17 @@ export function IncomeItemRow({
 }) {
   const id = useId();
   const blank: IncomeForm = { sourceId: sources[0]?.id ?? "", label: "", day: "1", gross: "", taxable: "", net: "" };
-  const [form, setForm] = useSyncedForm(item ? incomeForm(item) : null, blank);
-  const { errors, setErrors, alert, setAlert, run } = useRowSave<keyof IncomeForm>();
+  const [form, setForm, edit] = useSyncedForm(item ? incomeForm(item) : null, blank);
+  const { errors, setErrors, alert, setAlert, latest, queue, run } = useRowSave<
+    keyof IncomeForm,
+    Schemas["TemplateIncomeItem"]
+  >(item);
   const firstRef = useRef<HTMLSelectElement>(null);
   const sourceName = (sourceId: string) => sources.find((s) => s.id === sourceId)?.name ?? "Income";
   const label = item ? [sourceName(item.income_source_id), item.note].filter(Boolean).join(" · ") : "new income";
 
   function update(patch: Partial<IncomeForm>) {
-    setForm((f) => ({ ...f, ...patch }));
+    edit(patch);
     const cleared = { ...errors };
     for (const key of Object.keys(patch) as (keyof IncomeForm)[]) delete cleared[key];
     setErrors(cleared);
@@ -252,7 +299,8 @@ export function IncomeItemRow({
       return;
     }
     if (item) {
-      const patch = incomePatch(item, result.value);
+      if (queue(() => void commit(how))) return;
+      const patch = incomePatch(latest() ?? item, result.value);
       if (Object.keys(patch).length === 0) return;
       await run(() => mutations.updateIncome.mutateAsync({ itemId: item.id, body: patch }), INCOME_API_FIELDS);
       return;

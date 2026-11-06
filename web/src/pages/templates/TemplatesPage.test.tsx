@@ -180,6 +180,25 @@ async function loaded() {
   await screen.findByRole("group", { name: "Template totals" });
 }
 
+/** Holds the next PATCH until `release()`, so a test can act while that save is in flight. */
+function holdNextPatch(backend: ReturnType<typeof fakeBackend>) {
+  const handle = backend.fetch.getMockImplementation()!;
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  const state = { held: false, release: () => release() };
+  backend.fetch.mockImplementation(async (req: Request) => {
+    if (req.method === "PATCH" && !state.held) {
+      state.held = true;
+      await gate;
+    }
+    return handle(req);
+  });
+  return state;
+}
+
+const patches = (backend: ReturnType<typeof fakeBackend>) =>
+  backend.calls.filter((c) => c.method === "PATCH").map((c) => c.body);
+
 describe("Templates", () => {
   it("lists templates and shows the first one's items, grouped, with totals", async () => {
     renderPage();
@@ -277,6 +296,82 @@ describe("Templates", () => {
       }),
     );
     await waitFor(() => expect(tile("Planned spending")).toHaveTextContent("$1,550.00"));
+  });
+
+  it("saves an edit made while the row's previous save is still in flight", async () => {
+    const { backend, user } = renderPage();
+    await loaded();
+    const hold = holdNextPatch(backend);
+    const amount = within(group("Housing")).getByRole("textbox", { name: "Amount, Rent" });
+    await user.clear(amount);
+    await user.type(amount, "1250{Enter}");
+    await waitFor(() => expect(hold.held).toBe(true));
+    await user.clear(amount);
+    await user.type(amount, "1300{Enter}");
+    hold.release();
+    await waitFor(() => expect(patches(backend)).toEqual([{ amount_cents: 125000 }, { amount_cents: 130000 }]));
+    await waitFor(() => expect(tile("Planned spending")).toHaveTextContent("$1,600.00"));
+  });
+
+  it("compares an edit made mid-save with what that save stored, not the stale row", async () => {
+    const { backend, user } = renderPage();
+    await loaded();
+    const amount = within(group("Housing")).getByRole("textbox", { name: "Amount, Rent" });
+    // Enter again with nothing new sends nothing more.
+    let hold = holdNextPatch(backend);
+    await user.clear(amount);
+    await user.type(amount, "1250{Enter}");
+    await waitFor(() => expect(hold.held).toBe(true));
+    await user.type(amount, "{Enter}");
+    hold.release();
+    await waitFor(() => expect(tile("Planned spending")).toHaveTextContent("$1,550.00"));
+
+    // Changing it back mid-save still saves, though it matches what the row last showed.
+    hold = holdNextPatch(backend);
+    await user.clear(amount);
+    await user.type(amount, "1300{Enter}");
+    await waitFor(() => expect(hold.held).toBe(true));
+    await user.clear(amount);
+    await user.type(amount, "1250{Enter}");
+    hold.release();
+    await waitFor(() =>
+      expect(patches(backend)).toEqual([{ amount_cents: 125000 }, { amount_cents: 130000 }, { amount_cents: 125000 }]),
+    );
+    await waitFor(() => expect(tile("Planned spending")).toHaveTextContent("$1,550.00"));
+  });
+
+  it("keeps text typed back to the old value while a save is in flight, and saves it", async () => {
+    const { backend, user } = renderPage();
+    await loaded();
+    const hold = holdNextPatch(backend);
+    const amount = within(group("Housing")).getByRole("textbox", { name: "Amount, Rent" });
+    await user.clear(amount);
+    await user.type(amount, "1250{Enter}");
+    await waitFor(() => expect(hold.held).toBe(true));
+    await user.clear(amount);
+    await user.type(amount, "1200.00");
+    hold.release();
+    // The save's result arrives without overwriting what was typed since.
+    await waitFor(() => expect(tile("Planned spending")).toHaveTextContent("$1,550.00"));
+    expect(amount).toHaveValue("1200.00");
+    await user.type(amount, "{Enter}");
+    await waitFor(() => expect(patches(backend)).toEqual([{ amount_cents: 125000 }, { amount_cents: 120000 }]));
+    await waitFor(() => expect(tile("Planned spending")).toHaveTextContent("$1,500.00"));
+  });
+
+  it("saves an income edit made while the row's previous save is still in flight", async () => {
+    const { backend, user } = renderPage();
+    await loaded();
+    const hold = holdNextPatch(backend);
+    const net = within(group("Income")).getByRole("textbox", { name: "Net, Job A · Paycheck" });
+    await user.clear(net);
+    await user.type(net, "2000{Enter}");
+    await waitFor(() => expect(hold.held).toBe(true));
+    await user.clear(net);
+    await user.type(net, "1900{Enter}");
+    hold.release();
+    await waitFor(() => expect(patches(backend)).toEqual([{ net_cents: 200000 }, { net_cents: 190000 }]));
+    await waitFor(() => expect(tile("Net income")).toHaveTextContent("$1,900.00"));
   });
 
   it("moves an item to another category", async () => {
