@@ -314,3 +314,62 @@ func TestSavedTrendsTenancyAndCascade(t *testing.T) {
 		t.Errorf("after category delete = %+v", l)
 	}
 }
+
+func TestByCategoryAcrossYearBoundary(t *testing.T) {
+	f := newTrendFixture(t)
+	ctx := context.Background()
+
+	f.spend(f.a, "2025-12-10", 3000, "Food", "Cafe", "")
+	f.spend(f.a, "2026-01-05", 4000, "Food", "Cafe", "")
+	f.spend(f.a, "2026-01-06", 700, "Saving", "Bank", "")
+	f.spend(f.a, "2025-01-02", 900, "Food", "Cafe", "")
+	f.spend(f.a, "2024-12-31", 5555, "Food", "Cafe", "") // outside both years
+	f.spend(f.a, "2027-01-01", 6666, "Food", "Cafe", "") // outside both years
+	// A refund counts in the month it is logged, lowering that month's category.
+	orig := f.spend(f.a, "2025-12-15", 2000, "Housing", "Landlord", "")
+	if _, err := f.x.Create(ctx, f.a, NewExpense{
+		Date: "2026-01-20", AmountCents: -500, CategoryID: f.byName(f.a, "Housing").ID,
+		MerchantName: "Landlord", RefundedExpenseID: &orig.ID, Confirmed: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// Another user's data never shows up.
+	f.spend(f.b, "2026-01-05", 99999, "Food", "Cafe", "")
+
+	got, err := f.tr.ByCategory(ctx, f.a, 2026)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Year != 2026 || got.AllSpending.CategoryID != nil {
+		t.Fatalf("header = %+v", got)
+	}
+	byName := map[string]CategorySeries{}
+	for _, c := range got.Categories {
+		byName[c.Name] = c
+	}
+	food := byName["Food"]
+	if food.ThisYearCents[0] != 4000 || food.LastYearCents[11] != 3000 || food.LastYearCents[0] != 900 {
+		t.Errorf("food = %+v", food)
+	}
+	if food.ThisYearCents[11] != 0 {
+		t.Errorf("food dec 2026 should be zero-filled: %+v", food)
+	}
+	if h := byName["Housing"]; h.ThisYearCents[0] != -500 || h.LastYearCents[11] != 2000 {
+		t.Errorf("housing = %+v", h)
+	}
+	if s := byName["Saving"]; !s.IsSaving || s.ThisYearCents[0] != 700 {
+		t.Errorf("saving = %+v", s)
+	}
+	if byName["Other"].CategoryID == nil {
+		t.Error("Other missing id")
+	}
+	// All spending: Jan 2026 = 4000 + 700 - 500; Dec 2025 = 3000 + 2000; Jan 2025 = 900.
+	all := got.AllSpending
+	if all.IsSaving || all.ThisYearCents[0] != 4200 || all.LastYearCents[11] != 5000 || all.LastYearCents[0] != 900 {
+		t.Errorf("all = %+v", all)
+	}
+
+	if _, err := f.tr.ByCategory(ctx, f.a, 1999); err == nil {
+		t.Error("year 1999 should be rejected")
+	}
+}
