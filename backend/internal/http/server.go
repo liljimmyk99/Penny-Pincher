@@ -29,6 +29,9 @@ type Server struct {
 	summaries     store.Summaries
 	trends        store.Trends
 	savedTrends   store.SavedTrends
+	admin         store.Admin
+	backups       Backups
+	authCheck     AuthCheck
 	now           func() time.Time
 	start         time.Time
 }
@@ -41,6 +44,10 @@ type Deps struct {
 	// Data is the database the store queries.
 	Data *sql.DB
 	Now  func() time.Time
+	// Backups serves the admin backup routes; nil when backups are not configured.
+	Backups Backups
+	// AuthCheck probes the sign-in provider for the admin status; nil reports ok.
+	AuthCheck AuthCheck
 	// Authn (auth.Middleware) wraps every route; it must not be nil.
 	Authn func(http.Handler) http.Handler
 }
@@ -62,6 +69,9 @@ func NewRouter(d Deps) http.Handler {
 		summaries:     store.Summaries{DB: d.Data},
 		trends:        store.Trends{DB: d.Data},
 		savedTrends:   store.SavedTrends{DB: d.Data},
+		admin:         store.Admin{DB: d.Data},
+		backups:       d.Backups,
+		authCheck:     d.AuthCheck,
 		now:           d.Now,
 		start:         d.Now(),
 	}

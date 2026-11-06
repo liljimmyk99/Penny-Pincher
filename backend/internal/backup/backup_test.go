@@ -192,8 +192,27 @@ func TestDue(t *testing.T) {
 func TestBusy(t *testing.T) {
 	ctx := context.Background()
 	s, _, _, _ := newService(t)
-	s.running = true
+	s.running = &job{}
 	if _, err := s.Run(ctx, Manual); err != ErrBusy {
 		t.Fatalf("got %v", err)
+	}
+}
+
+func TestNextRunTimes(t *testing.T) {
+	at := func(y, m, d, h int) time.Time { return time.Date(y, time.Month(m), d, h, 0, 0, 0, time.UTC) }
+	cases := []struct{ now, weekly, monthly time.Time }{
+		{at(2026, 11, 6, 12), at(2026, 11, 8, 3), at(2026, 12, 1, 3)}, // Friday
+		{at(2026, 11, 8, 2), at(2026, 11, 8, 3), at(2026, 12, 1, 3)},  // Sunday before run
+		{at(2026, 11, 8, 3), at(2026, 11, 15, 3), at(2026, 12, 1, 3)}, // Sunday at run time
+		{at(2026, 11, 1, 2), at(2026, 11, 1, 3), at(2026, 11, 1, 3)},  // the 1st (a Sunday) before run
+		{at(2026, 12, 31, 23), at(2027, 1, 3, 3), at(2027, 1, 1, 3)},  // year boundary
+	}
+	for _, c := range cases {
+		if got := NextWeekly(c.now); !got.Equal(c.weekly) {
+			t.Errorf("NextWeekly(%v) = %v, want %v", c.now, got, c.weekly)
+		}
+		if got := NextMonthly(c.now); !got.Equal(c.monthly) {
+			t.Errorf("NextMonthly(%v) = %v, want %v", c.now, got, c.monthly)
+		}
 	}
 }

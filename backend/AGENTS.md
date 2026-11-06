@@ -119,5 +119,5 @@ migrations/       numbered SQL migrations
 ## Backups
 
 - `internal/backup` takes `VACUUM INTO` snapshots, encrypts them to the age public key in `BACKUP_AGE_RECIPIENT`, and uploads to the S3 bucket (`BACKUP_S3_*`). The API never decrypts; only `api backup restore` does, with a private key file.
-- `Service.Run(ctx, backup.Manual)` is the manual path the admin API (#40) calls; it returns `ErrBusy` if a run is in progress (map to 409). `Service.Last()` and `Service.List()` feed the status tiles and backup list.
+- The admin API (`internal/http/admin.go`) uses `Service.Start` (background manual run, `ErrBusy` → 409 `backup_in_progress`), `Runs` (stored snapshots of every kind plus this process's running or failed run), `LastRun` (status tile) and `Open` (streams the still-encrypted object; only keys the listing shows). Snapshot ids are the base64url of the bucket key; running/failed runs have `run-` ids and answer download with 409 `backup_not_ready`. Failed runs show a fixed message, never error text. Without backup config the list is empty and "Back up now" answers 501.
 - Never log snapshot contents or error text; log the error type only. Runbook: `/docs/backups.md`.

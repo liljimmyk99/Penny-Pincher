@@ -29,7 +29,11 @@ type testAPI struct {
 	h  http.Handler
 }
 
-func newTestAPI(t *testing.T) *testAPI {
+func newTestAPI(t *testing.T) *testAPI { return newTestAPIWith(t, nil) }
+
+// newTestAPIWith lets a test adjust the router's dependencies; the database
+// is passed in because some dependencies (backups) need it.
+func newTestAPIWith(t *testing.T, tweak func(*sql.DB, *Deps)) *testAPI {
 	t.Helper()
 	db := store.NewTestDB(t)
 	for _, u := range [][2]string{{"uid-admin", "admin"}, {"uid-member", "member"}} {
@@ -40,7 +44,11 @@ func newTestAPI(t *testing.T) *testAPI {
 		}
 	}
 	v := auth.FakeVerifier{tokAdmin: "uid-admin", tokMember: "uid-member", tokStray: "uid-stray"}
-	h := NewRouter(Deps{Version: "test", Data: db, Now: time.Now, Authn: auth.Middleware(v, store.Users{DB: db})})
+	deps := Deps{Version: "test", Data: db, Now: time.Now, Authn: auth.Middleware(v, store.Users{DB: db})}
+	if tweak != nil {
+		tweak(db, &deps)
+	}
+	h := NewRouter(deps)
 	return &testAPI{t: t, db: db, h: h}
 }
 
@@ -81,8 +89,7 @@ func wantError(t *testing.T, rec *httptest.ResponseRecorder, status int, code ap
 
 func TestUnimplementedRoutesReturnStandard501(t *testing.T) {
 	for _, r := range [][2]string{
-		{"GET", "/v1/admin/status"},
-		{"GET", "/v1/admin/backups"},
+		{"GET", "/v1/export?format=csv"},
 	} {
 		wantError(t, do(t, r[0], r[1], tokAdmin), http.StatusNotImplemented, api.ErrorErrorCodeNotImplemented)
 	}

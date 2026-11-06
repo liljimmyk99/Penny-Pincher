@@ -78,3 +78,27 @@ func (s *Service) RunScheduled(ctx context.Context, interval time.Duration, log 
 func errType(err error) string { return typeName(err) }
 
 func typeName(err error) string { return fmt.Sprintf("%T", err) }
+
+// ScheduleText describes the schedule for the admin panel.
+const ScheduleText = "Weekly on Sundays, monthly on the 1st (03:00 UTC)"
+
+// NextWeekly is the next Sunday run time strictly after now (UTC).
+func NextWeekly(now time.Time) time.Time {
+	now = now.UTC()
+	t := time.Date(now.Year(), now.Month(), now.Day(), runHour, 0, 0, 0, time.UTC)
+	t = t.AddDate(0, 0, (7-int(t.Weekday()))%7)
+	if !t.After(now) {
+		t = t.AddDate(0, 0, 7)
+	}
+	return t
+}
+
+// NextMonthly is the next run time on the 1st strictly after now (UTC).
+func NextMonthly(now time.Time) time.Time {
+	now = now.UTC()
+	t := time.Date(now.Year(), now.Month(), 1, runHour, 0, 0, 0, time.UTC)
+	if !t.After(now) {
+		t = t.AddDate(0, 1, 0)
+	}
+	return t
+}
