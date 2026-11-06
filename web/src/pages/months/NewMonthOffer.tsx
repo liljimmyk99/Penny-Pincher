@@ -126,43 +126,62 @@ export function NewMonthOffer({
 }
 
 function Preview({ month, templateId }: { month: string; templateId: string }) {
-  const previousMonth = shiftMonth(month, -1);
   const template = useTemplate(templateId);
   const categories = useCategories();
   const sources = useIncomeSources();
-  const prevExpenses = useMonthExpenses(previousMonth);
-  const prevIncome = useMonthIncome(previousMonth);
-  const queries = [template, categories, sources, prevExpenses, prevIncome];
 
-  const failed = queries.find((q) => q.isError);
-  if (failed)
-    return (
-      <p role="alert" className="alert alert--danger">
-        <AlertIcon width={18} height={18} />
-        <span>
-          Couldn’t load the template preview. {errorMessage(failed.error)}{" "}
-          <button type="button" className="text-btn" onClick={() => void failed.refetch()}>
-            Try again
-          </button>
-        </span>
-      </p>
-    );
-  if (!template.data || !categories.data || !sources.data || !prevExpenses.data || !prevIncome.data)
-    return <p className="new-month__status">Loading the preview…</p>;
-
-  const p = templatePreview(template.data, categories.data, sources.data, prevExpenses.data, prevIncome.data);
-  const last = monthName(previousMonth);
-  if (p.paychecks.length === 0 && p.bills.length === 0)
+  const failed = [template, categories, sources].find((q) => q.isError);
+  if (failed) return <PreviewError error={failed.error} retry={() => void failed.refetch()} />;
+  if (!template.data || !categories.data || !sources.data) return <p className="new-month__status">Loading the preview…</p>;
+  if (template.data.income_items.length === 0 && template.data.expense_items.length === 0)
     return (
       <p className="new-month__status">
         “{template.data.name}” has no items yet. Add the paychecks and bills you expect, then copy it.
       </p>
     );
+  // Last month is only loaded for a template with items, so an empty one doesn't fill that month's cache.
+  return <PreviewWithLastMonth month={month} template={template.data} categories={categories.data} sources={sources.data} />;
+}
 
+function PreviewError({ error, retry }: { error: unknown; retry: () => void }) {
+  return (
+    <p role="alert" className="alert alert--danger">
+      <AlertIcon width={18} height={18} />
+      <span>
+        Couldn’t load the template preview. {errorMessage(error)}{" "}
+        <button type="button" className="text-btn" onClick={retry}>
+          Try again
+        </button>
+      </span>
+    </p>
+  );
+}
+
+function PreviewWithLastMonth({
+  month,
+  template,
+  categories,
+  sources,
+}: {
+  month: string;
+  template: Schemas["Template"];
+  categories: Schemas["Category"][];
+  sources: Schemas["IncomeSource"][];
+}) {
+  const previousMonth = shiftMonth(month, -1);
+  const prevExpenses = useMonthExpenses(previousMonth);
+  const prevIncome = useMonthIncome(previousMonth);
+
+  const failed = [prevExpenses, prevIncome].find((q) => q.isError);
+  if (failed) return <PreviewError error={failed.error} retry={() => void failed.refetch()} />;
+  if (!prevExpenses.data || !prevIncome.data) return <p className="new-month__status">Loading the preview…</p>;
+
+  const p = templatePreview(template, categories, sources, prevExpenses.data, prevIncome.data);
+  const last = monthName(previousMonth);
   const prev = (cents: number | null) => (cents === null ? "—" : formatCents(cents));
   return (
     <div className="new-month__preview">
-      <div className="tiles" role="group" aria-label={`${template.data.name} totals`}>
+      <div className="tiles" role="group" aria-label={`${template.name} totals`}>
         <div className="tile">
           <span className="tile__label">Planned net income</span>
           <span className="tile__value new-month__income">{formatCents(p.totals.netCents)}</span>

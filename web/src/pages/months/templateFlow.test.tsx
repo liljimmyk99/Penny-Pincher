@@ -356,6 +356,15 @@ describe("new month: start from a template", () => {
     expect(backend.calls).toEqual([]);
   });
 
+  it("doesn't load last month for an empty template, so that month isn't cached early", async () => {
+    const { backend } = renderPage((s) => (s.templates = [{ ...standardMonth(), income_items: [], expense_items: [] }]));
+    const card = await offer();
+    expect(await within(card).findByText(/has no items yet/)).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Copy into April" })).toBeDisabled();
+    const urls = backend.fetch.mock.calls.map(([req]) => (req as Request).url);
+    expect(urls.filter((u) => u.includes(`month=${PREVIOUS}`))).toEqual([]);
+  });
+
   it("points to the Templates screen when there is no template", async () => {
     renderPage((s) => (s.templates = []));
     const card = await offer();
