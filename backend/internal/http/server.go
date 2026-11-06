@@ -27,6 +27,8 @@ type Server struct {
 	templates     store.Templates
 	months        store.Months
 	summaries     store.Summaries
+	trends        store.Trends
+	savedTrends   store.SavedTrends
 	now           func() time.Time
 	start         time.Time
 }
@@ -58,6 +60,8 @@ func NewRouter(d Deps) http.Handler {
 		templates:     store.Templates{DB: d.Data},
 		months:        store.Months{DB: d.Data},
 		summaries:     store.Summaries{DB: d.Data},
+		trends:        store.Trends{DB: d.Data},
+		savedTrends:   store.SavedTrends{DB: d.Data},
 		now:           d.Now,
 		start:         d.Now(),
 	}
