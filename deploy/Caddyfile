@@ -2,6 +2,11 @@
 	# ACME_EMAIL is only meaningful in prod; the default keeps dev parsing.
 	email {$ACME_EMAIL:admin@localhost}
 
+	# On localhost Caddy's internal CA would install its root into the
+	# container's own trust store, which is pointless and fails on the
+	# read-only filesystem (#109). Browsers are told to trust it separately.
+	skip_install_trust
+
 	# Slow clients (Slowloris) are cut off at the edge, which faces the
 	# internet. No write timeout: SSE import progress and backup downloads
 	# stream for as long as they need (the API sets write deadlines per route).
@@ -69,6 +74,6 @@
 		reverse_proxy api:8080
 	}
 	handle {
-		reverse_proxy web:80
+		reverse_proxy web:8080
 	}
 }

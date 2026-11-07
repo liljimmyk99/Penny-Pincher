@@ -2,7 +2,7 @@
 
 Policy: AGENTS.md §4 (tenancy), §8 (non-functional requirements) and §10 (decisions). This page lists the security measures in the project, what is still planned, and the risks we accept. Encryption is covered in more depth in `docs/encryption.md`, and backups in `docs/backups.md`.
 
-Last audit: 2026-11-06, a code and configuration review against a widely used list of 100 common web vulnerabilities (scorecard below). It is not a penetration test. The scorecard is updated as M6 issues close (so far: #105, #106, #107, #108). Server and Firebase console settings live outside the repo, so they are checked through the runbooks and checklists, not the code.
+Last audit: 2026-11-06, a code and configuration review against a widely used list of 100 common web vulnerabilities (scorecard below). It is not a penetration test. The scorecard is updated as M6 issues close (so far: #105, #106, #107, #108, #109). Server and Firebase console settings live outside the repo, so they are checked through the runbooks and checklists, not the code.
 
 Remaining work is tracked in the **M6 · Cyber Security** milestone, which must be done before the first deployment (#42).
 
@@ -130,7 +130,10 @@ The public proxy adds these to every response, from the web app and the API alik
 | Measure | Where |
 |---|---|
 | The API image is `distroless/static`, running as the `nonroot` user, with a static Go binary (no shell or package manager). | `backend/Dockerfile` |
-| The internal web Caddy has its admin API off, no directory listing, and serves static files only. | `web/Caddyfile` |
+| The internal web Caddy has its admin API off, no directory listing, and serves static files only. It runs as a non-root user (uid 10001) on `:8080`. | `web/Caddyfile`, `web/Dockerfile` |
+| **Every container is locked down (#109):** `no-new-privileges`, all Linux capabilities dropped (the public proxy gets back only `NET_BIND_SERVICE`, to bind 80/443), and a read-only root filesystem. They write only where they must: the API to its `api-data` volume and a memory-only `/tmp`; the proxy to its certificate volume (`/data`) and a `tmpfs` `/config`; the web Caddy to `tmpfs` only. A bug in one container can't install tools, change its own binaries or gain privileges. | `docker-compose.yml`, mirrored in `e2e/compose.yml` (so e2e tests the locked-down stack) |
+| **Memory and process limits** on every container (API 768 MB, which includes the backup copy in `/tmp`; proxy 256 MB; web 128 MB; 128–256 processes), so a runaway or fork-bombed container can't starve the host. | `docker-compose.yml` |
+| Only the proxy publishes ports (80/443 in prod, 8080/8443 in dev). The host firewall, SSH and brute-force protection are in the server runbook below. | `docker-compose.yml`, [Server hardening](#server-hardening-one-time-setup) |
 | The API server has a 5-second `ReadHeaderTimeout` against slow-header attacks. | `backend/cmd/api/main.go` |
 | CI runs vet, tests, lint, type checks, spec lint, the generated-code checks, the end-to-end suite and the vulnerability scans on every PR. GitHub Actions has read-only `contents` permission. | `.github/workflows/ci.yml` |
 
@@ -138,7 +141,6 @@ The public proxy adds these to every response, from the web app and the API alik
 
 | Issue | What it adds | Audit items |
 |---|---|---|
-| #109 | Read-only containers, dropped capabilities, `no-new-privileges`, resource limits; firewall, SSH and fail2ban runbook | 31, 98, 100 |
 | #110 | Auth-failure and admin-action logs, Caddy access logs without query strings, log rotation, alerting, Firebase console checklist | 33, 73, 96 |
 
 When an issue is closed, update its rows in the scorecard below.
@@ -163,6 +165,122 @@ Use this when an account is compromised, a device is lost, or someone should no 
 - **Authentication → Settings → Password policy:** require a minimum length of 12, and enforce it (not just notify).
 - **Authentication → Settings → User actions:** "Enable create (sign-up)" off, so accounts are made only by an admin.
 
+## Server hardening (one-time setup)
+
+Do this on the server, together with `docs/encryption.md`, **before** the first deployment (#42). Commands are for Debian or Ubuntu. Keep a second SSH session open while changing SSH or the firewall, so a mistake can't lock you out.
+
+### 1. A non-root sudo user
+
+Log in as the provider's initial user (or root) once, then:
+
+```bash
+sudo adduser pp
+```
+
+```bash
+sudo usermod -aG sudo,docker pp
+```
+
+Copy your public key to `/home/pp/.ssh/authorized_keys` (mode `600`, owned by `pp`), and check that `ssh pp@<server>` works with the key before going on. Membership of `docker` is root-equivalent; it is fine here because `pp` already has `sudo`, and no other account should get it.
+
+### 2. SSH: keys only, no root
+
+Create `/etc/ssh/sshd_config.d/10-hardening.conf`:
+
+```
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+PubkeyAuthentication yes
+AllowUsers pp
+```
+
+Then `sudo sshd -t && sudo systemctl reload ssh`, and confirm a new session still logs in from the second terminal. Some images ship a `50-cloud-init.conf` in the same folder that turns passwords back on; the first value sshd reads wins, so `10-` must sort before it (or delete that file).
+
+### 3. Firewall: only 22, 80 and 443
+
+```bash
+sudo apt install ufw
+```
+
+```bash
+sudo ufw default deny incoming && sudo ufw default allow outgoing
+```
+
+```bash
+sudo ufw allow 22/tcp && sudo ufw allow 80/tcp && sudo ufw allow 443/tcp
+```
+
+```bash
+sudo ufw enable
+```
+
+**Docker bypasses `ufw`.** A port published by Docker is forwarded to the container by Docker's own iptables rules before `ufw`'s rules see it, so `ufw deny` doesn't block it. Today only 80 and 443 are published, which the firewall allows anyway, but a later `ports:` line (or a debugging `docker run -p`) would be open to the internet. **Chosen fix:** filter in Docker's `DOCKER-USER` chain, which Docker evaluates first and never overwrites, so that only 80 and 443 reach containers from outside. Append to `/etc/ufw/after.rules`, with `eth0` replaced by the public interface (`ip route get 1.1.1.1` shows it):
+
+```
+# Docker: from the internet, containers are reachable only on published 80/443 (#109).
+*filter
+:DOCKER-USER - [0:0]
+-A DOCKER-USER -m conntrack --ctstate RELATED,ESTABLISHED -j RETURN
+-A DOCKER-USER -i eth0 -p tcp -m conntrack --ctorigdstport 80 --ctdir ORIGINAL -j RETURN
+-A DOCKER-USER -i eth0 -p tcp -m conntrack --ctorigdstport 443 --ctdir ORIGINAL -j RETURN
+-A DOCKER-USER -i eth0 -j DROP
+COMMIT
+```
+
+Then `sudo ufw reload`. Traffic between containers and the containers' own outbound connections (Firebase, the backup bucket) don't come in on `eth0` as new connections, so they are untouched. This relies on Docker's default iptables firewall backend; don't switch Docker to its nftables backend without redoing this step. Docker networks here are IPv4-only, so no IPv6 rule is needed; `ufw` already applies its defaults to IPv6.
+
+If the provider has its own cloud firewall, mirror the same rule there (22, 80, 443 in; everything else dropped) as a second layer.
+
+### 4. Brute-force protection for SSH
+
+Key-only SSH already makes password guessing useless; `fail2ban` also bans addresses that keep trying, which cuts the noise.
+
+```bash
+sudo apt install fail2ban
+```
+
+Create `/etc/fail2ban/jail.local`:
+
+```
+[sshd]
+enabled  = true
+backend  = systemd
+maxretry = 5
+findtime = 10m
+bantime  = 1h
+```
+
+Then `sudo systemctl enable --now fail2ban`. (`backend = systemd` matters on Debian 12 and later, which have no `/var/log/auth.log`.) fail2ban starts at boot, before the volume is unlocked, which is what we want: SSH is the only thing listening then.
+
+### 5. Automatic security updates, no automatic reboots
+
+```bash
+sudo apt install unattended-upgrades
+```
+
+```bash
+sudo dpkg-reconfigure -plow unattended-upgrades
+```
+
+Answer yes. `/etc/apt/apt.conf.d/20auto-upgrades` should then contain `APT::Periodic::Update-Package-Lists "1";` and `APT::Periodic::Unattended-Upgrade "1";`. Leave automatic reboots off (`Unattended-Upgrade::Automatic-Reboot "false";`, `docs/encryption.md` step 6), because the app stays down after a reboot until it is unlocked. Reboot by hand as described under [Patching](#patching).
+
+### 6. The provider's account
+
+Turn on MFA for the cloud provider's console account (and the DNS registrar's, and the backup bucket's), preferably with an authenticator app or a security key. Someone with that account can reset the server, open its console, or snapshot its disks, whatever the server's own settings say.
+
+### Checks
+
+Run these after setup and after any server change, and record the date in #42.
+
+- **Ports:** from another machine, `nmap -Pn -p- <server>` shows only 22, 80 and 443 open. On the server, `sudo ss -tlnp` lists nothing else on a public address apart from Docker's `docker-proxy` on 80/443.
+- **Docker bypass is closed:** `sudo docker run --rm -d -p 9999:80 --name fwtest caddy:2.11`, then from another machine `curl -m 5 http://<server>:9999` times out. Remove it with `sudo docker rm -f fwtest`.
+- **SSH:** `ssh -o PubkeyAuthentication=no pp@<server>` is refused with `Permission denied (publickey)`, and `ssh root@<server>` is refused. `sudo sshd -T | grep -Ei 'passwordauthentication|permitrootlogin'` shows `no` for both.
+- **fail2ban:** `sudo fail2ban-client status sshd` shows the jail running.
+- **Updates:** `sudo unattended-upgrade --dry-run` runs without errors, and `apt-config dump | grep Automatic-Reboot` shows `"false"`.
+- **Containers:** in `/srv/pp/app`, `docker compose ps` shows only the proxy with published ports, and `docker inspect $(docker compose ps -q) --format '{{.Name}} ro={{.HostConfig.ReadonlyRootfs}} {{.HostConfig.SecurityOpt}} drop={{.HostConfig.CapDrop}} add={{.HostConfig.CapAdd}} mem={{.HostConfig.Memory}} pids={{.HostConfig.PidsLimit}}'` shows every container read-only, with `no-new-privileges`, `ALL` dropped and limits set.
+- **Provider MFA:** sign out of the provider's console and back in; it asks for the second factor.
+
 ## Accepted risks
 
 - **No in-app MFA in v1 (item 21).** A reused or phished password still gives access to that user's data. The 12-character password policy and Google sign-in with 2-Step Verification reduce the risk; in-app TOTP is v2 (AGENTS.md §10).
@@ -176,7 +294,7 @@ Use this when an account is compromised, a device is lost, or someone should no 
 
 ✅ guarded · ⚠️ partly guarded · ❌ not guarded · — doesn't apply.
 
-**Totals: 74 ✅ · 5 ⚠️ · 1 ❌ · 20 —.** Of the 80 that apply, 93% are fully guarded (70% at the audit; #105 closed 8 items, #106 closed 5, #107 closed 2 and #108 closed 3). M6 targets every remaining ⚠️ and ❌ except items 21 and 61 (accepted risks).
+**Totals: 76 ✅ · 3 ⚠️ · 1 ❌ · 20 —.** Of the 80 that apply, 95% are fully guarded (70% at the audit; #105 closed 8 items, #106 closed 5, #107 closed 2, #108 closed 3 and #109 closed 2). M6 targets every remaining ⚠️ and ❌ except items 21 and 61 (accepted risks).
 
 | # | Item | Status | Notes / issue |
 |---|---|---|---|
@@ -214,7 +332,7 @@ Use this when an account is compromised, a device is lost, or someone should no 
 | 28 | Default passwords | ✅ | None exist |
 | 29 | Directory listing | ✅ | Not enabled |
 | 30 | Unprotected API endpoints | ✅ | Auth middleware wraps every route |
-| 31 | Open ports and services | ✅ | Only 80/443 published. Host firewall in #109 |
+| 31 | Open ports and services | ✅ | Only the proxy publishes 80/443; host firewall allows 22/80/443 and closes Docker's `ufw` bypass; SSH key-only with fail2ban (#109) |
 | 32 | Improper access controls | ✅ | Server-side role check |
 | 33 | Information disclosure | ⚠️ | Version on `/healthz` (accepted), no audit log (#110). `Server`/`Via` removed (#105) |
 | 34 | Unpatched software | ✅ | Dependabot, `govulncheck`, `npm audit` and Trivy in CI; pinned image tags (#107) |
@@ -292,6 +410,6 @@ Use this when an account is compromised, a device is lost, or someone should no 
 | 96 | Account enumeration | ✅ | UI and reset hide it. Console setting checked in #110 |
 | 97 | User-based flaws | ✅ | |
 | **Zero-day** ||||
-| 98 | Unknown vulnerabilities | ⚠️ | Hardening in #109 |
+| 98 | Unknown vulnerabilities | ✅ | Containers read-only, no capabilities, `no-new-privileges`, resource limits; non-root API and web (#109) |
 | 99 | Unpatched vulnerabilities | ✅ | Scanning in CI, weekly updates and a patching routine (#107) |
-| 100 | Day-zero exploits | ⚠️ | #109 |
+| 100 | Day-zero exploits | ✅ | Same container lockdown and host firewall limit what an exploit can reach; unattended security updates (#109) |

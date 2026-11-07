@@ -16,4 +16,9 @@ RUN npm run build
 FROM caddy:2.11-alpine
 COPY Caddyfile /etc/caddy/Caddyfile
 COPY --from=build /src/dist /srv
-EXPOSE 80
+# Runs as a non-root user (#109). Caddy's /config and /data are its own, so it
+# also works without the tmpfs mounts docker-compose.yml puts there.
+RUN addgroup -S -g 10001 web && adduser -S -D -H -u 10001 -G web web \
+    && chown -R web:web /config /data
+USER web
+EXPOSE 8080

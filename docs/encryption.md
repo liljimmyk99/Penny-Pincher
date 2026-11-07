@@ -28,7 +28,7 @@ Policy: AGENTS.md §8 and the 2026-11-06 encryption decision. Do the server setu
 
 ## One-time server setup (Linux)
 
-Written for Debian or Ubuntu; other distributions differ only in package names. Run as a user with `sudo`. Use a separate disk for the encrypted volume: a block volume attached to the VPS, or a second disk or partition on a home server. Below it is `/dev/sdX`; **check the name with `lsblk` first**, because `luksFormat` wipes the device.
+Written for Debian or Ubuntu; other distributions differ only in package names. Run as a user with `sudo`. Do the server hardening in `docs/security.md` (non-root sudo user, key-only SSH, firewall, fail2ban, unattended upgrades) first or alongside. Use a separate disk for the encrypted volume: a block volume attached to the VPS, or a second disk or partition on a home server. Below it is `/dev/sdX`; **check the name with `lsblk` first**, because `luksFormat` wipes the device.
 
 ### 1. Create and open the encrypted volume
 
