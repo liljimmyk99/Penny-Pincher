@@ -68,7 +68,11 @@ export function isErrorBody(body: unknown): body is ErrorBody {
 
 /** True for errors that mean the session is unusable (sign the user out). */
 export function isSessionError(err: ApiError): boolean {
-  return err.code === "unauthenticated" || err.code === "not_allowlisted";
+  return (
+    err.code === "unauthenticated" ||
+    err.code === "session_expired" ||
+    err.code === "not_allowlisted"
+  );
 }
 
 const GENERIC = "Something went wrong. Please try again.";
@@ -82,6 +86,7 @@ const MESSAGES: Partial<Record<ApiErrorCode, string>> = {
   network_error: "Can't reach the server. Check your connection and try again.",
   unexpected_response: GENERIC,
   unauthenticated: "Your session has expired. Please sign in again.",
+  session_expired: "Your session has expired. Please sign in again.",
   not_allowlisted: "This account isn't set up for Penny Pincher. Ask an admin to add you.",
   admin_required: "Only admins can do that.",
   not_found: "That item no longer exists. It may have been deleted.",

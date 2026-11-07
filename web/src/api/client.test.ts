@@ -95,6 +95,18 @@ describe("createApiClient", () => {
     expect(onSessionError.mock.calls[0][0]).toMatchObject({ code: "unauthenticated" });
   });
 
+  it("signs out on session_expired without retrying, since a refresh keeps the sign-in time", async () => {
+    const { api, seen, getToken, onSessionError } = setup([json(401, errorBody("session_expired"))]);
+
+    await expect(unwrap(api.GET("/v1/me"))).rejects.toMatchObject({ status: 401, code: "session_expired" });
+
+    expect(seen).toHaveLength(1);
+    expect(getToken).toHaveBeenCalledTimes(1);
+    expect(getToken).toHaveBeenCalledWith({ forceRefresh: false });
+    expect(onSessionError).toHaveBeenCalledTimes(1);
+    expect(onSessionError.mock.calls[0][0]).toMatchObject({ code: "session_expired" });
+  });
+
   it("reports not_allowlisted as a session error", async () => {
     const { api, onSessionError } = setup([json(403, errorBody("not_allowlisted"))]);
     await expect(unwrap(api.GET("/v1/me"))).rejects.toMatchObject({ code: "not_allowlisted" });

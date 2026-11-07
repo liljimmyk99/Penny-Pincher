@@ -17,7 +17,7 @@ export interface Session {
   subscribe(listener: () => void): () => void;
   /**
    * The API client's `onSessionError`: the API refused this session
-   * (`not_allowlisted` or `unauthenticated`), so sign out and say why.
+   * (`not_allowlisted`, `unauthenticated` or `session_expired`), so sign out and say why.
    */
   end(err: ApiError): void;
   signOut(): Promise<void>;

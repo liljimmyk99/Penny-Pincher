@@ -10,9 +10,31 @@ import (
 	"github.com/liljimmyk99/penny-pincher/backend/internal/store"
 )
 
-const userUsage = "usage: api user add --uid <firebase-uid> [--email <email>] [--name <display name>] [--role admin|member]"
+const userUsage = "usage: api user add --uid <firebase-uid> [--email <email>] [--name <display name>] [--role admin|member]\n       api user revoke --uid <firebase-uid>"
 
-// runUser handles `api user ...`. It is the v1 admin-only way to add accounts
+// sessionRevoker signs a Firebase account out everywhere (auth.RevokeSessions).
+type sessionRevoker func(ctx context.Context, uid string) error
+
+// runUserRevoke handles `api user revoke`: it revokes the account's refresh
+// tokens, so it must sign in again (docs/security.md, "Lock someone out now").
+func runUserRevoke(ctx context.Context, revoke sessionRevoker, args []string, out io.Writer) error {
+	fs := flag.NewFlagSet("user revoke", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	uid := fs.String("uid", "", "Firebase uid (required)")
+	if err := fs.Parse(args); err != nil {
+		return fmt.Errorf("%w\n%s", err, userUsage)
+	}
+	if *uid == "" {
+		return errors.New("--uid is required\n" + userUsage)
+	}
+	if err := revoke(ctx, *uid); err != nil {
+		return fmt.Errorf("revoke sessions: %w", err)
+	}
+	fmt.Fprintf(out, "revoked the sessions of %s; the API refuses its current tokens within 5 minutes\n", *uid)
+	return nil
+}
+
+// runUser handles `api user add`. It is the v1 admin-only way to add accounts
 // (after creating them in the Firebase console).
 func runUser(ctx context.Context, dbPath string, args []string, out io.Writer) error {
 	if len(args) == 0 || args[0] != "add" {

@@ -151,6 +151,7 @@ Rules:
 - Sharing between users or household budgets
 - Offline mode (planned later: cached read-only; add/edit must show an error when offline)
 - In-app account management in the admin panel: user list, create account, invites, password resets, disable/enable (v2)
+- In-app multi-factor sign-in (TOTP enrolment and challenge) and idle sign-out (v2; see §10)
 
 ## 8. Non-functional requirements
 
@@ -247,9 +248,12 @@ Rules:
   - **Body caps:** 1 MB, 11 MiB for the import upload (`413 request_too_large`, `file_too_large` on the upload), with Caddy capping `/v1/*` at 12 MiB as a backstop.
   - **Timeouts:** Caddy times out headers, bodies and idle connections; the API sets `ReadHeaderTimeout`, `ReadTimeout` and `IdleTimeout`, but write deadlines per route through `http.ResponseController` instead of a global `WriteTimeout`, so SSE progress, backup downloads and export can stream.
 
+- **Token revocation, session lifetime and MFA** (decided 2026-11-07, #108; details and the lock-out runbook in `docs/security.md`)
+  - **Revocation:** the API applies `VerifyIDTokenAndCheckRevoked`'s rules (account disabled or deleted, or the token issued before its sessions were revoked) but caches each Firebase account for **5 minutes**, so revoking or disabling a user stops their API access within 5 minutes without a Firebase call on every request. Answer: `401 unauthenticated`. If Firebase can't be reached, a cached account up to an hour old is still used; with none, the request fails with `500 internal`. The lookup uses the service account in `secrets/firebase-sa.json`. The local users row is read on every request, so removing it stops access at once.
+  - **Session lifetime: 30 days from sign-in**, from the token's `auth_time` (refreshes keep it), enforced by the API: `401 session_expired`. The web client doesn't retry it with a refreshed token; it signs out and shows "Your session has expired. Please sign in again."
+  - **MFA is v2.** In-app MFA (Firebase TOTP) needs Identity Platform plus enrolment and challenge screens, a scope change to §6.1. The v1 guidance is to sign in with a Google account that has 2-Step Verification on. Email-and-password accounts rely on Firebase's password policy (minimum 12 characters, set in the Firebase console).
+  - **Idle sign-out is v2.** v1 relies on the 30-day maximum.
+
 ### Open
 
 - **Go library for `.xlsx`** (import template, reading uploads, problem rows, export). Leaning `github.com/xuri/excelize/v2`: pure Go, supports data-validation dropdowns and streaming large sheets. Decide before building import or export. Whichever library is chosen must cap the unzipped and XML sizes of uploads (zip and XML bombs; `docs/security.md`).
-- **Token revocation, session lifetime and MFA** (#108).
-  - Leaning `VerifyIDTokenAndCheckRevoked` with a short per-user cache, plus a maximum session age from the token's `auth_time`.
-  - In-app MFA (Firebase TOTP, which needs Identity Platform) would change §6.1, so decide whether it is v1 or v2.

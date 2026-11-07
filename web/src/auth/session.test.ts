@@ -42,6 +42,14 @@ describe("createSession", () => {
     expect(session.getState()).toEqual({ status: "signed_out", notice: { kind: "expired" } });
   });
 
+  it("reports a session past its maximum age as expired", () => {
+    const auth = fakeAuth(testUser);
+    const session = createSession(auth);
+    session.end(new ApiError(401, "session_expired", "too old"));
+    expect(session.getState()).toEqual({ status: "signed_out", notice: { kind: "expired" } });
+    expect(auth.signOut).toHaveBeenCalledTimes(1);
+  });
+
   it("lets the first of several concurrent failures decide", () => {
     const auth = fakeAuth(testUser);
     const session = createSession(auth);

@@ -120,6 +120,7 @@ const (
 	ErrorErrorCodeProtectedResource ErrorErrorCode = "protected_resource"
 	ErrorErrorCodeRateLimited       ErrorErrorCode = "rate_limited"
 	ErrorErrorCodeRequestTooLarge   ErrorErrorCode = "request_too_large"
+	ErrorErrorCodeSessionExpired    ErrorErrorCode = "session_expired"
 	ErrorErrorCodeSourceHasEntries  ErrorErrorCode = "source_has_entries"
 	ErrorErrorCodeUnauthenticated   ErrorErrorCode = "unauthenticated"
 )
@@ -164,6 +165,8 @@ func (e ErrorErrorCode) Valid() bool {
 	case ErrorErrorCodeRateLimited:
 		return true
 	case ErrorErrorCodeRequestTooLarge:
+		return true
+	case ErrorErrorCodeSessionExpired:
 		return true
 	case ErrorErrorCodeSourceHasEntries:
 		return true

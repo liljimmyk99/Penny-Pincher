@@ -56,9 +56,17 @@ function expectSecurityHeaders(res: APIResponse) {
 }
 
 /** Every CSP violation the page reports, kept across navigations and reloads. */
+// Google's iframe loader sometimes (it is sampled) sends a usage beacon to
+// apis.google.com/js/gen_204. The policy blocks it on purpose: it is telemetry,
+// not part of sign-in, and sign-in works without it. Nothing else is ignored.
+const IGNORED_VIOLATION = /https:\/\/apis\.google\.com\/js\/gen_204\b/;
+
 async function watchCsp(page: Page): Promise<string[]> {
   const violations: string[] = [];
-  await page.exposeFunction("__e2eCspViolation", (v: string) => violations.push(v));
+  const record = (v: string) => {
+    if (!IGNORED_VIOLATION.test(v)) violations.push(v);
+  };
+  await page.exposeFunction("__e2eCspViolation", record);
   await page.addInitScript(() => {
     document.addEventListener("securitypolicyviolation", (e) => {
       const report = (window as unknown as { __e2eCspViolation(v: string): void }).__e2eCspViolation;
@@ -66,7 +74,7 @@ async function watchCsp(page: Page): Promise<string[]> {
     });
   });
   page.on("console", (m) => {
-    if (/Content Security Policy/i.test(m.text())) violations.push(m.text());
+    if (/Content Security Policy/i.test(m.text())) record(m.text());
   });
   return violations;
 }
