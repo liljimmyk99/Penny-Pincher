@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/liljimmyk99/penny-pincher/backend/internal/api"
+	"github.com/liljimmyk99/penny-pincher/backend/internal/clientip"
 	"github.com/liljimmyk99/penny-pincher/backend/internal/ratelimit"
 )
 
@@ -169,8 +170,8 @@ func TestClientIP(t *testing.T) {
 		for _, v := range c.xff {
 			r.Header.Add("X-Forwarded-For", v)
 		}
-		if got := clientIP(r); got != c.want {
-			t.Errorf("clientIP(%q) = %q, want %q", c.xff, got, c.want)
+		if got := clientip.From(r); got != c.want {
+			t.Errorf("clientip.From(%q) = %q, want %q", c.xff, got, c.want)
 		}
 	}
 }

@@ -13,9 +13,19 @@ x-hardening: &hardening
     - ALL
   read_only: true
 
+# Logs rotate (#110): Docker's json-file driver keeps at most 5 files of 10 MB
+# per container, so logs can't fill the disk. They live under Docker's
+# data-root, on the encrypted volume (docs/encryption.md).
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   api:
     <<: *hardening
+    logging: *logging
     build: ./backend
     # Includes the /tmp tmpfs, which holds a full plaintext copy of the database
     # during a backup. Raise it if the database ever grows past ~200 MB.
@@ -51,6 +61,7 @@ services:
 
   web:
     <<: *hardening
+    logging: *logging
     build:
       context: ./web
       args:
@@ -72,6 +83,7 @@ services:
   proxy-dev:
     profiles: ["dev"]
     <<: *hardening
+    logging: *logging
     cap_add:
       - NET_BIND_SERVICE # binds 80 and 443 inside the container
     tmpfs:
@@ -99,6 +111,7 @@ services:
   proxy:
     profiles: ["prod"]
     <<: *hardening
+    logging: *logging
     cap_add:
       - NET_BIND_SERVICE # binds 80 and 443 inside the container
     tmpfs:

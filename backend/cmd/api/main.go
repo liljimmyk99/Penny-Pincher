@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -34,6 +35,9 @@ func run() error {
 		return healthcheck(cfg.Port)
 	}
 	log := logging.New(os.Stdout, cfg.LogLevel)
+	// Handlers and middleware log through slog's default, so it must be the
+	// redacting JSON logger too.
+	slog.SetDefault(log)
 
 	if len(os.Args) > 2 && os.Args[1] == "user" && os.Args[2] == "revoke" {
 		if cfg.FirebaseProjectID == "" {

@@ -26,6 +26,23 @@
 	# a year, so a first visit can't be downgraded. Not sent for localhost (dev
 	# and e2e), where browsers would apply it to every local server on any port.
 	# No includeSubDomains: other subdomains of DOMAIN are not ours to force.
+	# Access log: one JSON line per request to stdout, which Docker keeps and
+	# rotates (docker-compose.yml). Query strings are cut from the URI, because
+	# they can carry financial data (the trends ?text= filter matches note
+	# text), and so is the Referer, which holds the full previous URL for
+	# same-origin requests. Credentials are dropped entirely (#110).
+	log {
+		output stdout
+		format filter {
+			wrap json
+			request>uri regexp \?.*$ ""
+			request>headers>Authorization delete
+			request>headers>Cookie delete
+			request>headers>Referer delete
+			resp_headers>Set-Cookie delete
+		}
+	}
+
 	@hsts not host localhost
 	header @hsts Strict-Transport-Security "max-age=31536000"
 

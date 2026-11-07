@@ -2,7 +2,7 @@
 
 Policy: AGENTS.md §4 (tenancy), §8 (non-functional requirements) and §10 (decisions). This page lists the security measures in the project, what is still planned, and the risks we accept. Encryption is covered in more depth in `docs/encryption.md`, and backups in `docs/backups.md`.
 
-Last audit: 2026-11-06, a code and configuration review against a widely used list of 100 common web vulnerabilities (scorecard below). It is not a penetration test. The scorecard is updated as M6 issues close (so far: #105, #106, #107, #108, #109). Server and Firebase console settings live outside the repo, so they are checked through the runbooks and checklists, not the code.
+Last audit: 2026-11-06, a code and configuration review against a widely used list of 100 common web vulnerabilities (scorecard below). It is not a penetration test. The scorecard is updated as M6 issues close (so far: #105, #106, #107, #108, #109, #110). Server and Firebase console settings live outside the repo, so they are checked through the runbooks and checklists, not the code.
 
 Remaining work is tracked in the **M6 · Cyber Security** milestone, which must be done before the first deployment (#42).
 
@@ -121,7 +121,11 @@ The public proxy adds these to every response, from the web app and the API alik
 | Measure | Where |
 |---|---|
 | Secrets live in `.env` and `secrets/`, both git-ignored. The Firebase web API key is public by design and grants no data access on its own. | `.gitignore`, `.env.example` |
-| Logs are JSON through a **redacting handler** that blanks any attribute whose key looks like money, a merchant, a note, a token or a secret. Handlers log only error *types*, never error text. | `backend/internal/logging` |
+| Logs are JSON through a **redacting handler** that blanks any attribute whose key looks like money, a merchant, a note, a token or a secret. Handlers log only error *types*, never error text. It is also slog's default logger, so nothing in the API logs around it. | `backend/internal/logging`, `backend/cmd/api/main.go` |
+| **Security events (#110):** every refused request logs one `"event":"auth_failure"` line with a `reason` (`missing_token`, `invalid_token`, `session_expired`, `not_allowlisted`, `admin_required`), the status, client IP, method and path (never the query string or the token), and the Firebase `uid` and local `user_id` once they are known (never for a token that failed verification). Starting and downloading a backup each log one `"event":"admin_action"` line with the `action`, the admin's `user_id` and the `backup_id`. Tests check that no token, query string, amount, merchant or note reaches these lines. | `backend/internal/auth/middleware.go`, `backend/internal/http/admin.go` |
+| **Proxy access logs (#110):** Caddy writes one JSON line per request to stdout with the query string cut from the URI (the trends `?text=` filter matches note text), and the `Authorization`, `Cookie`, `Referer` (the full previous URL on same-origin requests) and `Set-Cookie` headers removed. | `deploy/Caddyfile` |
+| **Log rotation (#110):** every container uses Docker's `json-file` driver with at most 5 files of 10 MB, so logs can't fill the disk. They live under Docker's data-root, on the encrypted volume. | `docker-compose.yml` |
+| **Alerting (#110):** an external uptime monitor on `/healthz`, and an hourly cron job that reports many failed sign-ins or any admin action. See [Alerting](#alerting). | `deploy/security-alert.sh` |
 | Errors to clients are generic ("Something went wrong.") with stable codes. No stack traces or SQL errors leave the server. | `backend/internal/http/errors.go`, `server.go` |
 | Web server state (TanStack Query) is in memory only. Nothing financial is persisted in the browser. | `web/src/api/queryClient.ts` |
 
@@ -139,11 +143,7 @@ The public proxy adds these to every response, from the web app and the API alik
 
 ## Planned: M6 · Cyber Security
 
-| Issue | What it adds | Audit items |
-|---|---|---|
-| #110 | Auth-failure and admin-action logs, Caddy access logs without query strings, log rotation, alerting, Firebase console checklist | 33, 73, 96 |
-
-When an issue is closed, update its rows in the scorecard below.
+Every M6 issue is done in the code. Before the first deployment (#42), complete the [Firebase and Google Cloud console checklist](#firebase-and-google-cloud-console-checklist) and set up [alerting](#alerting) on the server. When a later issue closes a scorecard item, update its row below.
 
 **Excel import (M8)** brings file uploads into scope. `.xlsx` files are zipped XML, so the library chosen in #93 must cap the unzipped size and the XML size (for example excelize's `UnzipSizeLimit` and `UnzipXMLSizeLimit`), on top of the 10 MB / 50,000-row limits in AGENTS.md §10. This covers audit items 39 and 65.
 
@@ -158,12 +158,37 @@ Use this when an account is compromised, a device is lost, or someone should no 
    ```
    Tokens issued before now are refused; signing in again works.
 3. Do both for a compromised account: revoke, reset the password in the console, and disable it until the owner has confirmed the new one.
-4. Check the API logs for `401`s from that account afterwards (#110 adds security-event logs).
+4. Check afterwards that the account is being refused. Once its token is refused it can't be tied to a uid, so look for `invalid_token` failures, and for any request that still names the uid:
+   ```bash
+   docker compose logs --since 1h api | grep '"event":"auth_failure"'
+   docker compose logs --since 1h api | grep '<firebase-uid>'
+   ```
 
-### Firebase console checklist (sign-in)
+### Alerting
 
-- **Authentication → Settings → Password policy:** require a minimum length of 12, and enforce it (not just notify).
-- **Authentication → Settings → User actions:** "Enable create (sign-up)" off, so accounts are made only by an admin.
+Chosen in #110: two checks, both of which notify the admin without any new service on the server.
+
+1. **Uptime monitor on `https://<domain>/healthz`.** Any external uptime service (for example UptimeRobot or Better Stack) checking every 5 minutes and emailing the admin when it fails. This also catches the app being down after a reboot, until the volume is unlocked (`docs/encryption.md`). `/healthz` is public and shows no data.
+2. **Hourly security check** (`deploy/security-alert.sh`). It counts the last hour's `auth_failure` and `admin_action` lines in the API log and sends one notification when there are 20 or more failed sign-ins (`AUTH_FAILURE_THRESHOLD`) or any admin action at all (only the owner is an admin, so an action they didn't take means the account is compromised). The message holds counts only. `ALERT_URL` is any URL that notifies you on a plain-text POST, for example a private [ntfy](https://ntfy.sh) topic with a long random name. In the crontab of a user that can run Docker (`crontab -e`):
+   ```
+   0 * * * * ALERT_URL=https://ntfy.sh/<private-topic> /srv/pp/app/deploy/security-alert.sh
+   ```
+   Check it once: run the script with `AUTH_FAILURE_THRESHOLD=0` and confirm the notification arrives.
+
+To read the events by hand: `docker compose logs --since 24h api | grep '"event"'`.
+
+### Firebase and Google Cloud console checklist
+
+These settings live in the consoles, not the repo. Check each one before the first deployment (#42) and again after any change to the Firebase project, and record the date here.
+
+| Setting | Where | Should be | Checked |
+|---|---|---|---|
+| Email enumeration protection | Firebase console → Authentication → Settings → User actions | On | not yet |
+| User sign-up | Firebase console → Authentication → Settings → User actions → "Enable create (sign-up)" | Off; accounts are made only by an admin | not yet |
+| Authorized domains | Firebase console → Authentication → Settings → Authorized domains | Only the production domain, the project's own `<project>.firebaseapp.com` (used by the sign-in popup), and `localhost` only if this project is also used for development | not yet |
+| Web API key restrictions | Google Cloud console → APIs & Services → Credentials → the "Browser key" | Application restriction: HTTP referrers, `https://<domain>/*` (and the `firebaseapp.com` domain above). API restriction: Identity Toolkit API and Token Service API only | not yet |
+| Password policy (#108) | Firebase console → Authentication → Settings → Password policy | Minimum length 12, **enforced** (not just notify) | not yet |
+| Service account role | Google Cloud console → IAM & Admin → IAM | The key in `secrets/firebase-sa.json` belongs to a service account with only **Firebase Authentication Admin** (`roles/firebaseauth.admin`), not the default `firebase-adminsdk` account, which has broad access to every Firebase product. The API needs it: it reads accounts for the revocation check (#108) and `api user revoke` signs users out. Delete any other keys on that account | not yet |
 
 ## Server hardening (one-time setup)
 
@@ -294,7 +319,7 @@ Run these after setup and after any server change, and record the date in #42.
 
 ✅ guarded · ⚠️ partly guarded · ❌ not guarded · — doesn't apply.
 
-**Totals: 76 ✅ · 3 ⚠️ · 1 ❌ · 20 —.** Of the 80 that apply, 95% are fully guarded (70% at the audit; #105 closed 8 items, #106 closed 5, #107 closed 2, #108 closed 3 and #109 closed 2). M6 targets every remaining ⚠️ and ❌ except items 21 and 61 (accepted risks).
+**Totals: 78 ✅ · 1 ⚠️ · 1 ❌ · 20 —.** Of the 80 that apply, 97.5% are fully guarded (70% at the audit; #105 closed 8 items, #106 closed 5, #107 closed 2, #108 closed 3, #109 closed 2 and #110 closed 2). The two left, items 21 and 61, are accepted risks.
 
 | # | Item | Status | Notes / issue |
 |---|---|---|---|
@@ -334,7 +359,7 @@ Run these after setup and after any server change, and record the date in #42.
 | 30 | Unprotected API endpoints | ✅ | Auth middleware wraps every route |
 | 31 | Open ports and services | ✅ | Only the proxy publishes 80/443; host firewall allows 22/80/443 and closes Docker's `ufw` bypass; SSH key-only with fail2ban (#109) |
 | 32 | Improper access controls | ✅ | Server-side role check |
-| 33 | Information disclosure | ⚠️ | Version on `/healthz` (accepted), no audit log (#110). `Server`/`Via` removed (#105) |
+| 33 | Information disclosure | ✅ | Version on `/healthz` (accepted). Security-event log, proxy logs without query strings (#110). `Server`/`Via` removed (#105) |
 | 34 | Unpatched software | ✅ | Dependabot, `govulncheck`, `npm audit` and Trivy in CI; pinned image tags (#107) |
 | 35 | Misconfigured CORS | ✅ | No CORS headers sent |
 | 36 | Security headers misconfiguration | ✅ | One policy for every response, checked in e2e (#105) |
@@ -382,7 +407,7 @@ Run these after setup and after any server change, and record the date in #42.
 | 70 | Security header bypass | ✅ | Set by the proxy after the upstreams, on every response (#105) |
 | 71 | Clickjacking (repeat) | ✅ | See 59 |
 | 72 | Inadequate session timeout | ✅ | 30 days from sign-in, enforced by the API (#108); idle sign-out is v2 |
-| 73 | Insufficient logging and monitoring | ⚠️ | #110 |
+| 73 | Insufficient logging and monitoring | ✅ | Auth-failure and admin-action logs, access logs, rotation, uptime and hourly alerts (#110) |
 | 74 | Business logic | ✅ | Triggers + transactions + tests |
 | 75 | API abuse | ✅ | Allowlist plus per-user rate limits (#106) |
 | **Mobile** ||||
@@ -407,7 +432,7 @@ Run these after setup and after any server change, and record the date in #42.
 | 93 | Race conditions | ✅ | SQLite transactions, unique constraints, backup lock |
 | 94 | Order processing | — | |
 | 95 | Price manipulation | — | |
-| 96 | Account enumeration | ✅ | UI and reset hide it. Console setting checked in #110 |
+| 96 | Account enumeration | ✅ | UI and reset hide it. Email enumeration protection in the console checklist (#110) |
 | 97 | User-based flaws | ✅ | |
 | **Zero-day** ||||
 | 98 | Unknown vulnerabilities | ✅ | Containers read-only, no capabilities, `no-new-privileges`, resource limits; non-root API and web (#109) |
