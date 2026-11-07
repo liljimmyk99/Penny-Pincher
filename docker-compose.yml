@@ -46,7 +46,7 @@ services:
 
   proxy-dev:
     profiles: ["dev"]
-    image: caddy:2
+    image: caddy:2.11
     environment:
       DOMAIN: localhost
       # The Content-Security-Policy allows the Firebase auth domain's iframe.
@@ -66,7 +66,7 @@ services:
 
   proxy:
     profiles: ["prod"]
-    image: caddy:2
+    image: caddy:2.11
     environment:
       DOMAIN: ${DOMAIN:-}
       ACME_EMAIL: ${ACME_EMAIL:-}

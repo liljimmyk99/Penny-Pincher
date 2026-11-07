@@ -2,7 +2,7 @@
 
 Policy: AGENTS.md §4 (tenancy), §8 (non-functional requirements) and §10 (decisions). This page lists the security measures in the project, what is still planned, and the risks we accept. Encryption is covered in more depth in `docs/encryption.md`, and backups in `docs/backups.md`.
 
-Last audit: 2026-11-06, a code and configuration review against a widely used list of 100 common web vulnerabilities (scorecard below). It is not a penetration test. The scorecard is updated as M6 issues close (so far: #105, #106). Server and Firebase console settings live outside the repo, so they are checked through the runbooks and checklists, not the code.
+Last audit: 2026-11-06, a code and configuration review against a widely used list of 100 common web vulnerabilities (scorecard below). It is not a penetration test. The scorecard is updated as M6 issues close (so far: #105, #106, #107). Server and Firebase console settings live outside the repo, so they are checked through the runbooks and checklists, not the code.
 
 Remaining work is tracked in the **M6 · Cyber Security** milestone, which must be done before the first deployment (#42).
 
@@ -95,6 +95,24 @@ The public proxy adds these to every response, from the web app and the API alik
 | Web queries that get a 429 retry once `Retry-After` has passed, so a page that loads during a burst recovers by itself. Saves are never retried automatically. | `web/src/api/queryClient.ts` |
 | Checked in the backend tests and in the e2e suite (`e2e/tests/request-limits.spec.ts`). | — |
 
+### Dependencies and patching (#107)
+
+| Measure | Where |
+|---|---|
+| **Dependabot** opens weekly update PRs (Mondays) for Go modules, npm packages (`web`, `e2e`), Dockerfile base images, the Caddy image in both compose files, and GitHub Actions. Minor and patch updates are grouped into one PR per ecosystem; majors come one at a time. | `.github/dependabot.yml` |
+| **`govulncheck`** fails CI when backend code reaches a known Go vulnerability. Vulnerable modules our code never calls are reported but don't fail the build. | `.github/workflows/ci.yml` (`security` job) |
+| **`npm audit --omit=dev --audit-level=high`** fails CI on high or critical advisories in the web app's runtime dependencies. Dev tools never ship, so they don't count. `@grpc/grpc-js` (pulled in by Firebase's Firestore, which we don't use) is overridden to a patched version. | `.github/workflows/ci.yml`, `web/package.json` |
+| **Trivy** scans the built `backend` and `web` images (OS packages and the Go binaries inside) and fails on HIGH or CRITICAL findings that have a fix. Accepted findings live in `.trivyignore.yaml`, each scoped to one binary and with an expiry date, so CI fails again if the fix hasn't landed by then. | `.github/workflows/ci.yml`, `.trivyignore.yaml` |
+| **No floating image tags:** Caddy is pinned to a minor version (`caddy:2.11`, `caddy:2.11-alpine`), Node to a minor (`node:24.22-alpine`), Go to a minor (`golang:1.27-alpine`), and the distroless runtime image by digest. Dependabot proposes each bump, so a deploy only gets an image version CI has tested. The third-party Trivy action is pinned by commit SHA. | `docker-compose.yml`, `e2e/compose.yml`, `*/Dockerfile`, `.github/workflows/ci.yml` |
+| **Secret scanning with push protection** is on for the repository (GitHub settings, not in the repo). A push containing a recognised secret is blocked, and any secret already committed raises an alert. | GitHub → Settings → Code security |
+
+#### Patching
+
+- **Dependabot PRs:** review and merge them weekly once CI is green. Merge a security update (CI's `security` job failing on master, or a Dependabot security alert) within a few days.
+- **Redeploy** after merging updates that change what runs: Go modules, web runtime packages, Dockerfiles or the Caddy tag. On the server, in `/srv/pp/app`: `git pull`, then `docker compose build --pull && docker compose up -d` (`--pull` fetches patched base images; the profile comes from `COMPOSE_PROFILES` in `.env`). Updates to tests, dev tools or CI need no redeploy.
+- **When a `.trivyignore.yaml` entry expires,** CI fails again. Bump the image if a fixed release exists; otherwise re-check that the finding still doesn't reach us, and extend the date.
+- **Server OS:** unattended-upgrades installs security updates daily, with automatic reboots off (`docs/encryption.md`). Once a month, or when a kernel or `libc` update is waiting (`/var/run/reboot-required` exists), SSH in, run `sudo apt update && sudo apt full-upgrade`, reboot, and then run the unlock script from `docs/encryption.md` ("After every reboot"). The app is down until it is unlocked.
+
 ### Secrets, logging and errors
 
 | Measure | Where |
@@ -111,13 +129,12 @@ The public proxy adds these to every response, from the web app and the API alik
 | The API image is `distroless/static`, running as the `nonroot` user, with a static Go binary (no shell or package manager). | `backend/Dockerfile` |
 | The internal web Caddy has its admin API off, no directory listing, and serves static files only. | `web/Caddyfile` |
 | The API server has a 5-second `ReadHeaderTimeout` against slow-header attacks. | `backend/cmd/api/main.go` |
-| CI runs vet, tests, lint, type checks, spec lint, the generated-code checks and the end-to-end suite on every PR. GitHub Actions has read-only `contents` permission. | `.github/workflows/ci.yml` |
+| CI runs vet, tests, lint, type checks, spec lint, the generated-code checks, the end-to-end suite and the vulnerability scans on every PR. GitHub Actions has read-only `contents` permission. | `.github/workflows/ci.yml` |
 
 ## Planned: M6 · Cyber Security
 
 | Issue | What it adds | Audit items |
 |---|---|---|
-| #107 | Dependabot, `govulncheck`, `npm audit`, image scanning, pinned Caddy tag, secret scanning | 34, 99 |
 | #108 | Token revocation check, maximum session age, MFA decision, password policy | 16, 21, 72, 85 |
 | #109 | Read-only containers, dropped capabilities, `no-new-privileges`, resource limits; firewall, SSH and fail2ban runbook | 31, 98, 100 |
 | #110 | Auth-failure and admin-action logs, Caddy access logs without query strings, log rotation, alerting, Firebase console checklist | 33, 73, 96 |
@@ -130,13 +147,14 @@ When an issue is closed, update its rows in the scorecard below.
 
 - **DDoS (item 61).** One server with no CDN. A large network flood will take the app down. At this scale that is acceptable, and the data stays safe.
 - **`/healthz` is public** and shows the version and uptime, because the admin status and container health checks read it (AGENTS.md §6.12). It shows no data.
+- **CVE-2026-78661 in Caddy's bundled `golang.org/x/net/html`** (a denial of service on crafted HTML). Caddy 2.11.9, the latest release, still bundles the affected version. Our Caddy serves static files and proxies requests; it never parses HTML, so the code isn't reached. Ignored in `.trivyignore.yaml` until 2026-12-07, then re-checked.
 - **A running, unlocked server** is not protected from someone with root, or from a VPS provider reading memory (`docs/encryption.md`).
 
 ## Audit scorecard (2026-11-06)
 
 ✅ guarded · ⚠️ partly guarded · ❌ not guarded · — doesn't apply.
 
-**Totals: 69 ✅ · 10 ⚠️ · 1 ❌ · 20 —.** Of the 80 that apply, 86% are fully guarded (70% at the audit; #105 closed 8 items and #106 closed 5). M6 targets every remaining ⚠️ and ❌ except item 61.
+**Totals: 71 ✅ · 8 ⚠️ · 1 ❌ · 20 —.** Of the 80 that apply, 89% are fully guarded (70% at the audit; #105 closed 8 items, #106 closed 5 and #107 closed 2). M6 targets every remaining ⚠️ and ❌ except item 61.
 
 | # | Item | Status | Notes / issue |
 |---|---|---|---|
@@ -177,7 +195,7 @@ When an issue is closed, update its rows in the scorecard below.
 | 31 | Open ports and services | ✅ | Only 80/443 published. Host firewall in #109 |
 | 32 | Improper access controls | ✅ | Server-side role check |
 | 33 | Information disclosure | ⚠️ | Version on `/healthz` (accepted), no audit log (#110). `Server`/`Via` removed (#105) |
-| 34 | Unpatched software | ⚠️ | No automated scanning or updates (#107) |
+| 34 | Unpatched software | ✅ | Dependabot, `govulncheck`, `npm audit` and Trivy in CI; pinned image tags (#107) |
 | 35 | Misconfigured CORS | ✅ | No CORS headers sent |
 | 36 | Security headers misconfiguration | ✅ | One policy for every response, checked in e2e (#105) |
 | **XML** ||||
@@ -253,5 +271,5 @@ When an issue is closed, update its rows in the scorecard below.
 | 97 | User-based flaws | ✅ | |
 | **Zero-day** ||||
 | 98 | Unknown vulnerabilities | ⚠️ | Hardening in #109 |
-| 99 | Unpatched vulnerabilities | ⚠️ | #107 |
+| 99 | Unpatched vulnerabilities | ✅ | Scanning in CI, weekly updates and a patching routine (#107) |
 | 100 | Day-zero exploits | ⚠️ | #109 |
