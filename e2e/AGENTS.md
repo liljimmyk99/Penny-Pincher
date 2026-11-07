@@ -14,6 +14,7 @@ npm test                 # builds + starts compose.yml, runs every spec, removes
 - `E2E_KEEP_STACK=1 npm test` leaves the stack running afterwards.
 - `npm run stack:up` once, then `E2E_SKIP_STACK=1 npx playwright test …` reruns specs against the running stack. `npm run stack:down` removes it, volume included.
 - The stack is compose project `pp-e2e` on ports 18443 (Caddy, `https://localhost:18443`) and 19099 (auth emulator), so it never touches the dev stack or its data.
+- **Demo data to click around in:** `npm run seed` starts the stack if needed and adds one admin account, `demo@example.test` / `demo-password-123` (emulator-only; override with `SEED_EMAIL` / `SEED_PASSWORD`), with generic made-up data from January last year to today: expenses in every category, Saving, salary, freelance and one-off income, two linked refunds in January, a template applied to the current month (unconfirmed copies), and three saved trends. Sign in at `https://localhost:18443` (accept the local certificate). Running it again changes nothing; `npm run stack:down` and seed again to start over. It has its own config (`playwright.seed.config.ts`, `seed/`), so `npm test` never runs it, and the tests' own users never see its data.
 - CI runs it as the `e2e` job (`.github/workflows/ci.yml`); a failure uploads the Playwright report with traces.
 
 ## How it works

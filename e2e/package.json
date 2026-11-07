@@ -6,6 +6,7 @@
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "report": "playwright show-report",
+    "seed": "playwright test -c playwright.seed.config.ts",
     "stack:up": "docker compose up -d --build --wait",
     "stack:down": "docker compose down -v",
     "typecheck": "tsc --noEmit"
