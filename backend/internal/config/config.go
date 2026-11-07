@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/liljimmyk99/penny-pincher/backend/internal/ratelimit"
 )
 
 // Config holds runtime settings. Secrets come from the environment only.
@@ -22,6 +24,13 @@ type Config struct {
 	// allowed with a "demo-" project id (Firebase's emulator-only projects).
 	// The end-to-end suite in /e2e is the only thing that sets it.
 	AuthEmulatorHost string
+
+	// RateLimitPerIP and RateLimitPerUser override the API's default rate
+	// limits (RATE_LIMIT_PER_IP / RATE_LIMIT_PER_USER, "requests-per-second/burst",
+	// e.g. "20/40"). Zero means the default. The e2e suite raises them because
+	// every test reaches the API from one IP; production leaves them unset.
+	RateLimitPerIP   ratelimit.Rule
+	RateLimitPerUser ratelimit.Rule
 
 	// Backup settings. Backups are enabled only when BackupRecipient is set;
 	// then the S3 settings are required too (see Backup.Validate).
@@ -101,6 +110,15 @@ func Load(getenv func(string) string) (Config, error) {
 	if v := getenv("DB_PATH"); v != "" {
 		c.DBPath = v
 	}
+	for name, dst := range map[string]*ratelimit.Rule{"RATE_LIMIT_PER_IP": &c.RateLimitPerIP, "RATE_LIMIT_PER_USER": &c.RateLimitPerUser} {
+		if v := getenv(name); v != "" {
+			r, err := parseRule(v)
+			if err != nil {
+				return c, fmt.Errorf("invalid %s %q: want requests-per-second/burst, e.g. 20/40", name, v)
+			}
+			*dst = r
+		}
+	}
 	if v := getenv("LOG_LEVEL"); v != "" {
 		switch v {
 		case "debug", "info", "warn", "error":
@@ -110,4 +128,20 @@ func Load(getenv func(string) string) (Config, error) {
 		}
 	}
 	return c, nil
+}
+
+func parseRule(v string) (ratelimit.Rule, error) {
+	rate, burst, ok := strings.Cut(v, "/")
+	if !ok {
+		return ratelimit.Rule{}, fmt.Errorf("no burst")
+	}
+	r, err := strconv.ParseFloat(rate, 64)
+	if err != nil || r <= 0 {
+		return ratelimit.Rule{}, fmt.Errorf("bad rate")
+	}
+	b, err := strconv.Atoi(burst)
+	if err != nil || b < 1 {
+		return ratelimit.Rule{}, fmt.Errorf("bad burst")
+	}
+	return ratelimit.Rule{Rate: r, Burst: b}, nil
 }

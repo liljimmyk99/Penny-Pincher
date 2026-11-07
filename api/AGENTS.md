@@ -16,6 +16,7 @@ Read the root `AGENTS.md` first. This folder holds the OpenAPI spec (`openapi.ya
 - **IDs:** opaque strings.
 - **Auth:** bearer token on every route except `/healthz`. All data is scoped to the authenticated user; `user_id` is never accepted from the client.
 - **Errors:** one consistent error body (code, message) across all routes.
+- **Limits:** any route can return `413 request_too_large` and `429 rate_limited` (with `Retry-After`). They are described once in the spec's Conventions, not on each route; only the expensive routes (back up now, import upload, export) list `429` explicitly.
 - **Lists:** filterable by month where relevant; paginated if they can grow large.
 - **Streams:** long-running work reports progress with Server-Sent Events (`text/event-stream`), documented on the route: event names and the schema of each event's JSON `data`.
 

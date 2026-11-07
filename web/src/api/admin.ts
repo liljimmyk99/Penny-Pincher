@@ -59,7 +59,7 @@ export function useDownloadBackup() {
         throw ApiError.network(err);
       }
       if (!result.response.ok || result.error !== undefined) {
-        throw ApiError.fromResponse(result.response.status, result.error);
+        throw ApiError.fromResponse(result.response.status, result.error, result.response.headers);
       }
       const name =
         /filename="?([^";]+)"?/.exec(result.response.headers.get("Content-Disposition") ?? "")?.[1] ??

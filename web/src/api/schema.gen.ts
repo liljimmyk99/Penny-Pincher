@@ -1219,7 +1219,7 @@ export interface components {
                  * @description Stable, machine-readable. Clients branch on this, never on `message`.
                  * @enum {string}
                  */
-                code: "invalid_request" | "invalid_refund_link" | "unauthenticated" | "not_allowlisted" | "admin_required" | "not_found" | "protected_resource" | "source_has_entries" | "name_taken" | "has_linked_refunds" | "month_not_empty" | "backup_in_progress" | "backup_not_ready" | "invalid_import_file" | "file_too_large" | "import_in_progress" | "import_wrong_status" | "not_implemented" | "internal";
+                code: "invalid_request" | "invalid_refund_link" | "unauthenticated" | "not_allowlisted" | "admin_required" | "not_found" | "protected_resource" | "source_has_entries" | "name_taken" | "has_linked_refunds" | "month_not_empty" | "backup_in_progress" | "backup_not_ready" | "invalid_import_file" | "file_too_large" | "import_in_progress" | "import_wrong_status" | "request_too_large" | "rate_limited" | "not_implemented" | "internal";
                 /** @description Human-readable; safe to show. Never contains internals. */
                 message: string;
                 details?: {
@@ -1740,12 +1740,37 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description The upload is over the size limit (`file_too_large`). */
+        /**
+         * @description The request body is over the size limit: `file_too_large` on the import upload,
+         *     `request_too_large` anywhere else. Any route can return it (see Limits above).
+         */
         PayloadTooLarge: {
             headers: {
                 [name: string]: unknown;
             };
             content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /**
+         * @description Rate limited (`rate_limited`). Wait for `Retry-After` seconds before trying again.
+         *     Any route can return it (see Limits above); expensive routes have a tighter limit.
+         */
+        TooManyRequests: {
+            headers: {
+                /** @description Seconds to wait before retrying. */
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "error": {
+                 *         "code": "rate_limited",
+                 *         "message": "Too many requests. Try again in a moment."
+                 *       }
+                 *     }
+                 */
                 "application/json": components["schemas"]["Error"];
             };
         };
@@ -3293,6 +3318,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     downloadBackup: {
@@ -3403,6 +3429,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             413: components["responses"]["PayloadTooLarge"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     getImport: {
@@ -3613,6 +3640,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
 }

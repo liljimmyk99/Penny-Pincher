@@ -50,6 +50,9 @@ type Deps struct {
 	AuthCheck AuthCheck
 	// Authn (auth.Middleware) wraps every route; it must not be nil.
 	Authn func(http.Handler) http.Handler
+	// Limits are the rate limits; nil turns them off. Body caps and write
+	// deadlines always apply.
+	Limits *Limits
 }
 
 var _ api.StrictServerInterface = (*Server)(nil)
@@ -76,7 +79,11 @@ func NewRouter(d Deps) http.Handler {
 		start:         d.Now(),
 	}
 	strict := api.NewStrictHandlerWithOptions(s, nil, api.StrictHTTPServerOptions{
-		RequestErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, err error) {
+		RequestErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
+			if isTooLarge(err) {
+				writeTooLarge(w, r)
+				return
+			}
 			writeError(w, http.StatusBadRequest, api.ErrorErrorCodeInvalidRequest, "The request is malformed.")
 		},
 		ResponseErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, err error) {
@@ -88,9 +95,10 @@ func NewRouter(d Deps) http.Handler {
 			writeError(w, http.StatusInternalServerError, api.ErrorErrorCodeInternal, "Something went wrong.")
 		},
 	})
-	return d.Authn(api.HandlerWithOptions(strict, api.StdHTTPServerOptions{
+	lim := newLimiters(d.Limits, d.Now)
+	return lim.edge(d.Authn(lim.perUser(api.HandlerWithOptions(strict, api.StdHTTPServerOptions{
 		ErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, err error) {
 			writeError(w, http.StatusBadRequest, api.ErrorErrorCodeInvalidRequest, "The request is malformed.")
 		},
-	}))
+	}))))
 }

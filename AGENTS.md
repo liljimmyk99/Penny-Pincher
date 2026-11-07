@@ -240,10 +240,16 @@ Rules:
   - **In transit:** Caddy terminates TLS and sends `Strict-Transport-Security: max-age=31536000` (not for `localhost`, and without `includeSubDomains`). Caddy talks to `api` and `web` over plain HTTP on Docker's internal network; their ports are never published. The API refuses `BACKUP_S3_INSECURE=1` unless the project is a `demo-` one, the same rule as the auth emulator.
   - **Limits:** this protects data on a powered-off server or a detached disk or snapshot. It does not protect a running server from someone with root, or a VPS from its provider reading memory.
 
+- **Request limits and rate limiting** (decided 2026-11-07, #106; details in `docs/security.md`)
+  - **Rate limiting lives in the Go API**, not Caddy, whose rate limiter is a third-party plugin that needs a custom build. In-memory token buckets (`golang.org/x/time/rate`, one process), idle ones evicted after 10 minutes: **per client IP** before token verification (20/s, burst 40), **per user** after it (10/s, burst 60), and per user on expensive routes (back up now, import upload, export: burst 5, then one per 10 s). Over a limit: `429 rate_limited` with `Retry-After`.
+  - `RATE_LIMIT_PER_IP` and `RATE_LIMIT_PER_USER` (`rate/burst`) can override the first two. Production leaves them unset; only the e2e stack raises them, because its tests all come from one address.
+  - The client IP is the rightmost `X-Forwarded-For` entry, which Caddy sets; trusted only because the API port is never published.
+  - **Body caps:** 1 MB, 11 MiB for the import upload (`413 request_too_large`, `file_too_large` on the upload), with Caddy capping `/v1/*` at 12 MiB as a backstop.
+  - **Timeouts:** Caddy times out headers, bodies and idle connections; the API sets `ReadHeaderTimeout`, `ReadTimeout` and `IdleTimeout`, but write deadlines per route through `http.ResponseController` instead of a global `WriteTimeout`, so SSE progress, backup downloads and export can stream.
+
 ### Open
 
 - **Go library for `.xlsx`** (import template, reading uploads, problem rows, export). Leaning `github.com/xuri/excelize/v2`: pure Go, supports data-validation dropdowns and streaming large sheets. Decide before building import or export. Whichever library is chosen must cap the unzipped and XML sizes of uploads (zip and XML bombs; `docs/security.md`).
 - **Token revocation, session lifetime and MFA** (#108).
   - Leaning `VerifyIDTokenAndCheckRevoked` with a short per-user cache, plus a maximum session age from the token's `auth_time`.
   - In-app MFA (Firebase TOTP, which needs Identity Platform) would change §6.1, so decide whether it is v1 or v2.
-- **Where rate limiting lives** (#106). Leaning in-memory token buckets in the Go API (per client IP before token verification, per user after), not Caddy, whose rate limiter is a plugin that needs a custom build.

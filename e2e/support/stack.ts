@@ -101,8 +101,19 @@ export class Api {
     return new Api(ctx);
   }
 
-  async raw(method: "GET" | "POST" | "PATCH" | "DELETE", path: string, data?: unknown) {
+  /** One request, with no retry on 429 (for checking the rate limits themselves). */
+  async once(method: "GET" | "POST" | "PATCH" | "DELETE", path: string, data?: unknown) {
     return this.ctx.fetch(path, { method, data });
+  }
+
+  /** Like any well-behaved client, waits for Retry-After and tries again on 429 (#106). */
+  async raw(method: "GET" | "POST" | "PATCH" | "DELETE", path: string, data?: unknown) {
+    for (let attempt = 0; ; attempt++) {
+      const res = await this.ctx.fetch(path, { method, data });
+      if (res.status() !== 429 || attempt >= 10) return res;
+      const wait = Number(res.headers()["retry-after"]) || 1;
+      await new Promise((r) => setTimeout(r, wait * 1000));
+    }
   }
 
   private async json<T>(method: "GET" | "POST" | "PATCH" | "DELETE", path: string, data?: unknown): Promise<T> {

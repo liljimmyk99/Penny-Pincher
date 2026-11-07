@@ -25,6 +25,12 @@ services:
       # demo- projects are emulator-only; the API refuses the emulator otherwise.
       FIREBASE_PROJECT_ID: demo-penny-pincher
       FIREBASE_AUTH_EMULATOR_HOST: auth:9099
+      # Every test reaches the API from this one Docker network address, one
+      # after another for minutes, so the per-IP and per-user limits are raised
+      # (#106). The expensive-route limit keeps its production value and is
+      # what request-limits.spec.ts checks; backend tests cover the rest.
+      RATE_LIMIT_PER_IP: "500/1000"
+      RATE_LIMIT_PER_USER: "500/1000"
     expose:
       - "8080"
     depends_on:

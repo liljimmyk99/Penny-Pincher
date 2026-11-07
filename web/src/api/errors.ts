@@ -18,6 +18,8 @@ export class ApiError extends Error {
   readonly status: number;
   readonly code: ApiErrorCode;
   readonly details: ErrorDetail[];
+  /** Seconds to wait before retrying, from a 429's `Retry-After`; null otherwise. */
+  retryAfter: number | null = null;
 
   constructor(status: number, code: ApiErrorCode, message: string, details: ErrorDetail[] = []) {
     super(message);
@@ -28,11 +30,21 @@ export class ApiError extends Error {
   }
 
   /** Builds an ApiError from a non-2xx response's parsed body, whatever it is. */
-  static fromResponse(status: number, body: unknown): ApiError {
+  static fromResponse(status: number, body: unknown, headers?: Headers): ApiError {
+    const err = ApiError.fromBody(status, body);
+    const retryAfter = Number(headers?.get("Retry-After"));
+    if (status === 429 && Number.isFinite(retryAfter) && retryAfter > 0) err.retryAfter = retryAfter;
+    return err;
+  }
+
+  private static fromBody(status: number, body: unknown): ApiError {
     if (isErrorBody(body)) {
       const { code, message, details } = body.error;
       return new ApiError(status, code, message, details ?? []);
     }
+    // The proxy can answer these itself, with no Error body.
+    if (status === 429) return new ApiError(status, "rate_limited", "Too many requests");
+    if (status === 413) return new ApiError(status, "request_too_large", "Request too large");
     return new ApiError(status, "unexpected_response", `Unexpected response (HTTP ${status})`);
   }
 
@@ -74,6 +86,8 @@ const MESSAGES: Partial<Record<ApiErrorCode, string>> = {
   admin_required: "Only admins can do that.",
   not_found: "That item no longer exists. It may have been deleted.",
   not_implemented: "This isn't available yet.",
+  rate_limited: "Too many requests, try again in a moment.",
+  request_too_large: "That's too much to send at once. Try a smaller change.",
   internal: "Something went wrong on the server. Please try again.",
 };
 

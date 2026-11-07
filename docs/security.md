@@ -2,7 +2,7 @@
 
 Policy: AGENTS.md §4 (tenancy), §8 (non-functional requirements) and §10 (decisions). This page lists the security measures in the project, what is still planned, and the risks we accept. Encryption is covered in more depth in `docs/encryption.md`, and backups in `docs/backups.md`.
 
-Last audit: 2026-11-06, a code and configuration review against a widely used list of 100 common web vulnerabilities (scorecard below). It is not a penetration test. The scorecard is updated as M6 issues close (so far: #105). Server and Firebase console settings live outside the repo, so they are checked through the runbooks and checklists, not the code.
+Last audit: 2026-11-06, a code and configuration review against a widely used list of 100 common web vulnerabilities (scorecard below). It is not a penetration test. The scorecard is updated as M6 issues close (so far: #105, #106). Server and Firebase console settings live outside the repo, so they are checked through the runbooks and checklists, not the code.
 
 Remaining work is tracked in the **M6 · Cyber Security** milestone, which must be done before the first deployment (#42).
 
@@ -80,6 +80,21 @@ The public proxy adds these to every response, from the web app and the API alik
 | The `Server` and `Via` headers, which name Caddy, are removed. | `deploy/Caddyfile` |
 | The Firebase Auth emulator's origin is allowed only by the e2e stack (`FIREBASE_AUTH_EMULATOR_URL` in `e2e/compose.yml`). The root `docker-compose.yml` never passes it to the proxy. | `e2e/compose.yml` |
 
+### Request limits and rate limiting (#106)
+
+| Measure | Where |
+|---|---|
+| **Body caps:** every request body is wrapped in `http.MaxBytesReader`, 1 MB by default and 11 MiB for the import upload (a 10 MB file plus multipart overhead). A `Content-Length` over the cap is refused before the token is checked; a body that runs over while being read is refused too. Both answer `413 request_too_large` (`file_too_large` on the import upload). | `backend/internal/http/limits.go` |
+| Caddy caps `/v1/*` bodies at 12 MiB as a backstop, so the API's JSON 413 is what clients normally see. | `deploy/Caddyfile` |
+| **Slow clients at the edge:** Caddy times out request headers after 10 s and bodies after 2 min, and closes idle connections after 2 min. It has no write timeout, so long streams keep working. | `deploy/Caddyfile` |
+| **Slow clients at the API:** besides `ReadHeaderTimeout`, `ReadTimeout` and `IdleTimeout` are 2 min. There is no server-wide `WriteTimeout`: each response gets a 30 s write deadline through `http.ResponseController`, except the streaming routes (import progress over SSE, backup download, export), which clear both deadlines. | `backend/cmd/api/main.go`, `backend/internal/http/limits.go` |
+| **Per-IP rate limit, before the token is verified:** a token bucket of 20 requests a second, burst 40. A flood of bad tokens is refused without verifying them. The client IP is the address Caddy appends to `X-Forwarded-For`; that is trusted only because the API port is never published. | `backend/internal/http/limits.go` |
+| **Per-user rate limit, after auth:** 10 requests a second, burst 60, plus 5 in a row then one every 10 s on expensive routes (back up now, import upload, export). One user's burst never affects another. | `backend/internal/http/limits.go` |
+| Over a limit, the API answers `429 rate_limited` with `Retry-After` in seconds, and the web shows "Too many requests, try again in a moment". Buckets live in memory (one process) and idle ones are evicted after 10 minutes. | `backend/internal/ratelimit`, `web/src/api/errors.ts` |
+| The per-IP and per-user limits can be overridden with `RATE_LIMIT_PER_IP` / `RATE_LIMIT_PER_USER` (`rate/burst`). Production leaves them unset. Only the e2e stack raises them, because all its tests come from one address. | `backend/internal/config`, `e2e/compose.yml` |
+| Web queries that get a 429 retry once `Retry-After` has passed, so a page that loads during a burst recovers by itself. Saves are never retried automatically. | `web/src/api/queryClient.ts` |
+| Checked in the backend tests and in the e2e suite (`e2e/tests/request-limits.spec.ts`). | — |
+
 ### Secrets, logging and errors
 
 | Measure | Where |
@@ -102,7 +117,6 @@ The public proxy adds these to every response, from the web app and the API alik
 
 | Issue | What it adds | Audit items |
 |---|---|---|
-| #106 | Request body caps, Caddy timeouts, per-IP and per-user rate limits (413 / 429) | 50, 62, 63, 64, 75 |
 | #107 | Dependabot, `govulncheck`, `npm audit`, image scanning, pinned Caddy tag, secret scanning | 34, 99 |
 | #108 | Token revocation check, maximum session age, MFA decision, password policy | 16, 21, 72, 85 |
 | #109 | Read-only containers, dropped capabilities, `no-new-privileges`, resource limits; firewall, SSH and fail2ban runbook | 31, 98, 100 |
@@ -122,7 +136,7 @@ When an issue is closed, update its rows in the scorecard below.
 
 ✅ guarded · ⚠️ partly guarded · ❌ not guarded · — doesn't apply.
 
-**Totals: 64 ✅ · 13 ⚠️ · 3 ❌ · 20 —.** Of the 80 that apply, 80% are fully guarded (70% at the audit; #105 closed 8 items). M6 targets every remaining ⚠️ and ❌ except item 61.
+**Totals: 69 ✅ · 10 ⚠️ · 1 ❌ · 20 —.** Of the 80 that apply, 86% are fully guarded (70% at the audit; #105 closed 8 items and #106 closed 5). M6 targets every remaining ⚠️ and ❌ except item 61.
 
 | # | Item | Status | Notes / issue |
 |---|---|---|---|
@@ -142,7 +156,7 @@ When an issue is closed, update its rows in the scorecard below.
 | 13 | Server-side template injection | — | No server templates |
 | **Authentication and sessions** ||||
 | 14 | Session fixation | ✅ | Firebase-issued tokens, no server sessions |
-| 15 | Brute force | ✅ | Firebase throttling. API rate limits in #106 |
+| 15 | Brute force | ✅ | Firebase throttling, plus per-IP API rate limits (#106) |
 | 16 | Session hijacking | ⚠️ | HTTPS/HSTS and CSP, but no revocation check (#108) |
 | 17 | Password cracking | ✅ | Firebase hashing |
 | 18 | Weak password storage | ✅ | No passwords stored by the app |
@@ -183,7 +197,7 @@ When an issue is closed, update its rows in the scorecard below.
 | **API security** ||||
 | 48 | Insecure API endpoints | ✅ | |
 | 49 | API key exposure | ✅ | Secrets git-ignored. Web key public by design (restrict in #110) |
-| 50 | Lack of rate limiting | ❌ | #106 |
+| 50 | Lack of rate limiting | ✅ | Per-IP and per-user token buckets, tighter on expensive routes (#106) |
 | 51 | Inadequate input validation | ✅ | Spec-generated parsing + server limits |
 | **Insecure communication** ||||
 | 52 | Man-in-the-middle | ✅ | TLS + HSTS |
@@ -198,9 +212,9 @@ When an issue is closed, update its rows in the scorecard below.
 | 60 | HTML5 security issues | ✅ | Storage holds UI preferences only |
 | **Denial of service** ||||
 | 61 | DDoS | ❌ | Accepted risk |
-| 62 | Application-layer DoS | ⚠️ | #106 |
-| 63 | Resource exhaustion | ❌ | No body size limits (#106) |
-| 64 | Slowloris | ⚠️ | API has a header timeout; Caddy has none (#106) |
+| 62 | Application-layer DoS | ✅ | Rate limits, body caps and timeouts (#106) |
+| 63 | Resource exhaustion | ✅ | Body caps in the API and Caddy (#106) |
+| 64 | Slowloris | ✅ | Header, body and idle timeouts in Caddy and the API (#106) |
 | 65 | XML denial of service | — | See M8 note |
 | **Other** ||||
 | 66 | SSRF | ✅ | Outbound hosts come from config only |
@@ -212,7 +226,7 @@ When an issue is closed, update its rows in the scorecard below.
 | 72 | Inadequate session timeout | ⚠️ | #108 |
 | 73 | Insufficient logging and monitoring | ⚠️ | #110 |
 | 74 | Business logic | ✅ | Triggers + transactions + tests |
-| 75 | API abuse | ⚠️ | Allowlist only; rate limits in #106 |
+| 75 | API abuse | ✅ | Allowlist plus per-user rate limits (#106) |
 | **Mobile** ||||
 | 76 | Insecure data storage on mobile | — | No mobile app (Mac app not built yet) |
 | 77 | Insecure data transmission on mobile | — | |

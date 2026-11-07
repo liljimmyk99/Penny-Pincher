@@ -1,6 +1,10 @@
 package config
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/liljimmyk99/penny-pincher/backend/internal/ratelimit"
+)
 
 func env(m map[string]string) func(string) string { return func(k string) string { return m[k] } }
 
@@ -22,6 +26,22 @@ func TestInvalid(t *testing.T) {
 	for _, m := range []map[string]string{{"PORT": "abc"}, {"PORT": "70000"}, {"LOG_LEVEL": "loud"}} {
 		if _, err := Load(env(m)); err == nil {
 			t.Errorf("expected error for %v", m)
+		}
+	}
+}
+
+func TestRateLimitOverrides(t *testing.T) {
+	c, err := Load(env(nil))
+	if err != nil || c.RateLimitPerIP != (ratelimit.Rule{}) || c.RateLimitPerUser != (ratelimit.Rule{}) {
+		t.Fatalf("defaults: got %+v, %v", c, err)
+	}
+	c, err = Load(env(map[string]string{"RATE_LIMIT_PER_IP": "200/400", "RATE_LIMIT_PER_USER": "0.5/3"}))
+	if err != nil || c.RateLimitPerIP != (ratelimit.Rule{Rate: 200, Burst: 400}) || c.RateLimitPerUser != (ratelimit.Rule{Rate: 0.5, Burst: 3}) {
+		t.Fatalf("overrides: got %+v, %v", c, err)
+	}
+	for _, v := range []string{"20", "x/40", "20/x", "0/40", "20/0", "-1/4"} {
+		if _, err := Load(env(map[string]string{"RATE_LIMIT_PER_IP": v})); err == nil {
+			t.Errorf("expected an error for %q", v)
 		}
 	}
 }

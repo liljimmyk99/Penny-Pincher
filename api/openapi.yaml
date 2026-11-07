@@ -29,6 +29,13 @@ info:
     - **Partial updates** use `PATCH` with only the fields being changed. Sending `null` clears a nullable field.
     - **Errors** always use the `Error` body: a stable machine-readable `code` and a human `message`.
       A route that is in this spec but not built yet returns `501 not_implemented` with that body.
+    - **Limits** apply to every route, so they are described here rather than on each one:
+      - A request body over **1 MB** (11 MB for the import upload) gets `413 request_too_large`
+        (`file_too_large` on the import upload). The reverse proxy may answer an even larger
+        body with a bare `413` and no `Error` body.
+      - Too many requests get `429 rate_limited` with a `Retry-After` header (whole seconds).
+        Limits are per client IP (before the token is checked) and per user, with a tighter
+        per-user limit on expensive routes (back up now, import upload, export).
     - **Lists** return `{ "items": [...] }`. Lists that can grow large are cursor-paginated and also
       return `next_cursor` (null on the last page).
 servers:
@@ -1301,6 +1308,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
 
   /v1/admin/backups/{id}/download:
     parameters:
@@ -1429,6 +1437,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
 
   /v1/imports/{id}:
     parameters:
@@ -1644,6 +1653,7 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
 
 # =============================================================================
 components:
@@ -1736,10 +1746,27 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
     PayloadTooLarge:
-      description: The upload is over the size limit (`file_too_large`).
+      description: |
+        The request body is over the size limit: `file_too_large` on the import upload,
+        `request_too_large` anywhere else. Any route can return it (see Limits above).
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
+    TooManyRequests:
+      description: |
+        Rate limited (`rate_limited`). Wait for `Retry-After` seconds before trying again.
+        Any route can return it (see Limits above); expensive routes have a tighter limit.
+      headers:
+        Retry-After:
+          description: Seconds to wait before retrying.
+          schema: { type: integer, minimum: 1 }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            error:
+              code: rate_limited
+              message: Too many requests. Try again in a moment.
     NotFound:
       description: No such resource for this user (`not_found`). Another user's rows are also reported as not found.
       content:
@@ -2027,6 +2054,8 @@ components:
                 - file_too_large
                 - import_in_progress
                 - import_wrong_status
+                - request_too_large
+                - rate_limited
                 - not_implemented
                 - internal
             message:
