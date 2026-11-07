@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/liljimmyk99/penny-pincher/backend/internal/api"
+	"github.com/liljimmyk99/penny-pincher/backend/internal/auth"
 	"github.com/liljimmyk99/penny-pincher/backend/internal/backup"
+	"github.com/liljimmyk99/penny-pincher/backend/internal/logging"
 )
 
 // Backups is what the admin routes need from the backup service. A nil
@@ -20,6 +23,18 @@ type Backups interface {
 }
 
 var _ Backups = (*backup.Service)(nil)
+
+// logAdminAction writes one security-event line for something an admin did.
+// The auth middleware has put the admin's identity on ctx.
+func logAdminAction(ctx context.Context, action, backupID string) {
+	id, _ := auth.FromContext(ctx)
+	slog.Info("admin action",
+		"event", logging.EventAdminAction,
+		"action", action,
+		"user_id", id.ID,
+		"backup_id", backupID,
+	)
+}
 
 // AuthCheck reports whether the sign-in provider is reachable.
 type AuthCheck func(ctx context.Context) error
@@ -98,7 +113,7 @@ func (s *Server) ListBackups(ctx context.Context, _ api.ListBackupsRequestObject
 }
 
 // StartBackup implements POST /v1/admin/backups.
-func (s *Server) StartBackup(_ context.Context, _ api.StartBackupRequestObject) (api.StartBackupResponseObject, error) {
+func (s *Server) StartBackup(ctx context.Context, _ api.StartBackupRequestObject) (api.StartBackupResponseObject, error) {
 	if s.backups == nil {
 		return nil, api.ErrNotImplemented // backups not configured
 	}
@@ -110,6 +125,7 @@ func (s *Server) StartBackup(_ context.Context, _ api.StartBackupRequestObject) 
 	if err != nil {
 		return nil, err
 	}
+	logAdminAction(ctx, logging.ActionBackupStarted, run.ID)
 	return api.StartBackup202JSONResponse(toAPIBackup(run)), nil
 }
 
@@ -131,6 +147,7 @@ func (s *Server) DownloadBackup(ctx context.Context, req api.DownloadBackupReque
 	case err != nil:
 		return nil, err
 	}
+	logAdminAction(ctx, logging.ActionBackupDownloaded, req.Id)
 	cd := fmt.Sprintf("attachment; filename=%q", d.Name)
 	return api.DownloadBackup200ApplicationoctetStreamResponse{
 		Body:          d.Body,

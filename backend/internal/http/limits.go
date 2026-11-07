@@ -3,7 +3,6 @@ package http
 import (
 	"errors"
 	"math"
-	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/liljimmyk99/penny-pincher/backend/internal/api"
 	"github.com/liljimmyk99/penny-pincher/backend/internal/auth"
+	"github.com/liljimmyk99/penny-pincher/backend/internal/clientip"
 	"github.com/liljimmyk99/penny-pincher/backend/internal/ratelimit"
 )
 
@@ -101,7 +101,7 @@ func (l *limiters) edge(next http.Handler) http.Handler {
 			return
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, limit)
-		if l != nil && !l.allow(w, l.ip, clientIP(r)) {
+		if l != nil && !l.allow(w, l.ip, clientip.From(r)) {
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -151,25 +151,6 @@ func setDeadlines(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = rc.SetWriteDeadline(time.Now().Add(writeTimeout))
-}
-
-// clientIP is the address Caddy appended to X-Forwarded-For (the rightmost
-// entry). Caddy replaces the header for untrusted clients, and the API port is
-// never published, so only Caddy can set it. Without it, the peer address.
-func clientIP(r *http.Request) string {
-	if xff := r.Header.Values("X-Forwarded-For"); len(xff) > 0 {
-		last := xff[len(xff)-1]
-		if i := strings.LastIndexByte(last, ','); i >= 0 {
-			last = last[i+1:]
-		}
-		if ip := strings.TrimSpace(last); ip != "" {
-			return ip
-		}
-	}
-	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-		return host
-	}
-	return r.RemoteAddr
 }
 
 func writeTooLarge(w http.ResponseWriter, r *http.Request) {
