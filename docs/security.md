@@ -74,7 +74,7 @@ The public proxy adds these to every response, from the web app and the API alik
 
 | Measure | Where |
 |---|---|
-| **Content-Security-Policy:** `default-src 'self'`. Scripts only from our own files and `https://apis.google.com` (the loader the Firebase Auth popup uses): no inline script, no `eval`. Connections to the API and Firebase Auth's two token hosts. Frames only from the Firebase auth domain. Styles from our CSS and Google Fonts, fonts from Google Fonts. `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`. | `deploy/Caddyfile` |
+| **Content-Security-Policy:** `default-src 'self'`. Scripts only from our own files and `https://apis.google.com` (the loader the Firebase Auth popup uses): no inline script, no `eval`. Connections to the API and Firebase Auth's two token hosts (so the Google loader's sampled `gen_204` usage beacon is blocked, which sign-in doesn't need). Frames only from the Firebase auth domain. Styles from our CSS and Google Fonts, fonts from Google Fonts. `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`. | `deploy/Caddyfile` |
 | **No inline code to allow:** the theme script that runs before first paint is a file (`theme-init.js`), not inline. Radix's scroll lock would inject a `<style>` element, so a stand-in adds that CSS as a constructed stylesheet, which the policy doesn't restrict. Neither `script-src` nor `style-src` has `'unsafe-inline'`. | `web/public/theme-init.js`, `web/src/lib/cspStyleSingleton.ts`, `web/vite.config.ts` |
 | **Clickjacking:** `frame-ancestors 'none'`, plus `X-Frame-Options: DENY` for older browsers. | `deploy/Caddyfile` |
 | **MIME sniffing:** `X-Content-Type-Options: nosniff`. | `deploy/Caddyfile` |
