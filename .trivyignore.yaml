@@ -1,0 +1,12 @@
+# Trivy findings we accept for now (#107). Every entry is scoped to one binary and
+# expires, so CI fails again on the date if the fix still hasn't been picked up.
+# Each entry is recorded under "Accepted risks" in docs/security.md.
+vulnerabilities:
+  # golang.org/x/net/html DoS on crafted HTML. Caddy 2.11.9 (latest) still bundles
+  # x/net v0.60.0. Our Caddy serves static files and proxies; it never parses HTML.
+  # Drop this once a Caddy release ships x/net >= 0.62.0 and Dependabot bumps it.
+  - id: CVE-2026-78661
+    paths:
+      - usr/bin/caddy
+    expired_at: 2026-12-07
+    statement: Caddy serves static files and proxies only; x/net/html is not reached.

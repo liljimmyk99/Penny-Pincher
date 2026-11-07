@@ -1,0 +1,50 @@
+# Weekly update PRs for every dependency the project pins (#107, docs/security.md "Patching").
+# Minor and patch updates are grouped into one PR per ecosystem and folder; majors come one by one.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      go-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directories: [/web, /e2e]
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+
+  # Dockerfiles: Go, Node and Caddy base images, and the distroless digest.
+  - package-ecosystem: docker
+    directories: [/backend, /web, /e2e/auth-emulator]
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      docker-minor-patch:
+        update-types: [minor, patch]
+
+  # The Caddy proxy image in docker-compose.yml and e2e/compose.yml.
+  - package-ecosystem: docker-compose
+    directories: [/, /e2e]
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      compose-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions-minor-patch:
+        update-types: [minor, patch]
