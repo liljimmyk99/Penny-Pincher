@@ -35,6 +35,15 @@ func run() error {
 	}
 	log := logging.New(os.Stdout, cfg.LogLevel)
 
+	if len(os.Args) > 2 && os.Args[1] == "user" && os.Args[2] == "revoke" {
+		if cfg.FirebaseProjectID == "" {
+			return errors.New("FIREBASE_PROJECT_ID is required")
+		}
+		revoke := func(ctx context.Context, uid string) error {
+			return auth.RevokeSessions(ctx, cfg.FirebaseProjectID, uid)
+		}
+		return runUserRevoke(context.Background(), revoke, os.Args[3:], os.Stdout)
+	}
 	if len(os.Args) > 1 && os.Args[1] == "user" {
 		return runUser(context.Background(), cfg.DBPath, os.Args[2:], os.Stdout)
 	}
@@ -75,7 +84,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	authn := auth.Middleware(verifier, store.Users{DB: db})
+	authn := auth.Middleware(verifier, store.Users{DB: db}, auth.MaxSessionAge, time.Now)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

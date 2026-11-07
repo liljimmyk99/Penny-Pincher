@@ -20,6 +20,9 @@ info:
     - **IDs** are opaque strings. Clients must not parse them or assume they are numeric.
     - **Auth:** every route except `/healthz` needs `Authorization: Bearer <Firebase ID token>`.
       A valid token whose Firebase uid is not in the local users table gets `403 not_allowlisted`.
+      A token whose sign-in (`auth_time`) is more than 30 days old gets `401 session_expired`:
+      the user must sign in again. Revoking a user's sessions or disabling them in Firebase
+      makes their tokens get `401 unauthenticated` within 5 minutes.
       All data is scoped to the authenticated user; `user_id` is never accepted from the client.
     - **Derived values are computed by clients:** tax rate, percent of income, month-over-month and
       year-over-year changes, and better/worse colours. The API returns the raw cent totals and the
@@ -1735,7 +1738,9 @@ components:
                 - field: gross_taxable_cents
                   issue: must be <= gross_cents
     Unauthorized:
-      description: Missing, expired or invalid token (`unauthenticated`).
+      description: |
+        Missing, expired, invalid or revoked token (`unauthenticated`), or a sign-in more than
+        30 days old (`session_expired`). Either way the client signs the user out.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
@@ -2040,6 +2045,7 @@ components:
                 - invalid_request
                 - invalid_refund_link
                 - unauthenticated
+                - session_expired
                 - not_allowlisted
                 - admin_required
                 - not_found

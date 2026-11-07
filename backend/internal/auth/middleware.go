@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/liljimmyk99/penny-pincher/backend/internal/api"
 )
@@ -21,11 +22,17 @@ type UserLookup interface {
 	FindByFirebaseUID(ctx context.Context, uid string) (Identity, error)
 }
 
+// MaxSessionAge is how long a sign-in lasts: a token whose auth_time is older
+// gets 401 session_expired, and the user must sign in again (AGENTS.md
+// section 10).
+const MaxSessionAge = 30 * 24 * time.Hour
+
 // Middleware authenticates every request except GET /healthz: it verifies the
-// bearer token (401), requires the uid to exist in the users table (403
-// not_allowlisted), puts the Identity on the context, and requires the admin
-// role under /v1/admin/ (403 admin_required).
-func Middleware(v Verifier, users UserLookup) func(http.Handler) http.Handler {
+// bearer token, including the revocation check (401 unauthenticated), refuses
+// a sign-in older than maxAge (401 session_expired), requires the uid to exist
+// in the users table (403 not_allowlisted), puts the Identity on the context,
+// and requires the admin role under /v1/admin/ (403 admin_required).
+func Middleware(v Verifier, users UserLookup, maxAge time.Duration, now func() time.Time) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/healthz" {
@@ -38,8 +45,18 @@ func Middleware(v Verifier, users UserLookup) func(http.Handler) http.Handler {
 				return
 			}
 			claims, err := v.Verify(r.Context(), tok)
-			if err != nil {
+			if errors.Is(err, ErrInvalidToken) {
 				writeErr(w, http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated, "Missing, expired or invalid token.")
+				return
+			}
+			if err != nil {
+				slog.Error("token check failed", "err_type", fmt.Sprintf("%T", errors.Unwrap(err)))
+				writeErr(w, http.StatusInternalServerError, api.ErrorErrorCodeInternal, "Something went wrong.")
+				return
+			}
+			// A missing auth_time (zero) counts as expired.
+			if now().Sub(claims.AuthTime) > maxAge {
+				writeErr(w, http.StatusUnauthorized, api.ErrorErrorCodeSessionExpired, "Your session has expired. Please sign in again.")
 				return
 			}
 			id, err := users.FindByFirebaseUID(r.Context(), claims.UID)

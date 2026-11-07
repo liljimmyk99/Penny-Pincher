@@ -2,7 +2,7 @@
 
 Policy: AGENTS.md §4 (tenancy), §8 (non-functional requirements) and §10 (decisions). This page lists the security measures in the project, what is still planned, and the risks we accept. Encryption is covered in more depth in `docs/encryption.md`, and backups in `docs/backups.md`.
 
-Last audit: 2026-11-06, a code and configuration review against a widely used list of 100 common web vulnerabilities (scorecard below). It is not a penetration test. The scorecard is updated as M6 issues close (so far: #105, #106, #107). Server and Firebase console settings live outside the repo, so they are checked through the runbooks and checklists, not the code.
+Last audit: 2026-11-06, a code and configuration review against a widely used list of 100 common web vulnerabilities (scorecard below). It is not a penetration test. The scorecard is updated as M6 issues close (so far: #105, #106, #107, #108). Server and Firebase console settings live outside the repo, so they are checked through the runbooks and checklists, not the code.
 
 Remaining work is tracked in the **M6 · Cyber Security** milestone, which must be done before the first deployment (#42).
 
@@ -26,7 +26,10 @@ The design doesn't try to protect a running, unlocked server from someone who al
 |---|---|
 | Sign-in is delegated to Firebase Authentication (Google or email and password). The app never sees or stores a password. Firebase handles password hashing, brute-force throttling and reset emails. | `web/src/auth/firebase.ts` |
 | Every API request needs a Firebase ID token in the `Authorization: Bearer` header, verified by the Firebase Admin SDK (signature, issuer, audience, expiry). The only exception is `GET /healthz`. | `backend/internal/auth/middleware.go`, `firebase.go` |
-| **Allowlist:** a valid token is not enough. The uid must also exist in the local `users` table, or the API answers `403 not_allowlisted`. Accounts are added only by an admin with the `api user add` CLI. There is no sign-up screen. | `backend/internal/auth/middleware.go`, `backend/cmd/api/user.go` |
+| **Revocation (#108):** a token is refused (`401 unauthenticated`) when its Firebase account is disabled or deleted, or its sessions were revoked after the token was issued. Each account is looked up with the service account and cached for 5 minutes, so access stops within 5 minutes. If Firebase can't be reached, a cached account up to an hour old is still used, otherwise the request fails. | `backend/internal/auth/revocation.go`, `firebase.go` |
+| **Session lifetime (#108):** a sign-in lasts 30 days, measured from the token's `auth_time` (refreshing the token doesn't extend it). After that the API answers `401 session_expired`, and the web signs out and says "Your session has expired. Please sign in again." | `backend/internal/auth/middleware.go`, `web/src/api/client.ts` |
+| **Password policy (#108):** email-and-password accounts need at least 12 characters, set in the Firebase console (see the checklist below). In-app MFA is v2; until then, users with a Google account should turn on its 2-Step Verification and sign in with Google. | Firebase console |
+| **Allowlist:** a valid token is not enough. The uid must also exist in the local `users` table, or the API answers `403 not_allowlisted`. Accounts are added only by an admin with the `api user add` CLI, and `api user revoke` signs one out everywhere. There is no sign-up screen. | `backend/internal/auth/middleware.go`, `backend/cmd/api/user.go` |
 | **Roles:** `/v1/admin/*` requires the `admin` role, checked on the server. The web hides admin pages from members and shows them "Page not found". A role can only be changed with the CLI, never through the API. | `backend/internal/auth/middleware.go`, `web/src/pages/AdminOnly.tsx` |
 | Routes not built yet return `501`, but only after authentication, so unfinished routes are never open. | `backend/internal/http/server.go` |
 | The Firebase Auth emulator (unsigned tokens) is accepted only for a `demo-` project id. Otherwise the API refuses to start. | `backend/internal/config/config.go` |
@@ -135,7 +138,6 @@ The public proxy adds these to every response, from the web app and the API alik
 
 | Issue | What it adds | Audit items |
 |---|---|---|
-| #108 | Token revocation check, maximum session age, MFA decision, password policy | 16, 21, 72, 85 |
 | #109 | Read-only containers, dropped capabilities, `no-new-privileges`, resource limits; firewall, SSH and fail2ban runbook | 31, 98, 100 |
 | #110 | Auth-failure and admin-action logs, Caddy access logs without query strings, log rotation, alerting, Firebase console checklist | 33, 73, 96 |
 
@@ -143,7 +145,27 @@ When an issue is closed, update its rows in the scorecard below.
 
 **Excel import (M8)** brings file uploads into scope. `.xlsx` files are zipped XML, so the library chosen in #93 must cap the unzipped size and the XML size (for example excelize's `UnzipSizeLimit` and `UnzipXMLSizeLimit`), on top of the 10 MB / 50,000-row limits in AGENTS.md §10. This covers audit items 39 and 65.
 
+### Lock someone out now
+
+Use this when an account is compromised, a device is lost, or someone should no longer have access. Either step stops their API access within 5 minutes (the revocation cache); their data stays in the database.
+
+1. **Block the account:** Firebase console → Authentication → Users → the user's ⋮ menu → **Disable account**. Firebase stops issuing tokens for it, and the API refuses the tokens it already has.
+2. **Or sign them out everywhere but keep the account** (a lost device, or right after resetting a compromised password). The console has no button for this, so the API binary does it with the service account, on the server in `/srv/pp/app`:
+   ```bash
+   docker compose exec api /api user revoke --uid <firebase-uid>
+   ```
+   Tokens issued before now are refused; signing in again works.
+3. Do both for a compromised account: revoke, reset the password in the console, and disable it until the owner has confirmed the new one.
+4. Check the API logs for `401`s from that account afterwards (#110 adds security-event logs).
+
+### Firebase console checklist (sign-in)
+
+- **Authentication → Settings → Password policy:** require a minimum length of 12, and enforce it (not just notify).
+- **Authentication → Settings → User actions:** "Enable create (sign-up)" off, so accounts are made only by an admin.
+
 ## Accepted risks
+
+- **No in-app MFA in v1 (item 21).** A reused or phished password still gives access to that user's data. The 12-character password policy and Google sign-in with 2-Step Verification reduce the risk; in-app TOTP is v2 (AGENTS.md §10).
 
 - **DDoS (item 61).** One server with no CDN. A large network flood will take the app down. At this scale that is acceptable, and the data stays safe.
 - **`/healthz` is public** and shows the version and uptime, because the admin status and container health checks read it (AGENTS.md §6.12). It shows no data.
@@ -154,7 +176,7 @@ When an issue is closed, update its rows in the scorecard below.
 
 ✅ guarded · ⚠️ partly guarded · ❌ not guarded · — doesn't apply.
 
-**Totals: 71 ✅ · 8 ⚠️ · 1 ❌ · 20 —.** Of the 80 that apply, 89% are fully guarded (70% at the audit; #105 closed 8 items, #106 closed 5 and #107 closed 2). M6 targets every remaining ⚠️ and ❌ except item 61.
+**Totals: 74 ✅ · 5 ⚠️ · 1 ❌ · 20 —.** Of the 80 that apply, 93% are fully guarded (70% at the audit; #105 closed 8 items, #106 closed 5, #107 closed 2 and #108 closed 3). M6 targets every remaining ⚠️ and ❌ except items 21 and 61 (accepted risks).
 
 | # | Item | Status | Notes / issue |
 |---|---|---|---|
@@ -175,12 +197,12 @@ When an issue is closed, update its rows in the scorecard below.
 | **Authentication and sessions** ||||
 | 14 | Session fixation | ✅ | Firebase-issued tokens, no server sessions |
 | 15 | Brute force | ✅ | Firebase throttling, plus per-IP API rate limits (#106) |
-| 16 | Session hijacking | ⚠️ | HTTPS/HSTS and CSP, but no revocation check (#108) |
+| 16 | Session hijacking | ✅ | HTTPS/HSTS and CSP, revocation within 5 minutes, 30-day sessions (#108) |
 | 17 | Password cracking | ✅ | Firebase hashing |
 | 18 | Weak password storage | ✅ | No passwords stored by the app |
 | 19 | Insecure authentication | ✅ | Token on every request + allowlist |
 | 20 | Cookie theft | ✅ | No auth cookies |
-| 21 | Credential reuse | ⚠️ | No MFA or password policy yet (#108) |
+| 21 | Credential reuse | ⚠️ | 12-character password policy (#108); MFA is v2, an accepted risk |
 | **Sensitive data exposure** ||||
 | 22 | Inadequate encryption | ✅ | TLS, LUKS, `age` |
 | 23 | IDOR | ✅ | `user_id` scoping + composite FKs + tests |
@@ -241,7 +263,7 @@ When an issue is closed, update its rows in the scorecard below.
 | 69 | File inclusion | ✅ | Migrations embedded; static root only |
 | 70 | Security header bypass | ✅ | Set by the proxy after the upstreams, on every response (#105) |
 | 71 | Clickjacking (repeat) | ✅ | See 59 |
-| 72 | Inadequate session timeout | ⚠️ | #108 |
+| 72 | Inadequate session timeout | ✅ | 30 days from sign-in, enforced by the API (#108); idle sign-out is v2 |
 | 73 | Insufficient logging and monitoring | ⚠️ | #110 |
 | 74 | Business logic | ✅ | Triggers + transactions + tests |
 | 75 | API abuse | ✅ | Allowlist plus per-user rate limits (#106) |
@@ -253,7 +275,7 @@ When an issue is closed, update its rows in the scorecard below.
 | **IoT and Web of Things** ||||
 | 80–84 | IoT device management, weak IoT auth, IoT device bugs, smart-home access, IoT data privacy | — | |
 | **Authentication bypass** ||||
-| 85 | Insecure "remember me" | ⚠️ | Indefinite sessions (#108) |
+| 85 | Insecure "remember me" | ✅ | Sessions end 30 days after sign-in and can be revoked (#108) |
 | 86 | CAPTCHA bypass | — | No public sign-up |
 | **SSRF** ||||
 | 87 | Blind SSRF | ✅ | |

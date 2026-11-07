@@ -13,7 +13,8 @@ export interface ApiClientOptions {
   getToken: TokenGetter;
   /**
    * Called once per failed request when the session is unusable:
-   * `unauthenticated` (still 401 after a token refresh) or `not_allowlisted` (403).
+   * `unauthenticated` (still 401 after a token refresh), `session_expired` (401,
+   * the sign-in is too old) or `not_allowlisted` (403).
    * The app signs the user out here. `admin_required` is not a session error
    * and is left to the caller.
    */
@@ -43,7 +44,8 @@ function authFetch({ getToken, onSessionError, fetch: baseFetch }: ApiClientOpti
     const retry = request.clone();
 
     let response = await send(withToken(request, await getToken({ forceRefresh: false })));
-    if (response.status === 401) {
+    // A refreshed token keeps its sign-in time, so it can't fix `session_expired`.
+    if (response.status === 401 && !(await isSessionExpired(response))) {
       const fresh = await getToken({ forceRefresh: true });
       if (fresh) response = await send(withToken(retry, fresh));
     }
@@ -61,6 +63,11 @@ function withToken(request: Request, token: string | null): Request {
   const headers = new Headers(request.headers);
   headers.set("Authorization", `Bearer ${token}`);
   return new Request(request, { headers });
+}
+
+async function isSessionExpired(response: Response): Promise<boolean> {
+  const err = ApiError.fromResponse(response.status, await readJson(response.clone()));
+  return err.code === "session_expired";
 }
 
 async function readJson(response: Response): Promise<unknown> {

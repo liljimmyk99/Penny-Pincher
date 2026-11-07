@@ -1219,7 +1219,7 @@ export interface components {
                  * @description Stable, machine-readable. Clients branch on this, never on `message`.
                  * @enum {string}
                  */
-                code: "invalid_request" | "invalid_refund_link" | "unauthenticated" | "not_allowlisted" | "admin_required" | "not_found" | "protected_resource" | "source_has_entries" | "name_taken" | "has_linked_refunds" | "month_not_empty" | "backup_in_progress" | "backup_not_ready" | "invalid_import_file" | "file_too_large" | "import_in_progress" | "import_wrong_status" | "request_too_large" | "rate_limited" | "not_implemented" | "internal";
+                code: "invalid_request" | "invalid_refund_link" | "unauthenticated" | "session_expired" | "not_allowlisted" | "admin_required" | "not_found" | "protected_resource" | "source_has_entries" | "name_taken" | "has_linked_refunds" | "month_not_empty" | "backup_in_progress" | "backup_not_ready" | "invalid_import_file" | "file_too_large" | "import_in_progress" | "import_wrong_status" | "request_too_large" | "rate_limited" | "not_implemented" | "internal";
                 /** @description Human-readable; safe to show. Never contains internals. */
                 message: string;
                 details?: {
@@ -1722,7 +1722,10 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description Missing, expired or invalid token (`unauthenticated`). */
+        /**
+         * @description Missing, expired, invalid or revoked token (`unauthenticated`), or a sign-in more than
+         *     30 days old (`session_expired`). Either way the client signs the user out.
+         */
         Unauthorized: {
             headers: {
                 [name: string]: unknown;

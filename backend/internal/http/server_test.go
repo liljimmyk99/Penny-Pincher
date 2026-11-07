@@ -44,7 +44,7 @@ func newTestAPIWith(t *testing.T, tweak func(*sql.DB, *Deps)) *testAPI {
 		}
 	}
 	v := auth.FakeVerifier{tokAdmin: "uid-admin", tokMember: "uid-member", tokStray: "uid-stray"}
-	deps := Deps{Version: "test", Data: db, Now: time.Now, Authn: auth.Middleware(v, store.Users{DB: db})}
+	deps := Deps{Version: "test", Data: db, Now: time.Now, Authn: auth.Middleware(v, store.Users{DB: db}, auth.MaxSessionAge, time.Now)}
 	if tweak != nil {
 		tweak(db, &deps)
 	}

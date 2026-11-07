@@ -27,7 +27,7 @@ func get(t *testing.T, db Pinger) (*httptest.ResponseRecorder, api.Health) {
 		DB:      db,
 		Data:    data,
 		Now:     func() time.Time { c := clock; clock = clock.Add(5 * time.Second); return c },
-		Authn:   auth.Middleware(auth.FakeVerifier{}, store.Users{DB: data}),
+		Authn:   auth.Middleware(auth.FakeVerifier{}, store.Users{DB: data}, auth.MaxSessionAge, time.Now),
 	})
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest("GET", "/healthz", nil))
