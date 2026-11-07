@@ -6,9 +6,9 @@ require (
 	filippo.io/age v1.3.2
 	firebase.google.com/go/v4 v4.22.0
 	github.com/minio/minio-go/v7 v7.4.1
-	github.com/oapi-codegen/nullable v1.1.0
+	github.com/oapi-codegen/nullable v1.2.0
 	github.com/oapi-codegen/runtime v1.8.0
-	golang.org/x/time v0.15.0
+	golang.org/x/time v0.16.0
 	modernc.org/sqlite v1.61.1
 )
 
