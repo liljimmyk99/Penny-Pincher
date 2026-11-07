@@ -6,7 +6,9 @@ Read the root `AGENTS.md` first. This file adds rules specific to the native mac
 
 - SwiftUI, Swift concurrency (async/await)
 - Talks only to the backend API described in `/api`. Keep the networking layer in one place and model types to match the spec.
-- Auth is Firebase Authentication via its Apple-platform SDK; keep it behind a small wrapper. Minimum macOS version is an open decision (see root file).
+- Auth is Firebase Authentication via its Apple-platform SDK; keep it behind a small wrapper.
+- **Minimum macOS 26** (deployment target `26.0`; root `AGENTS.md` §10). Use current SwiftUI, Swift Charts and Observation APIs directly. Add an `#available` check only for an API newer than macOS 26.
+- **Project: Tuist.** `Project.swift` in this folder defines the app and test targets, packages, build settings, Info.plist keys and entitlements. Run `tuist generate` to create the Xcode project; the generated `.xcodeproj`/`.xcworkspace` are gitignored. The Tuist version is pinned in `.mise.toml` (`mise install`).
 
 ## Rules
 
@@ -15,7 +17,7 @@ Read the root `AGENTS.md` first. This file adds rules specific to the native mac
 - **Online-only in v1:** no local persistence of financial data. When offline or a request fails, show an error and block add/edit. (A cached read-only mode is planned later; do not build it now.) UI preferences (appearance, sidebar state) may be stored in `UserDefaults`/`@AppStorage`.
 - **Secrets:** store auth tokens in the Keychain. Never log amounts, merchants, notes, or tokens.
 - Keep views thin: logic lives in view models; networking lives in the API client.
-- Avoid hand-editing `project.pbxproj`; prefer adding files through Xcode or a project generator if one is adopted.
+- Never edit the generated Xcode project, in Xcode or by hand: `tuist generate` overwrites it. New source files go in the target's folder (the manifest globs it); every other project change goes in `Project.swift`, then regenerate.
 
 ## Design reference
 
@@ -85,7 +87,7 @@ Behavior for each screen is defined in `/web/AGENTS.md`. Native equivalents:
   - Other can never be renamed, edited or deleted, so show it locked with no actions. Saving is badged "Counted as savings".
   - Income sources show entries, gross, net and tax rate. Every source except "Other" can be renamed. Delete is available only for a source with no entries (its template items move to "Other"); a source with entries can only be renamed.
 - **Import (Excel):** same stages and rules as web (`/web/AGENTS.md`, Import). "Download template" saves with an `NSSavePanel`; upload uses `.fileImporter` (or a drop target) limited to `.xlsx`. Review uses a `Table` for the By year rows and grouped problem lists. Progress reads the SSE stream with `URLSession.bytes(for:)` and shows a `ProgressView`; while it runs, show a progress bar at the top of the main window's detail area, and post a user notification when it finishes if the app is in the background. Cancel and Undo use confirmation dialogs.
-- **Empty states** (use `ContentUnavailableView` where available):
+- **Empty states** (use `ContentUnavailableView`):
   - **New account:** a welcome checklist (categories, template, first entry).
   - **New month:** offers to copy the template, with a preview of its items and totals and Start blank as the alternative. After copying, show a banner with Review and Undo.
 
@@ -95,4 +97,4 @@ Use `.confirmationDialog`/alerts for destructive actions, sheets for multi-field
 
 - Unit-test view models, money formatting, and change-indicator colour logic (including the Saving flip) with XCTest.
 - Check both appearances and Full Keyboard Access; every control needs an accessibility label.
-- Build with `xcodebuild` and run tests before finishing.
+- Run `tuist generate`, then build and run the tests with `xcodebuild` (or `tuist test`) before finishing.
