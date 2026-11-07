@@ -118,6 +118,8 @@ const (
 	ErrorErrorCodeNotFound          ErrorErrorCode = "not_found"
 	ErrorErrorCodeNotImplemented    ErrorErrorCode = "not_implemented"
 	ErrorErrorCodeProtectedResource ErrorErrorCode = "protected_resource"
+	ErrorErrorCodeRateLimited       ErrorErrorCode = "rate_limited"
+	ErrorErrorCodeRequestTooLarge   ErrorErrorCode = "request_too_large"
 	ErrorErrorCodeSourceHasEntries  ErrorErrorCode = "source_has_entries"
 	ErrorErrorCodeUnauthenticated   ErrorErrorCode = "unauthenticated"
 )
@@ -158,6 +160,10 @@ func (e ErrorErrorCode) Valid() bool {
 	case ErrorErrorCodeNotImplemented:
 		return true
 	case ErrorErrorCodeProtectedResource:
+		return true
+	case ErrorErrorCodeRateLimited:
+		return true
+	case ErrorErrorCodeRequestTooLarge:
 		return true
 	case ErrorErrorCodeSourceHasEntries:
 		return true
@@ -1475,6 +1481,9 @@ type NotFound = Error
 
 // PayloadTooLarge defines model for PayloadTooLarge.
 type PayloadTooLarge = Error
+
+// TooManyRequests defines model for TooManyRequests.
+type TooManyRequests = Error
 
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
@@ -3979,6 +3988,15 @@ type NotFoundJSONResponse Error
 
 type PayloadTooLargeJSONResponse Error
 
+type TooManyRequestsResponseHeaders struct {
+	RetryAfter *int
+}
+type TooManyRequestsJSONResponse struct {
+	Body Error
+
+	Headers TooManyRequestsResponseHeaders
+}
+
 type UnauthorizedJSONResponse Error
 
 type GetHealthRequestObject struct {
@@ -4126,6 +4144,23 @@ func (response StartBackup409JSONResponse) VisitStartBackupResponse(w http.Respo
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartBackup429JSONResponse struct{ TooManyRequestsJSONResponse }
+
+func (response StartBackup429JSONResponse) VisitStartBackupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(429)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -5213,6 +5248,23 @@ func (response ExportData403JSONResponse) VisitExportDataResponse(w http.Respons
 	return err
 }
 
+type ExportData429JSONResponse struct{ TooManyRequestsJSONResponse }
+
+func (response ExportData429JSONResponse) VisitExportDataResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListImportsRequestObject struct {
 	Params ListImportsParams
 }
@@ -5353,6 +5405,23 @@ func (response UploadImport413JSONResponse) VisitUploadImportResponse(w http.Res
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(413)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadImport429JSONResponse struct{ TooManyRequestsJSONResponse }
+
+func (response UploadImport429JSONResponse) VisitUploadImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(429)
 	_, err := buf.WriteTo(w)
 	return err
 }

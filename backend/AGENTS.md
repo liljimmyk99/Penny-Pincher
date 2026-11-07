@@ -72,6 +72,7 @@ migrations/       numbered SQL migrations
   - Cancel, undo and failure delete every expense and income entry with that `import_id` in one transaction (refunds linked to deleted expenses are unlinked, as usual). On start-up, any import still `running` becomes `failed` and its rows are deleted.
   - The SSE handler (`text/event-stream`) needs flushing, which the strict server's response types don't give; write it as a custom response (or a plain handler) and keep auth and tenancy the same as every other route. Send a `: ping` comment every 15 seconds.
   - Never log cell values, file contents or file names beyond the import id.
+- **Request limits** (`internal/http/limits.go`, root §10): body caps, per-route write deadlines, and per-IP and per-user rate limits wrap the router. A new streaming route (SSE, a long download) must be added to `streamingRoute`, or its 30 s write deadline will cut it off; a new expensive route goes in `expensiveRoute`. A handler that reads the body itself (the multipart import upload) must answer `isTooLarge` errors with `writeTooLarge`. `Deps.Limits` is nil in the handler tests (no rate limiting); `main` passes `DefaultLimits`.
 - **Logging:** never log amounts, merchants, notes, or tokens.
 - **Config** comes from environment variables. Never commit secrets.
 - Errors are returned in the format defined in `/api`; do not leak internals.

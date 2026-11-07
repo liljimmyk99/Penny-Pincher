@@ -89,7 +89,7 @@ export async function unwrap<T>(
   }
   const { data, error, response } = result;
   if (!response.ok || error !== undefined) {
-    throw ApiError.fromResponse(response.status, error);
+    throw ApiError.fromResponse(response.status, error, response.headers);
   }
   return data as T;
 }

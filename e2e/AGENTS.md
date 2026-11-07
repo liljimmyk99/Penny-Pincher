@@ -1,6 +1,6 @@
 # AGENTS.md — /e2e
 
-Read the root `AGENTS.md` first. This folder is the end-to-end suite: Playwright driving the real Docker stack. It automates the **M1 testing gate**'s smoke checklist, the **M2 acceptance tests** (AT-1 to AT-24), the **M3 acceptance tests** (MS, RB, YS, ED) and the M6 security headers (#105).
+Read the root `AGENTS.md` first. This folder is the end-to-end suite: Playwright driving the real Docker stack. It automates the **M1 testing gate**'s smoke checklist, the **M2 acceptance tests** (AT-1 to AT-24), the **M3 acceptance tests** (MS, RB, YS, ED) the M6 security headers (#105) and request limits (#106).
 
 ## Running it
 
@@ -120,6 +120,15 @@ Each test seeds the doc's golden month (Dec 2026 to Mar 2027, generic names) for
 
 - This spec is the `security` project, on **full Chromium** (`channel: "chromium"`), not Playwright's default headless shell. In the shell, an iframe created while a popup opens often never runs its scripts, so the SDK's auth iframe stalls and the popup can't return its result.
 - The Google test waits for the emulator's account chooser to finish loading and for the SDK's auth iframe in the page, as a person picking an account naturally does.
+
+### M6 request limits (`request-limits.spec.ts`, #106)
+
+| Check | Test |
+| --- | --- |
+| A 2 MB body gets the API's `413 request_too_large`; a 13 MB one is refused too (by the API or the proxy's backstop) | `request-limits` · oversized body |
+| The sixth export in a row gets `429 rate_limited` with `Retry-After` and `no-store`; other routes still answer | `request-limits` · expensive route |
+
+- Every test reaches the API from the same Docker network address, one after another, which no real client does. So `compose.yml` raises the per-IP and per-user limits (`RATE_LIMIT_PER_IP`, `RATE_LIMIT_PER_USER`), and the 429 is checked on the expensive-route limit, which keeps its production value. The backend tests cover the per-IP and per-user buckets. The `Api` helper also waits out `Retry-After` on a 429 (`once` doesn't).
 
 ### Where the automation differs from the manual checklist
 

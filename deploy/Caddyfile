@@ -1,6 +1,17 @@
 {
 	# ACME_EMAIL is only meaningful in prod; the default keeps dev parsing.
 	email {$ACME_EMAIL:admin@localhost}
+
+	# Slow clients (Slowloris) are cut off at the edge, which faces the
+	# internet. No write timeout: SSE import progress and backup downloads
+	# stream for as long as they need (the API sets write deadlines per route).
+	servers {
+		timeouts {
+			read_header 10s
+			read_body 2m
+			idle 2m
+		}
+	}
 }
 
 # localhost gets a certificate from Caddy's internal CA automatically;
@@ -50,6 +61,11 @@
 		Cache-Control "no-store"
 	}
 	handle @api {
+		# A backstop for the API's own caps (1 MB, 11 MiB for the import
+		# upload), which answer with the JSON error body. Caddy's 413 has none.
+		request_body {
+			max_size 12MiB
+		}
 		reverse_proxy api:8080
 	}
 	handle {

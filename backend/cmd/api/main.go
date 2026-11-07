@@ -83,7 +83,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	deps := apihttp.Deps{Version: cfg.Version, DB: db, Data: db, Now: time.Now, Authn: authn, AuthCheck: auth.ProbeProvider}
+	deps := apihttp.Deps{Version: cfg.Version, DB: db, Data: db, Now: time.Now, Authn: authn, AuthCheck: auth.ProbeProvider, Limits: limits(cfg)}
 	if cfg.AuthEmulatorHost != "" {
 		deps.AuthCheck = nil // the emulator is local; there is no remote provider to probe
 	}
@@ -97,6 +97,11 @@ func run() error {
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
 		Handler:           apihttp.NewRouter(deps),
 		ReadHeaderTimeout: 5 * time.Second,
+		// Long enough for a 10 MB import upload on a slow link. There is no
+		// WriteTimeout: the router sets write deadlines per route, so SSE
+		// progress and backup downloads can stream for as long as they need.
+		ReadTimeout: 2 * time.Minute,
+		IdleTimeout: 2 * time.Minute,
 	}
 	go func() {
 		<-ctx.Done()
@@ -125,4 +130,16 @@ func healthcheck(port int) error {
 		return fmt.Errorf("healthz returned %d", resp.StatusCode)
 	}
 	return nil
+}
+
+// limits are the default rate limits with any overrides from the environment.
+func limits(cfg config.Config) *apihttp.Limits {
+	l := apihttp.DefaultLimits
+	if cfg.RateLimitPerIP.Rate > 0 {
+		l.PerIP = cfg.RateLimitPerIP
+	}
+	if cfg.RateLimitPerUser.Rate > 0 {
+		l.PerUser = cfg.RateLimitPerUser
+	}
+	return &l
 }
