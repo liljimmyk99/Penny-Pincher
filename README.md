@@ -46,7 +46,7 @@ docker compose exec -T api /api user add --uid <localId> --email demo@example.te
 Run that `docker compose exec` from `e2e/` (project `pp-e2e`). Then sign in at the web address with that email and password. Add entries in the app, or post them through the API (see `e2e/support/stack.ts` for a small client that arranges data). The emulator is honoured only for `demo-` project ids, so this can't be switched on in production by accident.
 ## Firebase credentials
 
-The API needs Google credentials for the Firebase Admin SDK, which reads each account to refuse revoked or disabled users. Download a service account key (Firebase console → Project settings → Service accounts → Generate new private key) and save it as `secrets/firebase-sa.json`. Compose mounts it read-only at `/run/secrets/firebase-sa.json` and sets `GOOGLE_APPLICATION_CREDENTIALS`. The `secrets/` folder is git-ignored; never commit the key. The file must exist before `docker compose up`, or Docker creates a directory in its place.
+The API needs Google credentials for the Firebase Admin SDK, which reads each account to refuse revoked or disabled users. Create a service account with only the **Firebase Authentication Admin** role (Google Cloud console → IAM & Admin → Service accounts), add a JSON key, and save it as `secrets/firebase-sa.json`. Avoid the Firebase console's default `firebase-adminsdk` key, which can reach every Firebase product (`docs/security.md`, console checklist). Compose mounts it read-only at `/run/secrets/firebase-sa.json` and sets `GOOGLE_APPLICATION_CREDENTIALS`. The `secrets/` folder is git-ignored; never commit the key. The file must exist before `docker compose up`, or Docker creates a directory in its place.
 
 ## Firebase sign-in (web)
 

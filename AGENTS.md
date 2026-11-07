@@ -254,6 +254,11 @@ Rules:
   - **MFA is v2.** In-app MFA (Firebase TOTP) needs Identity Platform plus enrolment and challenge screens, a scope change to §6.1. The v1 guidance is to sign in with a Google account that has 2-Step Verification on. Email-and-password accounts rely on Firebase's password policy (minimum 12 characters, set in the Firebase console).
   - **Idle sign-out is v2.** v1 relies on the 30-day maximum.
 
+- **Security logging and alerting** (decided 2026-11-07, #110; details in `docs/security.md`)
+  - **Security events are API log lines** with an `event` attribute: `auth_failure` for every refused request (reason, status, client IP, method, path without query string, and the Firebase uid and user id when known) and `admin_action` for starting or downloading a backup (admin's user id, backup id). Never a token, query string or financial data.
+  - **Caddy access logs** go to stdout as JSON with the query string, `Authorization`, `Cookie`, `Referer` and `Set-Cookie` removed. **Docker rotates every container's logs** (json-file, 5 × 10 MB).
+  - **Alerting:** an external uptime monitor on `/healthz`, plus an hourly cron job (`deploy/security-alert.sh`) that sends a counts-only notification to `ALERT_URL` when there are 20+ failed sign-ins in an hour or any admin action. No log shipping or monitoring stack.
+
 ### Open
 
 - **Go library for `.xlsx`** (import template, reading uploads, problem rows, export). Leaning `github.com/xuri/excelize/v2`: pure Go, supports data-validation dropdowns and streaming large sheets. Decide before building import or export. Whichever library is chosen must cap the unzipped and XML sizes of uploads (zip and XML bombs; `docs/security.md`).

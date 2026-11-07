@@ -56,3 +56,33 @@ func New(w io.Writer, level string) *slog.Logger {
 	_ = l.UnmarshalText([]byte(level))
 	return slog.New(redactHandler{slog.NewJSONHandler(w, &slog.HandlerOptions{Level: l})})
 }
+
+// Security events (AGENTS.md section 8, docs/security.md). Each is one log
+// line whose "event" attribute is one of these, so the alert check and anyone
+// reading the logs can find them. They carry who, where and why, never a
+// token, a query string or any financial data.
+const (
+	// EventAuthFailure is a refused request: a missing, invalid or revoked
+	// token, an expired session, an account not on the allowlist, or a
+	// member on an admin route. Attributes: reason, status, ip, method, path,
+	// and uid (Firebase) and user_id when known.
+	EventAuthFailure = "auth_failure"
+	// EventAdminAction is something an admin did: start or download a
+	// backup. Attributes: action, user_id, backup_id.
+	EventAdminAction = "admin_action"
+)
+
+// Reasons for EventAuthFailure.
+const (
+	ReasonMissingToken   = "missing_token"
+	ReasonInvalidToken   = "invalid_token" // bad, expired, revoked, or the account is disabled or deleted
+	ReasonSessionExpired = "session_expired"
+	ReasonNotAllowlisted = "not_allowlisted"
+	ReasonAdminRequired  = "admin_required"
+)
+
+// Actions for EventAdminAction.
+const (
+	ActionBackupStarted    = "backup_started"
+	ActionBackupDownloaded = "backup_downloaded"
+)
