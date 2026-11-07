@@ -21,29 +21,16 @@ The SQLite file lives on the `api-data` volume; certificates on `caddy-data`/`ca
 
 ## Running locally without the live service
 
-To try the app with no real Firebase project, use the end-to-end stack in `e2e/`. It runs the same API and web images behind Caddy, with the **Firebase Auth emulator** in place of Firebase and an empty database on its own volume. It never touches your dev stack, `.env` or `secrets/`.
+To try the app with no real Firebase project and with sample data:
 
 ```bash
 cd e2e
 npm ci
-npm run stack:up       # builds and starts the stack, waits until healthy
+npm run seed
 ```
 
-- Web app: `https://localhost:18443` (accept the browser's certificate warning for Caddy's internal CA).
-- Auth emulator: `http://localhost:19099`.
-- `npm run stack:down` stops it and **deletes its data** (the volume).
+Then sign in at `https://localhost:18443` as `demo@example.test` / `demo-password-123`. It runs the end-to-end stack (the same images, with the Firebase Auth emulator) and never touches your dev stack, `.env` or `secrets/`. See **[LOCAL_DEMO.md](LOCAL_DEMO.md)** for what the data contains, resetting, signing in as other accounts, and troubleshooting.
 
-The database starts empty and sign-in is allowlisted, so create a test user: add an account to the emulator, then allow it in the API with the real CLI (`user add`; `--role admin` for the admin panel).
-
-```bash
-curl -s -X POST 'http://localhost:19099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-api-key' \
-  -H 'content-type: application/json' \
-  -d '{"email":"demo@example.test","password":"demo-password-1","returnSecureToken":true}'
-# copy "localId" from the response, then:
-docker compose exec -T api /api user add --uid <localId> --email demo@example.test --role admin
-```
-
-Run that `docker compose exec` from `e2e/` (project `pp-e2e`). Then sign in at the web address with that email and password. Add entries in the app, or post them through the API (see `e2e/support/stack.ts` for a small client that arranges data). The emulator is honoured only for `demo-` project ids, so this can't be switched on in production by accident.
 ## Firebase credentials
 
 The API needs Google credentials for the Firebase Admin SDK, which reads each account to refuse revoked or disabled users. Create a service account with only the **Firebase Authentication Admin** role (Google Cloud console → IAM & Admin → Service accounts), add a JSON key, and save it as `secrets/firebase-sa.json`. Avoid the Firebase console's default `firebase-adminsdk` key, which can reach every Firebase product (`docs/security.md`, console checklist). Compose mounts it read-only at `/run/secrets/firebase-sa.json` and sets `GOOGLE_APPLICATION_CREDENTIALS`. The `secrets/` folder is git-ignored; never commit the key. The file must exist before `docker compose up`, or Docker creates a directory in its place.
