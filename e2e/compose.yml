@@ -4,9 +4,26 @@
 # which starts it as project "pp-e2e" on its own ports and volume.
 name: pp-e2e
 
+# The same lockdown as the root docker-compose.yml (#109), so e2e runs the stack
+# as it is deployed.
+x-hardening: &hardening
+  security_opt:
+    - "no-new-privileges:true"
+  cap_drop:
+    - ALL
+  read_only: true
+
 services:
   auth:
     build: ./auth-emulator
+    # Test-only: no privileges or capabilities, but a writable filesystem
+    # (firebase-tools writes its cache and config under the home directory).
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    mem_limit: 1g
+    pids_limit: 256
     ports:
       - "19099:9099" # the browser signs in here (baked into the web build below)
     healthcheck:
@@ -16,9 +33,14 @@ services:
       retries: 30
 
   api:
+    <<: *hardening
     build: ../backend
     volumes:
       - api-data:/data
+    tmpfs:
+      - /tmp
+    mem_limit: 768m
+    pids_limit: 256
     environment:
       PORT: "8080"
       DB_PATH: /data/spend.db
@@ -43,17 +65,32 @@ services:
       retries: 30
 
   web:
+    <<: *hardening
     build:
       context: ../web
       args:
         VITE_FIREBASE_API_KEY: demo-api-key
         VITE_FIREBASE_PROJECT_ID: demo-penny-pincher
         VITE_FIREBASE_AUTH_EMULATOR_URL: http://localhost:19099
+    tmpfs:
+      - /config:uid=10001,gid=10001,mode=0700
+      - /data:uid=10001,gid=10001,mode=0700
+    mem_limit: 128m
+    pids_limit: 128
     expose:
-      - "80"
+      - "8080"
 
   proxy:
+    <<: *hardening
     image: caddy:2.11
+    cap_add:
+      - NET_BIND_SERVICE
+    # No certificate volume here: the internal CA is recreated with the stack.
+    tmpfs:
+      - /config
+      - /data
+    mem_limit: 256m
+    pids_limit: 256
     environment:
       DOMAIN: localhost
       # The web build's default auth domain (no VITE_FIREBASE_AUTH_DOMAIN above).

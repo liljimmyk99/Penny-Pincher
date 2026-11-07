@@ -1,10 +1,12 @@
 # Serves the built SPA inside the web container (plain HTTP; TLS is the proxy's job).
+# Listens on :8080 because the container runs as a non-root user with every
+# capability dropped, which can't bind ports below 1024 (#109).
 {
 	admin off
 	auto_https off
 }
 
-:80 {
+:8080 {
 	root * /srv
 	encode zstd gzip
 	# Hashed build assets can be cached forever; index.html must always be revalidated.

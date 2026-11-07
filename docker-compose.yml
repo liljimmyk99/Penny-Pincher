@@ -1,9 +1,26 @@
 # Whole-app stack. Pick a profile via COMPOSE_PROFILES in .env (see .env.example):
 #   dev  - localhost, Caddy's internal CA, ports 8080/8443
 #   prod - real DOMAIN, automatic Let's Encrypt, ports 80/443
+#
+# Every container is locked down (docs/security.md, #109): no privilege
+# escalation, no Linux capabilities (the proxy gets back only the one to bind
+# 80/443), a read-only root filesystem with tmpfs or volumes only where it must
+# write, and memory and process limits. Only the proxy publishes ports.
+x-hardening: &hardening
+  security_opt:
+    - "no-new-privileges:true"
+  cap_drop:
+    - ALL
+  read_only: true
+
 services:
   api:
+    <<: *hardening
     build: ./backend
+    # Includes the /tmp tmpfs, which holds a full plaintext copy of the database
+    # during a backup. Raise it if the database ever grows past ~200 MB.
+    mem_limit: 768m
+    pids_limit: 256
     volumes:
       - api-data:/data # SQLite file lives here (DB_PATH=/data/spend.db)
       - ./secrets/firebase-sa.json:/run/secrets/firebase-sa.json:ro
@@ -33,6 +50,7 @@ services:
     restart: unless-stopped
 
   web:
+    <<: *hardening
     build:
       context: ./web
       args:
@@ -40,12 +58,26 @@ services:
         VITE_FIREBASE_API_KEY: ${FIREBASE_WEB_API_KEY:?set FIREBASE_WEB_API_KEY in .env}
         VITE_FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:?set FIREBASE_PROJECT_ID in .env}
         VITE_FIREBASE_AUTH_DOMAIN: ${FIREBASE_AUTH_DOMAIN:-}
+    # Caddy as the image's non-root user (uid 10001), on :8080. It keeps nothing,
+    # so its config and data dirs are memory-only.
+    tmpfs:
+      - /config:uid=10001,gid=10001,mode=0700
+      - /data:uid=10001,gid=10001,mode=0700
+    mem_limit: 128m
+    pids_limit: 128
     expose:
-      - "80"
+      - "8080"
     restart: unless-stopped
 
   proxy-dev:
     profiles: ["dev"]
+    <<: *hardening
+    cap_add:
+      - NET_BIND_SERVICE # binds 80 and 443 inside the container
+    tmpfs:
+      - /config # Caddy's autosaved config; certificates live in /data
+    mem_limit: 256m
+    pids_limit: 256
     image: caddy:2.11
     environment:
       DOMAIN: localhost
@@ -66,6 +98,13 @@ services:
 
   proxy:
     profiles: ["prod"]
+    <<: *hardening
+    cap_add:
+      - NET_BIND_SERVICE # binds 80 and 443 inside the container
+    tmpfs:
+      - /config # Caddy's autosaved config; certificates live in /data
+    mem_limit: 256m
+    pids_limit: 256
     image: caddy:2.11
     environment:
       DOMAIN: ${DOMAIN:-}
