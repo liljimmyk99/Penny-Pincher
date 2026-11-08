@@ -1,0 +1,3 @@
+# Pins the Tuist version for local builds and a future Mac CI job (root AGENTS.md §10).
+[tools]
+tuist = "4.50.2"

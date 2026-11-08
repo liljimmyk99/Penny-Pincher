@@ -1,0 +1,28 @@
+// Copy to Config/Local.xcconfig (gitignored) and fill in. App.xcconfig
+// includes it. Remember `//` starts a comment: write URLs as https:/$()/…
+
+// Your server (serves the web app and /v1). https only, except localhost.
+PP_SERVER_URL = https:/$()/spend.example.com
+
+// Firebase console ▸ Project settings ▸ Your apps ▸ the Apple (macOS) app.
+FIREBASE_API_KEY =
+FIREBASE_PROJECT_ID =
+FIREBASE_APP_ID =
+FIREBASE_GCM_SENDER_ID =
+
+// The Apple app's OAuth client (CLIENT_ID and REVERSED_CLIENT_ID in its
+// GoogleService-Info.plist). Without them, Google sign-in is hidden.
+// GOOGLE_CLIENT_ID =
+// GOOGLE_REVERSED_CLIENT_ID =
+
+// Your Apple Developer team id (Xcode ▸ Settings ▸ Accounts).
+DEVELOPMENT_TEAM =
+
+// --- Local testing against the e2e auth emulator instead -------------------
+// Run the API on this Mac against e2e's emulator (mac/AGENTS.md, Running it):
+// PP_SERVER_URL = http:/$()/localhost:8080
+// FIREBASE_API_KEY = demo-api-key
+// FIREBASE_PROJECT_ID = demo-penny-pincher
+// FIREBASE_APP_ID = 1:000000000000:ios:0000000000000000
+// FIREBASE_GCM_SENDER_ID = 000000000000
+// FIREBASE_AUTH_EMULATOR_HOST = localhost:19099

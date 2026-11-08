@@ -1,0 +1,7 @@
+# swift-openapi-generator build plugin config. The spec next to this file is a
+# symlink to /api/openapi.yaml, the one contract (root AGENTS.md §3).
+generate:
+  - types
+  - client
+accessModifier: internal
+namingStrategy: idiomatic

@@ -4,20 +4,54 @@ Read the root `AGENTS.md` first. This file adds rules specific to the native mac
 
 ## Stack
 
-- SwiftUI, Swift concurrency (async/await)
+- SwiftUI, **Swift 6** language mode (complete strict concurrency checking), async/await
 - Talks only to the backend API described in `/api`. Keep the networking layer in one place and model types to match the spec.
-- Auth is Firebase Authentication via its Apple-platform SDK; keep it behind a small wrapper.
+  - **Client: `swift-openapi-generator`'s build plugin**, run on every build from `Services/API/openapi.yaml` (a symlink to `/api/openapi.yaml`) and `openapi-generator-config.yaml`. Nothing generated is committed. Tuist keeps non-Swift files out of a target's sources, so those two files join the target as resources, which is how the plugin finds them.
+  - `Services/API/APIClient.swift` wraps the generated `Client` with `AuthMiddleware` (bearer token, one retry after a refresh, session errors) and maps responses to app types and `APIError`.
+- Auth is Firebase Authentication via its Apple-platform SDK, behind `AuthService`. `Services/Auth/FirebaseAuthService.swift` is the only file that imports `FirebaseAuth`, `FirebaseCore` or `GoogleSignIn`.
+  - Google sign-in uses the `GoogleSignIn` SDK for the Google ID token, then signs in to Firebase with it.
+  - `SessionService` mirrors the web session: restoring, signed out (with a "no access" or "expired" notice), loading the account from `/v1/me`, signed in.
 - **Minimum macOS 26** (deployment target `26.0`; root `AGENTS.md` §10). Use current SwiftUI, Swift Charts and Observation APIs directly. Add an `#available` check only for an API newer than macOS 26.
 - **Project: Tuist.** `Project.swift` in this folder defines the app and test targets, packages, build settings, Info.plist keys and entitlements. Run `tuist generate` to create the Xcode project; the generated `.xcodeproj`/`.xcworkspace` are gitignored. The Tuist version is pinned in `.mise.toml` (`mise install`).
+  - Packages use Xcode's own package integration (`packages:` in `Project.swift`). Tuist keeps the resolved versions in `.package.resolved`, which is committed.
+- **Config:** `Config/App.xcconfig` (committed defaults) includes the gitignored `Config/Local.xcconfig`, which holds the server address, the Firebase Apple app's values, the Google client id and your `DEVELOPMENT_TEAM`. Copy `Config/Local.example.xcconfig` to start. The values reach the app through Info.plist keys, and `Models/AppConfig.swift` checks them at launch: the server must be `https` (plain `http` only for `localhost`), and the Auth emulator is allowed only for a `demo-` project. A bad config shows a setup screen.
 
 ## Rules
 
 - **Money** is integer cents (`Int`). Format for display in one shared helper; never use `Double` for amounts.
 - **Dates** are `YYYY-MM-DD` calendar dates; do not let time zones shift them.
 - **Online-only in v1:** no local persistence of financial data. When offline or a request fails, show an error and block add/edit. (A cached read-only mode is planned later; do not build it now.) UI preferences (appearance, sidebar state) may be stored in `UserDefaults`/`@AppStorage`.
-- **Secrets:** store auth tokens in the Keychain. Never log amounts, merchants, notes, or tokens.
-- Keep views thin: logic lives in view models; networking lives in the API client.
+- **Secrets:** auth tokens live only in the Keychain. The Firebase and Google SDKs put them there (the data-protection Keychain, so the app is signed with a team and a keychain access group); app code never stores or caches one. Never log amounts, merchants, notes, or tokens.
+- Follow the **Architecture** section below: logic lives in view models, networking in `Services/API`, and every user-facing string in the string catalog.
 - Never edit the generated Xcode project, in Xcode or by hand: `tuist generate` overwrites it. New source files go in the target's folder (the manifest globs it); every other project change goes in `Project.swift`, then regenerate.
+
+## Architecture
+
+Source lives in `PennyPincher/Sources/` (paths below are relative to it):
+
+```
+App/        the @main app, AppContainer (builds services and long-lived view models), menu commands
+Services/   every service, one folder each: API, Auth, Session, Appearance, …
+Models/     types shared across screens and services (Account, AppConfig, Appearance, …)
+Shared/     helpers and views used by several screens: Money, Theme, View/Components
+Screens/<Screen>/
+  Model/              that screen's own types (modes, fields, sidebar items, display info)
+  ViewModel/          <Screen>ViewModel: state, derived text, actions; as much logic as possible
+  View/<Screen>View.swift                   layout only: composes components, no functional code
+  View/Extensions/<Screen>View+Extension.swift   the view's actions (forward to the view model)
+  View/Components/    one view struct per file
+  View/Previews/<Screen>View+Previews.swift   #Preview for each state of the screen
+```
+
+- **Services** go only in `Services/`. View models and other services use them; views never call one directly.
+- **View models** are `@MainActor @Observable` classes. Put state, derived values (titles, messages, enabled states) and actions there, so they can be unit-tested. Inject what they need (services, `UserDefaults`, URL opening) through `init`.
+- **Screen views** contain only layout: composition, modifiers, bindings, and references to their extension's methods (`action: signIn`). No `Task`, no logic, no inline closures that do work. A `@FocusState` or other SwiftUI-only state may be declared in the view and changed from its extension.
+- **The extension file** holds the view's functional code: button actions, submit and appear handlers. Each method is a thin forward to the view model, plus SwiftUI-only work such as moving focus. A view without functional code needs no extension file.
+- **Components** are atomic: every `View` struct is its own file in `View/Components`, and there are no `@ViewBuilder` helper properties or functions; make a component instead. Components take data, bindings and action closures (or read a view model for display), and never contain functional code themselves. A component used by several screens goes in `Shared/View/Components`.
+- One type per file outside `Models/` and `Services/` too (models may nest small types such as an enum of cases).
+- **Strings:** every user-facing string is in `Resources/Localizable.xcstrings`, with Info.plist names in `Resources/InfoPlist.xcstrings`. Use semantic keys (`signIn.title`, `account.signedIn %@`) with the English text as the catalog value, never English literals in code. Views pass keys as `LocalizedStringKey`; view models and services use `LocalizedStringResource` or `String(localized:)`. Interpolated keys use format specifiers (`%@`, positional `%1$@` in the value). The build extracts every key into the catalog, so a new key shows up there as needing a value.
+- **Previews:** every screen has `#Preview`s in `View/Previews/<Screen>View+Previews.swift`, one per meaningful state (for example sign-in, an error, reset, sent; loading, signed out, signed in; light and dark). They build their view models from `Shared/Preview/PreviewData.swift`, which uses preview-only fakes (`PreviewAuthService`, `PreviewAccountAPI`) in `Services/`. All of this code, previews included, is wrapped in `#if DEBUG`, so none of it ships in a release build. Use generic made-up data only.
+- **Tests: Swift Testing** (`import Testing`, `@Suite`, `@Test`, `#expect`, `#require`, `arguments:` for tables of cases) for every test except UI tests, which use XCTest/XCUITest. A suite that needs main-actor state is a `@MainActor struct` that builds it in `init`. Disable environment-dependent suites with an `.enabled(if:)` trait, not by skipping inside the test. Tests mirror the layout under `PennyPincherTests/` (`Models`, `Services`, `Shared`, `Screens`, with fakes and fixtures in `Support`).
 
 ## Design reference
 
@@ -93,8 +127,37 @@ Behavior for each screen is defined in `/web/AGENTS.md`. Native equivalents:
 
 Use `.confirmationDialog`/alerts for destructive actions, sheets for multi-field tasks, and a brief inline status message for background confirmations.
 
+## Running it
+
+```
+cd mac
+mise install                          # the pinned Tuist
+cp Config/Local.example.xcconfig Config/Local.xcconfig   # then fill it in
+tuist generate                        # creates and opens PennyPincher.xcworkspace
+```
+
+- Xcode asks once to **trust the OpenAPIGenerator plugin** ("Trust & Enable"). On the command line, pass `-skipPackagePluginValidation`.
+- Build and test from the command line:
+
+  ```
+  xcodebuild test -workspace PennyPincher.xcworkspace -scheme PennyPincher \
+    -destination 'platform=macOS' -skipPackagePluginValidation -allowProvisioningUpdates
+  ```
+
+  Unit tests don't need signing (add `CODE_SIGNING_ALLOWED=NO`). Running the app does: Firebase needs the keychain access group, so set `DEVELOPMENT_TEAM`.
+- **Signing in locally without a Firebase project:** use the e2e Auth emulator (`npm run stack:up` in `/e2e`, port 19099) and run the API on this Mac against it:
+
+  ```
+  cd backend && go build -o /tmp/pp-api ./cmd/api
+  PORT=8080 DB_PATH=/tmp/pp-dev.db FIREBASE_PROJECT_ID=demo-penny-pincher \
+    FIREBASE_AUTH_EMULATOR_HOST=localhost:19099 /tmp/pp-api
+  ```
+
+  Then use the emulator block at the bottom of `Local.example.xcconfig`. `npm run seed` in `/e2e` creates the emulator account in `e2e/AGENTS.md`; allowlist it on your API with `/tmp/pp-api user add --uid <its uid> --email <its email> --role admin` (same environment variables). Google sign-in is hidden with the emulator.
+- `EmulatorSignInTests` signs in for real against that setup. Its suite is disabled unless `TEST_RUNNER_PP_EMULATOR_HOST`, `TEST_RUNNER_PP_SERVER_URL`, `TEST_RUNNER_PP_TEST_EMAIL` and `TEST_RUNNER_PP_TEST_PASSWORD` are set on the `xcodebuild test` command.
+
 ## Quality
 
-- Unit-test view models, money formatting, and change-indicator colour logic (including the Saving flip) with XCTest.
+- Unit-test view models, money formatting, and change-indicator colour logic (including the Saving flip) with Swift Testing.
 - Check both appearances and Full Keyboard Access; every control needs an accessibility label.
 - Run `tuist generate`, then build and run the tests with `xcodebuild` (or `tuist test`) before finishing.
