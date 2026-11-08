@@ -1,0 +1,736 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "account.accessibility %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account: %1$@, %2$@"
+          }
+        }
+      }
+    },
+    "account.admin": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Admin dashboard"
+          }
+        }
+      }
+    },
+    "account.export": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export data"
+          }
+        }
+      }
+    },
+    "account.fallbackName": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your account"
+          }
+        }
+      }
+    },
+    "account.import": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import transactions"
+          }
+        }
+      }
+    },
+    "account.role.admin": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Admin"
+          }
+        }
+      }
+    },
+    "account.role.member": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Member"
+          }
+        }
+      }
+    },
+    "account.settings": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings…"
+          }
+        }
+      }
+    },
+    "account.signOut": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign out"
+          }
+        }
+      }
+    },
+    "account.signedIn %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signed in · %@"
+          }
+        }
+      }
+    },
+    "api.error.network": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't reach the server. Check your connection and try again."
+          }
+        }
+      }
+    },
+    "api.error.server": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Something went wrong on the server. Please try again."
+          }
+        }
+      }
+    },
+    "app.name": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Penny Pincher"
+          }
+        }
+      }
+    },
+    "appearance.dark": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dark"
+          }
+        }
+      }
+    },
+    "appearance.light": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Light"
+          }
+        }
+      }
+    },
+    "appearance.system": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System"
+          }
+        }
+      }
+    },
+    "auth.error.accountExists": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This email signs in with a password. Use email and password instead."
+          }
+        }
+      }
+    },
+    "auth.error.googleUnavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google sign-in isn't set up for this app yet. Use email and password instead."
+          }
+        }
+      }
+    },
+    "auth.error.invalidCredentials": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That email and password don't match. Check them and try again, or reset your password."
+          }
+        }
+      }
+    },
+    "auth.error.invalidEmail": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a valid email address."
+          }
+        }
+      }
+    },
+    "auth.error.network": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't reach the sign-in service. Check your connection and try again."
+          }
+        }
+      }
+    },
+    "auth.error.noAccess": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This account isn't set up for Penny Pincher. Ask an admin to add you."
+          }
+        }
+      }
+    },
+    "auth.error.providerDisabled": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That sign-in method isn't turned on. Ask an admin for help."
+          }
+        }
+      }
+    },
+    "auth.error.tooManyRequests": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Too many attempts. Wait a few minutes and try again, or reset your password."
+          }
+        }
+      }
+    },
+    "auth.error.unknown": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign-in failed. Please try again."
+          }
+        }
+      }
+    },
+    "auth.error.userDisabled": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This account has been disabled. Ask an admin for help."
+          }
+        }
+      }
+    },
+    "config.problem.emulatorNeedsDemoProject": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FIREBASE_AUTH_EMULATOR_HOST is set, but FIREBASE_PROJECT_ID does not start with \"demo-\". The emulator is for local testing only."
+          }
+        }
+      }
+    },
+    "config.problem.insecureServerURL %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PP_SERVER_URL (%@) must use https. Plain http is allowed only for localhost."
+          }
+        }
+      }
+    },
+    "config.problem.invalidEmulatorHost %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FIREBASE_AUTH_EMULATOR_HOST (%@) must be host:port."
+          }
+        }
+      }
+    },
+    "config.problem.invalidServerURL %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PP_SERVER_URL (%@) is not a valid http(s) address."
+          }
+        }
+      }
+    },
+    "config.problem.missing %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is not set. Add it to mac/Config/Local.xcconfig and build again."
+          }
+        }
+      }
+    },
+    "menu.newExpense": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Expense"
+          }
+        }
+      }
+    },
+    "placeholder.description": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This screen is coming in a later update."
+          }
+        }
+      }
+    },
+    "root.loadingAccount": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading your account…"
+          }
+        }
+      }
+    },
+    "root.restoring": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restoring your session…"
+          }
+        }
+      }
+    },
+    "root.setupProblem.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Penny Pincher isn't set up yet"
+          }
+        }
+      }
+    },
+    "root.signOut": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign out"
+          }
+        }
+      }
+    },
+    "root.tryAgain": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try again"
+          }
+        }
+      }
+    },
+    "settings.appearance": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appearance"
+          }
+        }
+      }
+    },
+    "sidebar.addEntries": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add entries"
+          }
+        }
+      }
+    },
+    "sidebar.categories": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Categories & sources"
+          }
+        }
+      }
+    },
+    "sidebar.import": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import"
+          }
+        }
+      }
+    },
+    "sidebar.summary": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summary"
+          }
+        }
+      }
+    },
+    "sidebar.templates": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Templates"
+          }
+        }
+      }
+    },
+    "sidebar.transactions": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transactions"
+          }
+        }
+      }
+    },
+    "sidebar.trends": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trends"
+          }
+        }
+      }
+    },
+    "sidebar.yearly": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yearly"
+          }
+        }
+      }
+    },
+    "signIn.back": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back"
+          }
+        }
+      }
+    },
+    "signIn.backToSignIn": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to sign in"
+          }
+        }
+      }
+    },
+    "signIn.detail": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Welcome back. Sign in to pick up where you left off."
+          }
+        }
+      }
+    },
+    "signIn.email": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Email"
+          }
+        }
+      }
+    },
+    "signIn.email.placeholder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "you@example.com"
+          }
+        }
+      }
+    },
+    "signIn.footer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign-in secured by Firebase Authentication"
+          }
+        }
+      }
+    },
+    "signIn.forgot": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forgot password?"
+          }
+        }
+      }
+    },
+    "signIn.google": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue with Google"
+          }
+        }
+      }
+    },
+    "signIn.google.opening": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opening Google…"
+          }
+        }
+      }
+    },
+    "signIn.newHere": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New here? Accounts are created by an admin."
+          }
+        }
+      }
+    },
+    "signIn.notice.expired": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your session has expired. Please sign in again."
+          }
+        }
+      }
+    },
+    "signIn.notice.noAccess %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No access. %@ isn't set up for Penny Pincher. Ask an admin to add you, or sign in with a different account."
+          }
+        }
+      }
+    },
+    "signIn.notice.thisAccount": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This account"
+          }
+        }
+      }
+    },
+    "signIn.orEmail": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "or sign in with email"
+          }
+        }
+      }
+    },
+    "signIn.password": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Password"
+          }
+        }
+      }
+    },
+    "signIn.password.placeholder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Password"
+          }
+        }
+      }
+    },
+    "signIn.reset.detail": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter your account email and we'll send you a link to choose a new password."
+          }
+        }
+      }
+    },
+    "signIn.reset.submit": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send reset link"
+          }
+        }
+      }
+    },
+    "signIn.reset.submit.busy": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sending…"
+          }
+        }
+      }
+    },
+    "signIn.reset.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset your password"
+          }
+        }
+      }
+    },
+    "signIn.sent.detail": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Didn't get it? Check spam, or try again in a minute."
+          }
+        }
+      }
+    },
+    "signIn.sent.message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "**Check your email.** If an account exists for that address, a reset link is on its way. It expires in 1 hour."
+          }
+        }
+      }
+    },
+    "signIn.sent.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset link sent"
+          }
+        }
+      }
+    },
+    "signIn.submit": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in"
+          }
+        }
+      }
+    },
+    "signIn.submit.busy": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signing in…"
+          }
+        }
+      }
+    },
+    "signIn.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

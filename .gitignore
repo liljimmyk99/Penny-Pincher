@@ -8,3 +8,5 @@ secrets/
 mac/*.xcodeproj/
 mac/*.xcworkspace/
 mac/Derived/
+# Local server, Firebase and signing values (copy mac/Config/Local.example.xcconfig)
+mac/Config/Local.xcconfig

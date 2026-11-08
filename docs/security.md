@@ -32,9 +32,10 @@ The design doesn't try to protect a running, unlocked server from someone who al
 | **Allowlist:** a valid token is not enough. The uid must also exist in the local `users` table, or the API answers `403 not_allowlisted`. Accounts are added only by an admin with the `api user add` CLI, and `api user revoke` signs one out everywhere. There is no sign-up screen. | `backend/internal/auth/middleware.go`, `backend/cmd/api/user.go` |
 | **Roles:** `/v1/admin/*` requires the `admin` role, checked on the server. The web hides admin pages from members and shows them "Page not found". A role can only be changed with the CLI, never through the API. | `backend/internal/auth/middleware.go`, `web/src/pages/AdminOnly.tsx` |
 | Routes not built yet return `501`, but only after authentication, so unfinished routes are never open. | `backend/internal/http/server.go` |
-| The Firebase Auth emulator (unsigned tokens) is accepted only for a `demo-` project id. Otherwise the API refuses to start. | `backend/internal/config/config.go` |
+| The Firebase Auth emulator (unsigned tokens) is accepted only for a `demo-` project id. Otherwise the API refuses to start, and the Mac app shows a setup error instead of signing in. | `backend/internal/config/config.go`, `mac/PennyPincher/Sources/Models/AppConfig.swift` |
+| **Mac app tokens (#44):** the Firebase and Google sign-in SDKs keep the session in the data-protection Keychain, under the app's own keychain access group (which is why the app is signed with a development team). The app's code never stores, caches or logs a token. Like the web, it retries a `401` once with a refreshed token (never a `session_expired`), and signs out on a `401` that remains or a `403 not_allowlisted`. | `mac/PennyPincher/Sources/Services/Auth/FirebaseAuthService.swift`, `mac/PennyPincher/Sources/Services/API/AuthMiddleware.swift` |
 | **No CSRF exposure:** auth is a bearer header, not a cookie, so another site can't make the browser send authenticated requests. No CORS headers are sent, so other origins can't read API responses. | — |
-| **No account enumeration in the UI:** a wrong email and a wrong password show the same message, and "Forgot password" never reveals whether an account exists. | `web/src/auth/errors.ts`, `web/src/auth/firebase.ts` |
+| **No account enumeration in the UI:** a wrong email and a wrong password show the same message, and "Forgot password" never reveals whether an account exists. | `web/src/auth/errors.ts`, `web/src/auth/firebase.ts`, `mac/PennyPincher/Sources/Services/Auth/` |
 
 ### Tenancy (one user can't reach another's data)
 
@@ -65,6 +66,7 @@ See `docs/encryption.md` for details and the server runbook.
 | HTTPS only through Caddy with automatic certificates. HTTP redirects to HTTPS. HSTS for one year (not for `localhost`). | `deploy/Caddyfile` |
 | `api` and `web` ports are only `expose`d on Docker's internal network. Only the proxy publishes 80/443. | `docker-compose.yml` |
 | Every outbound connection uses TLS (Firebase, backup bucket). Plain HTTP to the bucket is refused outside `demo-` projects. | `backend/internal/config/config.go` |
+| **Mac app (#44):** the server address must be `https`; plain `http` is accepted only for `localhost` and loopback addresses, for development. App Transport Security enforces HTTPS too, with one exception, `NSAllowsLocalNetworking`, which allows plain HTTP only to local names (a dev API or the auth emulator). The app is sandboxed (outgoing network and files the user picks only) with the hardened runtime. | `mac/PennyPincher/Sources/Models/AppConfig.swift`, `mac/Project.swift`, `mac/PennyPincher/PennyPincher.entitlements` |
 | The database, Docker's data, `.env` and `secrets/` live on a LUKS2 volume that is unlocked by hand after each reboot. | `docs/encryption.md` |
 | Backups are `VACUUM INTO` copies in a memory-only `tmpfs`, encrypted with `age` to a public key before upload. The server can't decrypt its own backups, and admins can download only the encrypted file. | `backend/internal/backup`, `docs/backups.md` |
 
@@ -120,7 +122,7 @@ The public proxy adds these to every response, from the web app and the API alik
 
 | Measure | Where |
 |---|---|
-| Secrets live in `.env` and `secrets/`, both git-ignored. The Firebase web API key is public by design and grants no data access on its own. | `.gitignore`, `.env.example` |
+| Secrets live in `.env` and `secrets/`, both git-ignored. The Firebase web API key is public by design and grants no data access on its own. The Mac app's server, Firebase and signing values live in the git-ignored `mac/Config/Local.xcconfig`. | `.gitignore`, `.env.example`, `mac/Config/Local.example.xcconfig` |
 | Logs are JSON through a **redacting handler** that blanks any attribute whose key looks like money, a merchant, a note, a token or a secret. Handlers log only error *types*, never error text. It is also slog's default logger, so nothing in the API logs around it. | `backend/internal/logging`, `backend/cmd/api/main.go` |
 | **Security events (#110):** every refused request logs one `"event":"auth_failure"` line with a `reason` (`missing_token`, `invalid_token`, `session_expired`, `not_allowlisted`, `admin_required`), the status, client IP, method and path (never the query string or the token), and the Firebase `uid` and local `user_id` once they are known (never for a token that failed verification). Starting and downloading a backup each log one `"event":"admin_action"` line with the `action`, the admin's `user_id` and the `backup_id`. Tests check that no token, query string, amount, merchant or note reaches these lines. | `backend/internal/auth/middleware.go`, `backend/internal/http/admin.go` |
 | **Proxy access logs (#110):** Caddy writes one JSON line per request to stdout with the query string cut from the URI (the trends `?text=` filter matches note text), and the `Authorization`, `Cookie`, `Referer` (the full previous URL on same-origin requests) and `Set-Cookie` headers removed. | `deploy/Caddyfile` |
@@ -411,8 +413,8 @@ Run these after setup and after any server change, and record the date in #42.
 | 74 | Business logic | ✅ | Triggers + transactions + tests |
 | 75 | API abuse | ✅ | Allowlist plus per-user rate limits (#106) |
 | **Mobile** ||||
-| 76 | Insecure data storage on mobile | — | No mobile app (Mac app not built yet) |
-| 77 | Insecure data transmission on mobile | — | |
+| 76 | Insecure data storage on mobile | ✅ | No mobile app. The Mac app keeps tokens only in the Keychain (through the Firebase SDK) and no financial data on disk, since v1 is online-only (#44) |
+| 77 | Insecure data transmission on mobile | ✅ | Mac app: HTTPS only, enforced by its config check and App Transport Security; plain HTTP only to local names, for development (#44) |
 | 78 | Insecure mobile API endpoints | ✅ | Same API and checks |
 | 79 | Mobile app reverse engineering | — | No secrets in clients |
 | **IoT and Web of Things** ||||

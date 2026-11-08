@@ -1,0 +1,28 @@
+// Build settings for the Mac app (Project.swift uses this for Debug and Release).
+// Committed defaults only. Put your own values in Config/Local.xcconfig
+// (gitignored; copy Local.example.xcconfig), which is included at the bottom.
+// `//` starts a comment in xcconfig files, so URLs are written `https:/$()/…`.
+
+// The server that serves both the web app and the API (/v1, /healthz).
+PP_SERVER_URL = http:/$()/localhost:8080
+
+// Firebase project (Firebase console ▸ Project settings ▸ your Apple app).
+// Public values, like the web app's FIREBASE_WEB_API_KEY, but kept out of git.
+FIREBASE_API_KEY =
+FIREBASE_PROJECT_ID =
+FIREBASE_APP_ID =
+FIREBASE_GCM_SENDER_ID =
+
+// Google sign-in: the Apple app's OAuth client id and its reversed form.
+GOOGLE_CLIENT_ID =
+GOOGLE_REVERSED_CLIENT_ID = app.pennypincher.unconfigured
+
+// Local testing only: host:port of the Firebase Auth emulator. Honored only for
+// a demo- project id, the same rule as the API and web app (AGENTS.md §10).
+FIREBASE_AUTH_EMULATOR_HOST =
+
+// Your Apple Developer team, for signing (Firebase Auth needs the keychain
+// access group that signing provides).
+DEVELOPMENT_TEAM =
+
+#include? "Local.xcconfig"
