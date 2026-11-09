@@ -7,7 +7,7 @@ Read the root `AGENTS.md` first. This file adds rules specific to the native mac
 - SwiftUI, **Swift 6** language mode (complete strict concurrency checking), async/await
 - Talks only to the backend API described in `/api`. Keep the networking layer in one place and model types to match the spec.
   - **Client: `swift-openapi-generator`'s build plugin**, run on every build from `Services/API/openapi.yaml` (a symlink to `/api/openapi.yaml`) and `openapi-generator-config.yaml`. Nothing generated is committed. Tuist keeps non-Swift files out of a target's sources, so those two files join the target as resources, which is how the plugin finds them.
-  - `Services/API/APIClient.swift` wraps the generated `Client` with `AuthMiddleware` (bearer token, one retry after a refresh, session errors) and maps responses to app types and `APIError`.
+  - `Services/API/APIClient.swift` wraps the generated `Client` with `AuthMiddleware` (bearer token, one retry after a refresh, session errors) and `ErrorMiddleware` (every 4xx/5xx becomes an `APIError` with the server's `code`, `message` and `details`), and maps responses to app types in `Models/`. View models depend on the `CategoriesAPI` and `EntriesAPI` protocols (`LedgerAPI` is both), never on generated types.
 - Auth is Firebase Authentication via its Apple-platform SDK, behind `AuthService`. `Services/Auth/FirebaseAuthService.swift` is the only file that imports `FirebaseAuth`, `FirebaseCore` or `GoogleSignIn`.
   - Google sign-in uses the `GoogleSignIn` SDK for the Google ID token, then signs in to Firebase with it.
   - `SessionService` mirrors the web session: restoring, signed out (with a "no access" or "expired" notice), loading the account from `/v1/me`, signed in.
@@ -85,7 +85,7 @@ The canvas shows the web app. The Mac app matches its **behavior, content, data 
 - The sidebar is **collapsible** with the standard toolbar sidebar button and ⌃⌘S. Remember its state.
 - Account: the signed-in user's name/avatar sits in the sidebar footer and opens a menu with Settings, Import transactions, Export data and Sign out. Appearance (Light / Dark / System) lives in the **Settings window (⌘,)**.
 - **Admin dashboard is web-only.** For admins, the account menu item opens the web admin page in the default browser.
-- Use the menu bar for common commands, such as File ▸ New Expense (⌘N) and View ▸ Previous/Next Month.
+- Use the menu bar for common commands: File ▸ New Expense (⌘N, opens Add entries on a blank row) and View ▸ Previous/Next Month (⌘[ and ⌘]; ⌘←/⌘→ would steal cursor movement in text fields). The month commands work on the screens that show a month (Add entries and Transactions, which share it).
 
 ## Screens (native mapping)
 

@@ -60,12 +60,26 @@ enum PreviewData {
         return viewModel
     }
 
+    static func categories(failing: Bool = false) -> CategoriesViewModel {
+        CategoriesViewModel(api: PreviewLedgerAPI(failing: failing), today: "2026-10-14")
+    }
+
+    static func addEntries(failing: Bool = false) -> AddEntriesViewModel {
+        AddEntriesViewModel(api: PreviewLedgerAPI(failing: failing), month: MonthSelection(month: "2026-10"),
+                            today: { "2026-10-14" })
+    }
+
+    static func transactions(failing: Bool = false) -> TransactionsViewModel {
+        TransactionsViewModel(api: PreviewLedgerAPI(failing: failing), month: MonthSelection(month: "2026-10"))
+    }
+
     static func settings() -> SettingsViewModel {
         SettingsViewModel(appearance: AppearanceService(defaults: defaults))
     }
 
     private static func mainViewModel(_ session: SessionService) -> MainViewModel {
-        MainViewModel(session: session, adminURL: adminURL, defaults: defaults, openURL: { _ in })
+        MainViewModel(session: session, api: PreviewLedgerAPI(), adminURL: adminURL, defaults: defaults,
+                      openURL: { _ in })
     }
 }
 #endif

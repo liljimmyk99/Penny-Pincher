@@ -18,7 +18,7 @@ struct MainView: View {
                     .padding(10)
                 }
         } detail: {
-            ScreenPlaceholder(item: viewModel.detailItem)
+            ScreenDetail(item: viewModel.detailItem, workspace: viewModel.workspace)
         }
     }
 }

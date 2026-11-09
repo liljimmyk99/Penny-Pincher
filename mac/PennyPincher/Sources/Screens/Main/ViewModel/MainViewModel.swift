@@ -13,6 +13,9 @@ final class MainViewModel {
     @ObservationIgnored private let session: SessionService
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let openURL: @MainActor (URL) -> Void
+    @ObservationIgnored private let api: LedgerAPI
+    /// The current account's screens; rebuilt when the account changes.
+    @ObservationIgnored private var cachedWorkspace: Workspace?
     let adminURL: URL
     let sidebarItems = SidebarItem.allCases
 
@@ -26,11 +29,13 @@ final class MainViewModel {
 
     init(
         session: SessionService,
+        api: LedgerAPI,
         adminURL: URL,
         defaults: UserDefaults = .standard,
         openURL: @escaping @MainActor (URL) -> Void = { NSWorkspace.shared.open($0) }
     ) {
         self.session = session
+        self.api = api
         self.adminURL = adminURL
         self.defaults = defaults
         self.openURL = openURL
@@ -47,6 +52,32 @@ final class MainViewModel {
     }
 
     var detailItem: SidebarItem { selection ?? .summary }
+
+    // MARK: Screens
+
+    /// The screens for the signed-in account (nil when signed out).
+    var workspace: Workspace? {
+        guard let account else { return nil }
+        if let cachedWorkspace, cachedWorkspace.accountID == account.id { return cachedWorkspace }
+        let created = Workspace(accountID: account.id, api: api)
+        cachedWorkspace = created
+        return created
+    }
+
+    /// View ▸ Previous/Next Month works on the screens that show a month.
+    var canChangeMonth: Bool {
+        account != nil && (detailItem == .addEntries || detailItem == .transactions)
+    }
+
+    func previousMonth() {
+        guard canChangeMonth else { return }
+        workspace?.month.previous()
+    }
+
+    func nextMonth() {
+        guard canChangeMonth else { return }
+        workspace?.month.next()
+    }
 
     // MARK: Account
 
@@ -75,6 +106,7 @@ final class MainViewModel {
     func newExpense() {
         guard canAddEntries else { return }
         selection = .addEntries
+        workspace?.addEntries.requestFocus()
     }
 
     func importTransactions() {

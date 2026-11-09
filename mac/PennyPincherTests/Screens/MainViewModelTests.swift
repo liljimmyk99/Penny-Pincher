@@ -12,7 +12,7 @@ struct MainViewModelTests {
     private func makeViewModel(_ account: Account = .member) async -> (MainViewModel, SessionService, FakeAuth) {
         let (session, auth) = await makeSession(account)
         let opened = opened
-        let viewModel = MainViewModel(session: session, adminURL: adminURL, defaults: defaults,
+        let viewModel = MainViewModel(session: session, api: FakeLedgerAPI(), adminURL: adminURL, defaults: defaults,
                                       openURL: { opened.urls.append($0) })
         return (viewModel, session, auth)
     }
@@ -24,7 +24,7 @@ struct MainViewModelTests {
         viewModel.selection = .trends
         #expect(viewModel.detailItem == .trends)
 
-        let next = MainViewModel(session: session, adminURL: adminURL, defaults: defaults, openURL: { _ in })
+        let next = MainViewModel(session: session, api: FakeLedgerAPI(), adminURL: adminURL, defaults: defaults, openURL: { _ in })
         #expect(next.selection == .trends)
     }
 
@@ -35,7 +35,7 @@ struct MainViewModelTests {
         viewModel.columnVisibility = .detailOnly
         #expect(viewModel.isSidebarCollapsed)
 
-        let next = MainViewModel(session: session, adminURL: adminURL, defaults: defaults, openURL: { _ in })
+        let next = MainViewModel(session: session, api: FakeLedgerAPI(), adminURL: adminURL, defaults: defaults, openURL: { _ in })
         #expect(next.columnVisibility == .detailOnly)
         next.columnVisibility = .all
         #expect(!next.isSidebarCollapsed)
@@ -84,6 +84,40 @@ struct MainViewModelTests {
         viewModel.selection = .summary
         viewModel.newExpense()
         #expect(viewModel.selection == .summary)
+    }
+
+    @Test("View ▸ Previous/Next Month works on screens that show a month")
+    func monthCommands() async throws {
+        let (viewModel, _, _) = await makeViewModel()
+        let workspace = try #require(viewModel.workspace)
+        #expect(viewModel.workspace === workspace)
+        let start = workspace.month.month
+        viewModel.selection = .categories
+        #expect(!viewModel.canChangeMonth)
+        viewModel.nextMonth()
+        #expect(workspace.month.month == start)
+
+        viewModel.selection = .transactions
+        viewModel.nextMonth()
+        #expect(workspace.month.month == CalendarDate.shiftMonth(start, by: 1))
+        viewModel.previousMonth()
+        viewModel.previousMonth()
+        #expect(workspace.month.month == CalendarDate.shiftMonth(start, by: -1))
+
+        viewModel.newExpense()
+        #expect(workspace.addEntries.focusRequest == 1)
+    }
+
+    @Test("Screens are rebuilt for another account")
+    func workspacePerAccount() async throws {
+        let (viewModel, session, auth) = await makeViewModel()
+        let first = try #require(viewModel.workspace)
+        viewModel.signOut()
+        #expect(viewModel.workspace == nil)
+        _ = session
+        auth.emit(.test)
+        await settle()
+        #expect(viewModel.workspace?.accountID == first.accountID)
     }
 
     @Test("Sidebar order matches the spec")

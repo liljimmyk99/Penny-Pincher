@@ -43,7 +43,7 @@ final class AppContainer {
             let session = SessionService(auth: auth, api: api)
             relay.session = session
             session.start()
-            let main = MainViewModel(session: session, adminURL: config.adminURL)
+            let main = MainViewModel(session: session, api: api, adminURL: config.adminURL)
             return AppContainer(setup: .ready(session: session, main: main), appearance: appearance)
         }
     }

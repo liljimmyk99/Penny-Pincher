@@ -56,12 +56,9 @@ struct AuthMiddleware: ClientMiddleware {
 
     /// Reads the `Error` body and puts an unread copy back for the generated client.
     private static func readError(_ body: inout HTTPBody?, status: Int) async throws -> APIError {
-        guard let current = body else { return APIError.from(status: status, body: nil) }
+        guard let current = body else { return APIError.decode(nil, status: status) }
         let data = try await Data(collecting: current, upTo: maxErrorBody)
         body = HTTPBody(data)
-        let decoded = try? JSONDecoder().decode(Components.Schemas._Error.self, from: data)
-        var error = APIError.from(status: status, body: decoded)
-        if decoded == nil && status == 401 { error.code = "unauthenticated" }
-        return error
+        return APIError.decode(data, status: status)
     }
 }
