@@ -11,6 +11,8 @@ struct ScreenDetail: View {
             AddEntriesView(viewModel: workspace.addEntries)
         case (.transactions, .some(let workspace)):
             TransactionsView(viewModel: workspace.transactions)
+        case (.templates, .some(let workspace)):
+            TemplatesView(viewModel: workspace.templates)
         case (.categories, .some(let workspace)):
             CategoriesView(viewModel: workspace.categories)
         default:

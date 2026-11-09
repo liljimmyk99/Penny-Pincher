@@ -41,3 +41,17 @@ enum Fixture {
         return api
     }
 }
+
+extension Fixture {
+    static func template(_ id: String = "t1", name: String = "Typical", days: [Int] = [1, 31]) -> Template {
+        Template(
+            id: id, name: name,
+            expenseItems: days.enumerated().map { index, day in
+                TemplateExpenseItem(id: "e\(index)", categoryID: food.id, merchant: store, dayOfMonth: day,
+                                    amountCents: 10_000, note: nil, sortOrder: index)
+            },
+            incomeItems: [TemplateIncomeItem(id: "i0", incomeSourceID: job.id, dayOfMonth: 15, grossCents: 300_000,
+                                             grossTaxableCents: 270_000, netCents: 200_000, note: "Paycheck",
+                                             sortOrder: 0)])
+    }
+}

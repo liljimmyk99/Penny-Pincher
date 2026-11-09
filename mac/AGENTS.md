@@ -7,7 +7,7 @@ Read the root `AGENTS.md` first. This file adds rules specific to the native mac
 - SwiftUI, **Swift 6** language mode (complete strict concurrency checking), async/await
 - Talks only to the backend API described in `/api`. Keep the networking layer in one place and model types to match the spec.
   - **Client: `swift-openapi-generator`'s build plugin**, run on every build from `Services/API/openapi.yaml` (a symlink to `/api/openapi.yaml`) and `openapi-generator-config.yaml`. Nothing generated is committed. Tuist keeps non-Swift files out of a target's sources, so those two files join the target as resources, which is how the plugin finds them.
-  - `Services/API/APIClient.swift` wraps the generated `Client` with `AuthMiddleware` (bearer token, one retry after a refresh, session errors) and `ErrorMiddleware` (every 4xx/5xx becomes an `APIError` with the server's `code`, `message` and `details`), and maps responses to app types in `Models/`. View models depend on the `CategoriesAPI` and `EntriesAPI` protocols (`LedgerAPI` is both), never on generated types.
+  - `Services/API/APIClient.swift` wraps the generated `Client` with `AuthMiddleware` (bearer token, one retry after a refresh, session errors) and `ErrorMiddleware` (every 4xx/5xx becomes an `APIError` with the server's `code`, `message` and `details`), and maps responses to app types in `Models/`. View models depend on the `CategoriesAPI`, `EntriesAPI` and `TemplatesAPI` protocols (`LedgerAPI` is all three), never on generated types.
 - Auth is Firebase Authentication via its Apple-platform SDK, behind `AuthService`. `Services/Auth/FirebaseAuthService.swift` is the only file that imports `FirebaseAuth`, `FirebaseCore` or `GoogleSignIn`.
   - Google sign-in uses the `GoogleSignIn` SDK for the Google ID token, then signs in to Firebase with it.
   - `SessionService` mirrors the web session: restoring, signed out (with a "no access" or "expired" notice), loading the account from `/v1/me`, signed in.
@@ -108,6 +108,7 @@ Behavior for each screen is defined in `/web/AGENTS.md`. Native equivalents:
   - Originals show "Refunded in full" (amount struck through) or "Partly refunded · net …".
   - "Link…" opens a sheet with search and a suggested match.
 - **Templates:** list plus editor. Expense items take name, category, amount and day of month; income items take source, label, gross, gross taxable and net. Apply to a chosen month; the backend moves days 29–31 to the month's last day when needed.
+  - Items are added and edited in sheets. "Apply…" opens a sheet with a month switcher; a month with data asks for the full-reset confirmation before it retries with `reset_month`. The new-month offer, Apply, the reset dialog and Undo are one shared `MonthTemplatesViewModel` (`Shared/Templates`), used by Transactions and the Apply sheet. The banner's Review narrows Transactions to unconfirmed entries; Undo shows only while the newest apply has unconfirmed copies.
 - **Yearly:**
   - Income vs. spent paired bars per month (Swift Charts). Clicking a month opens its Summary.
   - Ranked bars of monthly category averages.

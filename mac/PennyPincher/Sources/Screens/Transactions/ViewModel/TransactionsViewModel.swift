@@ -28,6 +28,10 @@ final class TransactionsViewModel {
     var incomeEditor: IncomeEditorViewModel?
     var linker: LinkRefundViewModel?
     var pendingDelete: TransactionDelete?
+    /// "Review": only the entries that still need a look.
+    var showUnconfirmedOnly = false
+    /// The month's template actions: the new-month offer, apply, reset and Undo.
+    @ObservationIgnored let templates: MonthTemplatesViewModel
 
     private(set) var errorMessage: String?
     private(set) var statusMessage: String?
@@ -40,6 +44,11 @@ final class TransactionsViewModel {
     init(api: LedgerAPI, month: MonthSelection) {
         self.api = api
         self.month = month
+        templates = MonthTemplatesViewModel(api: api, month: month)
+        templates.counts = { [weak self] in
+            MonthCounts(expenses: self?.expenses.count ?? 0, income: self?.incomeEntries.count ?? 0)
+        }
+        templates.onChange = { [weak self] in await self?.reload() }
     }
 
     // MARK: Loading
@@ -53,7 +62,9 @@ final class TransactionsViewModel {
             phase = .loaded
         } catch {
             phase = .failed(error.message)
+            return
         }
+        await templates.load()
     }
 
     func monthChanged() async {
@@ -67,6 +78,7 @@ final class TransactionsViewModel {
         } catch {
             errorMessage = error.message
         }
+        await templates.monthChanged()
     }
 
     /// Reloads the month after a change.
@@ -86,6 +98,7 @@ final class TransactionsViewModel {
         expenses
             .filter { expense in
                 (categoryFilter.map { expense.categoryID == $0 } ?? true)
+                    && (!showUnconfirmedOnly || !expense.confirmed)
                     && (refundFilter?.matches(expense) ?? true)
                     && Self.matches(expense, search: search)
             }
@@ -93,7 +106,7 @@ final class TransactionsViewModel {
             .sorted(using: sortOrder)
     }
 
-    var isFiltered: Bool { categoryFilter != nil || refundFilter != nil || !search.trimmed.isEmpty }
+    var isFiltered: Bool { categoryFilter != nil || refundFilter != nil || showUnconfirmedOnly || !search.trimmed.isEmpty }
 
     var emptyMessage: LocalizedStringResource {
         expenses.isEmpty ? "transactions.empty.month" : "transactions.empty.filtered"
@@ -185,7 +198,7 @@ final class TransactionsViewModel {
     // MARK: Income
 
     var incomeRows: [IncomeRow] {
-        incomeEntries.map { entry in
+        incomeEntries.filter { !showUnconfirmedOnly || !$0.confirmed }.map { entry in
             IncomeRow(
                 id: entry.id,
                 date: entry.date,
@@ -221,6 +234,17 @@ final class TransactionsViewModel {
 
     var unconfirmedText: String {
         String(localized: "transactions.unconfirmed.banner \(unconfirmedCount)")
+    }
+
+    /// The banner's text: what the newest template copy added, else the plain count.
+    var bannerText: String {
+        guard let apply = templates.undoableApply else { return unconfirmedText }
+        return String(localized: "transactions.applied.banner \(apply.createdCount) \(apply.templateName ?? "")")
+    }
+
+    /// Review narrows the lists to the unconfirmed entries; the same button shows all again.
+    func toggleReview() {
+        showUnconfirmedOnly.toggle()
     }
 
     func confirmAll() async {
@@ -319,10 +343,22 @@ final class TransactionsViewModel {
         }
     }
 
+    /// The newest error from this screen or the template actions, else the newest confirmation.
+    var noticeMessage: String? { errorMessage ?? templates.errorMessage ?? statusMessage ?? templates.statusMessage }
+    var noticeIsError: Bool { errorMessage != nil || templates.errorMessage != nil }
+
     func dismissMessages() {
         errorMessage = nil
         statusMessage = nil
+        templates.dismissMessages()
     }
+
+    // MARK: Templates
+
+    var isMonthEmpty: Bool { expenses.isEmpty && incomeEntries.isEmpty }
+
+    /// An empty month offers its template copy (web's `NewMonthOffer`).
+    var showsNewMonthOffer: Bool { phase == .loaded && isMonthEmpty && templates.canOffer }
 
     // MARK: Private
 
@@ -343,10 +379,12 @@ final class TransactionsViewModel {
         self.expenses = expenses
         incomeEntries = income
         self.originals = originals
+        if unconfirmedCount == 0 { showUnconfirmedOnly = false }
         if let pending = pendingSelection {
             pendingSelection = nil
             selection = here.contains(pending) ? [pending] : []
         }
+        await templates.refreshApplies()
     }
 
     private func work(_ action: () async throws(APIError) -> Void) async {

@@ -153,5 +153,94 @@ struct PreviewLedgerAPI: LedgerAPI {
     func deleteIncomeEntry(id: String) async throws(APIError) {}
 
     func confirmAll(month: String) async throws(APIError) {}
+
+    // MARK: Templates
+
+    private var templateList: [Template] {
+        [Template(
+            id: "t0", name: "Typical month",
+            expenseItems: [
+                TemplateExpenseItem(id: "ti0", categoryID: "c1", merchant: Merchant(id: "m-Landlord", name: "Landlord"),
+                                    dayOfMonth: 1, amountCents: 120_000, note: nil, sortOrder: 0),
+                TemplateExpenseItem(id: "ti1", categoryID: "c2", merchant: Merchant(id: "m-Power Co", name: "Power Co"),
+                                    dayOfMonth: 3, amountCents: 6_450, note: nil, sortOrder: 1),
+                TemplateExpenseItem(id: "ti2", categoryID: "c0", merchant: Merchant(id: "m-Brokerage", name: "Brokerage"),
+                                    dayOfMonth: 5, amountCents: 40_000, note: "Monthly transfer", sortOrder: 2),
+                TemplateExpenseItem(id: "ti3", categoryID: "c5", merchant: Merchant(id: "m-Streaming", name: "Streaming"),
+                                    dayOfMonth: 31, amountCents: 1_599, note: nil, sortOrder: 3),
+            ],
+            incomeItems: [
+                TemplateIncomeItem(id: "tn0", incomeSourceID: "s0", dayOfMonth: 15, grossCents: 300_000,
+                                   grossTaxableCents: 270_000, netCents: 205_000, note: "Paycheck", sortOrder: 0),
+            ]),
+         Template(id: "t1", name: "Lean month", expenseItems: [], incomeItems: [])]
+    }
+
+    func templates() async throws(APIError) -> [TemplateSummary] {
+        if failing { throw failure }
+        return templateList.map {
+            TemplateSummary(id: $0.id, name: $0.name, expenseItemCount: $0.expenseItems.count,
+                            incomeItemCount: $0.incomeItems.count)
+        }
+    }
+
+    func template(id: String) async throws(APIError) -> Template {
+        guard let found = templateList.first(where: { $0.id == id }) else { throw failure }
+        return found
+    }
+
+    func createTemplate(name: String) async throws(APIError) -> Template {
+        Template(id: "new", name: name, expenseItems: [], incomeItems: [])
+    }
+
+    func renameTemplate(id: String, name: String) async throws(APIError) -> Template {
+        var template = templateList.first { $0.id == id } ?? templateList[0]
+        template.name = name
+        return template
+    }
+
+    func deleteTemplate(id: String) async throws(APIError) {}
+
+    func createExpenseItem(templateID: String, _ draft: TemplateExpenseItemDraft) async throws(APIError) -> TemplateExpenseItem {
+        TemplateExpenseItem(id: "new", categoryID: draft.categoryID, merchant: Merchant(id: "m", name: draft.merchantName),
+                            dayOfMonth: draft.dayOfMonth, amountCents: draft.amountCents, note: draft.note, sortOrder: 99)
+    }
+
+    func updateExpenseItem(templateID: String, itemID: String, _ draft: TemplateExpenseItemDraft) async throws(APIError) -> TemplateExpenseItem {
+        TemplateExpenseItem(id: itemID, categoryID: draft.categoryID, merchant: Merchant(id: "m", name: draft.merchantName),
+                            dayOfMonth: draft.dayOfMonth, amountCents: draft.amountCents, note: draft.note, sortOrder: 0)
+    }
+
+    func deleteExpenseItem(templateID: String, itemID: String) async throws(APIError) {}
+
+    func createIncomeItem(templateID: String, _ draft: TemplateIncomeItemDraft) async throws(APIError) -> TemplateIncomeItem {
+        TemplateIncomeItem(id: "new", incomeSourceID: draft.incomeSourceID, dayOfMonth: draft.dayOfMonth,
+                           grossCents: draft.grossCents, grossTaxableCents: draft.grossTaxableCents,
+                           netCents: draft.netCents, note: draft.note, sortOrder: 99)
+    }
+
+    func updateIncomeItem(templateID: String, itemID: String, _ draft: TemplateIncomeItemDraft) async throws(APIError) -> TemplateIncomeItem {
+        TemplateIncomeItem(id: itemID, incomeSourceID: draft.incomeSourceID, dayOfMonth: draft.dayOfMonth,
+                           grossCents: draft.grossCents, grossTaxableCents: draft.grossTaxableCents,
+                           netCents: draft.netCents, note: draft.note, sortOrder: 0)
+    }
+
+    func deleteIncomeItem(templateID: String, itemID: String) async throws(APIError) {}
+
+    func applyTemplate(month: String, templateID: String, resetMonth: Bool) async throws(APIError) -> TemplateApplyResult {
+        TemplateApplyResult(apply: TemplateApply(id: "apply", templateID: templateID, templateName: "Typical month",
+                                                 month: month, createdExpenseCount: 4, createdIncomeEntryCount: 1,
+                                                 unconfirmedCount: 5),
+                            removedExpenseCount: 0, removedIncomeEntryCount: 0)
+    }
+
+    func templateApplies(month: String) async throws(APIError) -> [TemplateApply] {
+        [TemplateApply(id: "apply", templateID: "t0", templateName: "Typical month", month: month,
+                       createdExpenseCount: 1, createdIncomeEntryCount: 1, unconfirmedCount: 2)]
+    }
+
+    func undoTemplateApply(id: String) async throws(APIError) -> TemplateUndoResult {
+        TemplateUndoResult(removedExpenseCount: 1, removedIncomeEntryCount: 1)
+    }
 }
 #endif
