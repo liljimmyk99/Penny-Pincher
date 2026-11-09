@@ -14,7 +14,7 @@ struct RootViewModelTests {
     init() {
         session = SessionService(auth: auth, api: api)
         session.start()
-        main = MainViewModel(session: session, adminURL: URL(string: "https://spend.example.test/admin")!,
+        main = MainViewModel(session: session, api: FakeLedgerAPI(), adminURL: URL(string: "https://spend.example.test/admin")!,
                              defaults: makeTestDefaults(), openURL: { _ in })
         root = RootViewModel(setup: .ready(session: session, main: main),
                              appearance: AppearanceService(defaults: makeTestDefaults()))
