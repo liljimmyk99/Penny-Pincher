@@ -7,6 +7,10 @@ struct ScreenDetail: View {
 
     var body: some View {
         switch (item, workspace) {
+        case (.summary, .some(let workspace)):
+            SummaryView(viewModel: workspace.summary)
+        case (.yearly, .some(let workspace)):
+            YearlyView(viewModel: workspace.yearly)
         case (.addEntries, .some(let workspace)):
             AddEntriesView(viewModel: workspace.addEntries)
         case (.transactions, .some(let workspace)):

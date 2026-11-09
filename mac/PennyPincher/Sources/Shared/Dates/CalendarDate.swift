@@ -92,6 +92,11 @@ enum CalendarDate {
         format(month + "-01", "MMMM")
     }
 
+    /// `"2026-10"` → `"Oct"`.
+    static func shortMonthName(_ month: String) -> String {
+        format(month + "-01", "MMM")
+    }
+
     /// `"2026-10-03"` → `"Oct 3"`.
     static func shortDate(_ date: String) -> String {
         format(date, "MMMd")

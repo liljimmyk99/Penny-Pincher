@@ -175,9 +175,7 @@ final class TransactionsViewModel {
 
     /// "34%", or "—" when nothing was spent. Whole percent, rounded half up.
     static func share(_ part: Int, of total: Int) -> String {
-        guard total > 0 else { return "—" }
-        let percent = (part * 200 + total) / (total * 2)
-        return "\(percent)%"
+        Percent.share(part, of: total)
     }
 
     /// Clicking a category here filters the list (Summary only highlights).

@@ -73,6 +73,15 @@ enum PreviewData {
         TransactionsViewModel(api: PreviewLedgerAPI(failing: failing), month: MonthSelection(month: "2026-10"))
     }
 
+    static func summary(failing: Bool = false) -> SummaryViewModel {
+        SummaryViewModel(api: PreviewLedgerAPI(failing: failing), month: MonthSelection(month: "2026-10"),
+                         defaults: defaults, today: { "2026-10-15" })
+    }
+
+    static func yearly(failing: Bool = false) -> YearlyViewModel {
+        YearlyViewModel(api: PreviewLedgerAPI(failing: failing), today: "2026-10-15")
+    }
+
     static func templates(failing: Bool = false) -> TemplatesViewModel {
         TemplatesViewModel(api: PreviewLedgerAPI(failing: failing), month: "2026-10")
     }

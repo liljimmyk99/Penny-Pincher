@@ -242,5 +242,57 @@ struct PreviewLedgerAPI: LedgerAPI {
     func undoTemplateApply(id: String) async throws(APIError) -> TemplateUndoResult {
         TemplateUndoResult(removedExpenseCount: 1, removedIncomeEntryCount: 1)
     }
+
+    // MARK: Summaries
+
+    func monthlySummary(month: String) async throws(APIError) -> MonthlySummary {
+        if failing { throw failure }
+        func category(_ index: Int, _ total: Int, _ previous: Int, _ count: Int) -> MonthlySummary.Category {
+            let source = categoryList[index]
+            return MonthlySummary.Category(id: source.id, name: source.name, color: nil, isSaving: source.isSaving,
+                                           isProtected: source.isProtected, totalCents: total, expenseCount: count,
+                                           refundCount: 0, previousMonthTotalCents: previous)
+        }
+        let employer = IncomeTotals(grossCents: 600_000, grossTaxableCents: 540_000, netCents: 410_000, entryCount: 2)
+        return MonthlySummary(
+            month: month,
+            sources: [MonthlySummary.Source(id: "s0", name: "Employer", isProtected: false, totals: employer),
+                      MonthlySummary.Source(id: "s1", name: "Side job", isProtected: false, totals: .zero),
+                      MonthlySummary.Source(id: "s2", name: "Other", isProtected: true, totals: .zero)],
+            combined: employer,
+            categories: [category(0, 80_000, 60_000, 2), category(1, 120_000, 120_000, 1), category(2, 14_000, 12_500, 2),
+                         category(3, 52_000, 61_000, 9), category(4, 18_000, 18_000, 3), category(5, 12_000, 4_000, 2),
+                         category(6, 0, 0, 0), category(7, 0, 0, 0)],
+            totalCents: 296_000, savingCents: 80_000, previousMonthTotalCents: 275_500, leftOverCents: 114_000,
+            unconfirmedExpenseCount: 1, unconfirmedIncomeCount: 1,
+            applies: [TemplateApply(id: "apply", templateID: "t0", templateName: "Typical month", month: month,
+                                    createdExpenseCount: 1, createdIncomeEntryCount: 1, unconfirmedCount: 2)],
+            isEmpty: false)
+    }
+
+    func yearlySummary(year: Int) async throws(APIError) -> YearlySummary {
+        if failing { throw failure }
+        let months = (1...12).map { index -> YearlySummary.Month in
+            let has = index <= 10
+            let net = has ? 410_000 + index * 3_000 : 0
+            let spent = has ? 280_000 + (index % 4) * 20_000 : 0
+            return YearlySummary.Month(month: "\(year)-\(index < 10 ? "0" : "")\(index)", grossCents: has ? 600_000 : 0,
+                                       grossTaxableCents: has ? 540_000 : 0, netCents: net, spentCents: spent,
+                                       savingCents: has ? 60_000 : 0, leftOverCents: net - spent, hasEntries: has)
+        }
+        func category(_ index: Int, _ total: Int) -> YearlySummary.Category {
+            let source = categoryList[index]
+            return YearlySummary.Category(id: source.id, name: source.name, color: nil, isSaving: source.isSaving,
+                                          isProtected: source.isProtected, totalCents: total, monthlyAverageCents: total / 10)
+        }
+        return YearlySummary(
+            year: year, months: months,
+            categories: [category(0, 600_000), category(1, 1_200_000), category(2, 140_000), category(3, 520_000),
+                         category(4, 180_000), category(5, 120_000), category(6, 0), category(7, 30_000)],
+            totals: .init(grossCents: 6_000_000, grossTaxableCents: 5_400_000,
+                          netCents: months.reduce(0) { $0 + $1.netCents }, spentCents: months.reduce(0) { $0 + $1.spentCents },
+                          savingCents: 600_000, leftOverCents: months.reduce(0) { $0 + $1.leftOverCents }),
+            averageMonthCount: 10)
+    }
 }
 #endif

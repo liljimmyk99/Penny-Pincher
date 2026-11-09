@@ -85,7 +85,7 @@ The canvas shows the web app. The Mac app matches its **behavior, content, data 
 - The sidebar is **collapsible** with the standard toolbar sidebar button and ⌃⌘S. Remember its state.
 - Account: the signed-in user's name/avatar sits in the sidebar footer and opens a menu with Settings, Import transactions, Export data and Sign out. Appearance (Light / Dark / System) lives in the **Settings window (⌘,)**.
 - **Admin dashboard is web-only.** For admins, the account menu item opens the web admin page in the default browser.
-- Use the menu bar for common commands: File ▸ New Expense (⌘N, opens Add entries on a blank row) and View ▸ Previous/Next Month (⌘[ and ⌘]; ⌘←/⌘→ would steal cursor movement in text fields). The month commands work on the screens that show a month (Add entries and Transactions, which share it).
+- Use the menu bar for common commands: File ▸ New Expense (⌘N, opens Add entries on a blank row) and View ▸ Previous/Next Month (⌘[ and ⌘]; ⌘←/⌘→ would steal cursor movement in text fields). The month commands work on the screens that show a month (Summary, Add entries and Transactions, which share it).
 
 ## Screens (native mapping)
 
@@ -97,6 +97,7 @@ Behavior for each screen is defined in `/web/AGENTS.md`. Native equivalents:
   - Clicking an income source opens a **sheet or popover** with that month's entries and an "All sources combined" total.
   - Category spending uses Swift Charts ranked bars with a Bars/Donut segmented control. Selecting a category only highlights its row.
   - Shows an unconfirmed banner when template copies need a look.
+  - As built (`Screens/Summary`): reads `GET /v1/summaries/monthly/{month}` through `SummariesAPI` and shares the month with Add entries and Transactions. Percent of income (of combined net) and every change come from the client (`Shared/Change`: `Change`, `ChangeTone`, which flips for Saving). Ranked bars are `Shared/View/Components/RankedBarsChart` (a tap only highlights; categories netting to zero or below get no bar); the donut and its legend are components of the screen. Changes show orange (worse) or blue (better) with ▲/▼ and a +/− sign. The banner is the shared `UnconfirmedBanner` (Review opens Transactions narrowed to unconfirmed entries). An empty month shows the shared `NewMonthOffer`. The welcome checklist shows only on the current month while it is empty; its "categories checked" step and Hide are kept in `UserDefaults` (a per-person convenience), the template step comes from the templates list and the entry step from the month having entries.
 - **Add entries:** keyboard-first single entry plus a batch table. Return adds a row; Tab moves between fields. Merchant field autocompletes from past merchants. Supports adding a refund linked to an original expense.
 - **Transactions:**
   - Use SwiftUI `Table` with sortable columns.
@@ -113,6 +114,7 @@ Behavior for each screen is defined in `/web/AGENTS.md`. Native equivalents:
   - Income vs. spent paired bars per month (Swift Charts). Clicking a month opens its Summary.
   - Ranked bars of monthly category averages.
   - Month-by-month table.
+  - As built (`Screens/Yearly`): reads `GET /v1/summaries/yearly/{year}`; the year switcher is the toolbar's own state (default: the current year). Tile averages and the average row are `total ÷ average_month_count` in integer cents, rounded half away from zero (`YearlyViewModel.averageCents`). Choosing a chart pair or a table row calls `openMonth`, which the window turns into that month's Summary. Months without entries show "—".
 - **Trends:** a segmented control switches Custom trends and By category.
   - **Custom:** saved trends list, an Amount/Count toggle, summary figures, bars per month (selecting a bar lists its entries) and a New Trend sheet (match by merchant, category or note text; measure).
   - **By category:** category picker, figures vs. last month and vs. the same month last year, paired this-year/last-year bars, biggest movers, and the month-by-month change table.
