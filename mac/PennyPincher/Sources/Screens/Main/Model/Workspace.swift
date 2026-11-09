@@ -10,6 +10,7 @@ final class Workspace {
     let categories: CategoriesViewModel
     let addEntries: AddEntriesViewModel
     let transactions: TransactionsViewModel
+    let templates: TemplatesViewModel
 
     init(accountID: String, api: LedgerAPI, today: String = CalendarDate.today()) {
         self.accountID = accountID
@@ -17,5 +18,6 @@ final class Workspace {
         categories = CategoriesViewModel(api: api, today: today)
         addEntries = AddEntriesViewModel(api: api, month: month, today: { CalendarDate.today() })
         transactions = TransactionsViewModel(api: api, month: month)
+        templates = TemplatesViewModel(api: api, month: month.month)
     }
 }

@@ -14,34 +14,42 @@ struct TransactionsView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 VStack(alignment: .leading, spacing: 12) {
-                    if let message = viewModel.errorMessage ?? viewModel.statusMessage {
-                        NoticeBanner(message: message, isError: viewModel.errorMessage != nil, onDismiss: dismissMessages)
+                    if let message = viewModel.noticeMessage {
+                        NoticeBanner(message: message, isError: viewModel.noticeIsError, onDismiss: dismissMessages)
                     }
                     if viewModel.unconfirmedCount > 0 {
-                        UnconfirmedBanner(text: viewModel.unconfirmedText, isWorking: viewModel.isWorking,
-                                          onConfirmAll: confirmAll)
+                        UnconfirmedBanner(text: viewModel.bannerText,
+                                          isWorking: viewModel.isWorking || viewModel.templates.isWorking,
+                                          isReviewing: viewModel.showUnconfirmedOnly,
+                                          canUndo: viewModel.templates.undoableApply != nil,
+                                          onReview: review, onUndo: undoApply, onConfirmAll: confirmAll)
                     }
-                    if !viewModel.incomeEntries.isEmpty {
-                        IncomeTable(rows: viewModel.incomeRows, selection: $viewModel.incomeSelection,
-                                    onEdit: editIncome, onConfirm: confirmIncome, onDelete: deleteIncome,
-                                    onPrimary: editIncomeSelection)
-                            .frame(height: incomeTableHeight)
-                        IncomeTotalRow(total: viewModel.incomeTotal)
-                    }
-                    RefundTilesView(tiles: viewModel.refundTiles)
-                    TransactionFilters(chips: viewModel.categoryChips, isAllSelected: viewModel.categoryFilter == nil,
-                                       refundFilter: $viewModel.refundFilter, onAll: showAllCategories,
-                                       onToggle: toggleCategory)
-                    ExpenseTable(rows: viewModel.rows, selection: $viewModel.selection, sortOrder: $viewModel.sortOrder,
-                                 onEdit: editExpense, onConfirm: confirmExpense, onLink: linkRefund,
-                                 onDelete: deleteExpense, onShowOriginal: showOriginal,
-                                 onPrimary: editExpenseSelection, onDeleteSelection: deleteSelection)
-                        .overlay {
-                            if viewModel.rows.isEmpty {
-                                ContentUnavailableView(String(localized: viewModel.emptyMessage),
-                                                       systemImage: "list.bullet")
-                            }
+                    if viewModel.showsNewMonthOffer {
+                        NewMonthOffer(viewModel: viewModel.templates, onSelect: selectTemplate, onCopy: copyTemplate,
+                                      onStartBlank: startBlank)
+                    } else {
+                        if !viewModel.incomeRows.isEmpty {
+                            IncomeTable(rows: viewModel.incomeRows, selection: $viewModel.incomeSelection,
+                                        onEdit: editIncome, onConfirm: confirmIncome, onDelete: deleteIncome,
+                                        onPrimary: editIncomeSelection)
+                                .frame(height: incomeTableHeight)
+                            IncomeTotalRow(total: viewModel.incomeTotal)
                         }
+                        RefundTilesView(tiles: viewModel.refundTiles)
+                        TransactionFilters(chips: viewModel.categoryChips, isAllSelected: viewModel.categoryFilter == nil,
+                                           refundFilter: $viewModel.refundFilter, onAll: showAllCategories,
+                                           onToggle: toggleCategory)
+                        ExpenseTable(rows: viewModel.rows, selection: $viewModel.selection, sortOrder: $viewModel.sortOrder,
+                                     onEdit: editExpense, onConfirm: confirmExpense, onLink: linkRefund,
+                                     onDelete: deleteExpense, onShowOriginal: showOriginal,
+                                     onPrimary: editExpenseSelection, onDeleteSelection: deleteSelection)
+                            .overlay {
+                                if viewModel.rows.isEmpty {
+                                    ContentUnavailableView(String(localized: viewModel.emptyMessage),
+                                                           systemImage: "list.bullet")
+                                }
+                            }
+                    }
                 }
                 .padding(16)
             }
@@ -51,6 +59,10 @@ struct TransactionsView: View {
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 MonthSwitcher(month: viewModel.month, onPrevious: previousMonth, onNext: nextMonth)
+            }
+            ToolbarItem {
+                ApplyTemplateMenu(templates: viewModel.templates.templates, isDisabled: !viewModel.canEdit,
+                                  onApply: applyTemplate)
             }
         }
         .task(load)
@@ -64,6 +76,17 @@ struct TransactionsView: View {
         .sheet(item: $viewModel.linker) { linker in
             LinkRefundView(viewModel: linker, onLink: linkSelected, onCancel: closeSheets)
                 .task(loadLinker)
+        }
+        .confirmationDialog(
+            viewModel.templates.pendingReset?.title ?? "",
+            isPresented: resetDialogPresented,
+            titleVisibility: .visible,
+            presenting: viewModel.templates.pendingReset
+        ) { _ in
+            Button("month.reset.confirm", role: .destructive, action: confirmReset)
+            Button("common.cancel", role: .cancel, action: cancelReset)
+        } message: { request in
+            Text(request.message)
         }
         .confirmationDialog(
             viewModel.pendingDelete?.title ?? "",

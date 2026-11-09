@@ -1361,6 +1361,26 @@
         }
       }
     },
+    "month.applied %lld %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld items copied into %2$@, unconfirmed until you check each one."
+          }
+        }
+      }
+    },
+    "month.appliedReset %lld %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld items copied. %2$lld existing entries were deleted."
+          }
+        }
+      }
+    },
     "month.current %@": {
       "localizations": {
         "en": {
@@ -1381,12 +1401,132 @@
         }
       }
     },
+    "month.offer.copy %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy into %@"
+          }
+        }
+      }
+    },
+    "month.offer.detail": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every item is copied as a real entry, unconfirmed until you check it."
+          }
+        }
+      }
+    },
+    "month.offer.leftOver %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Left over %@"
+          }
+        }
+      }
+    },
+    "month.offer.net %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Net income %@"
+          }
+        }
+      }
+    },
+    "month.offer.spending %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Planned spending %@"
+          }
+        }
+      }
+    },
+    "month.offer.startBlank": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start blank"
+          }
+        }
+      }
+    },
+    "month.offer.template": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Template"
+          }
+        }
+      }
+    },
+    "month.offer.title %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start %@ from your template?"
+          }
+        }
+      }
+    },
     "month.previous %@": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Previous month (%@)"
+          }
+        }
+      }
+    },
+    "month.reset.confirm": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete and replace"
+          }
+        }
+      }
+    },
+    "month.reset.message %lld %lld %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%3$@ already has %1$lld expenses and %2$lld income entries. Applying a template deletes all of them, confirmed or not, and replaces them with the template's copies. Undo afterwards removes only the new copies; it can't bring the deleted entries back."
+          }
+        }
+      }
+    },
+    "month.reset.title %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replace everything in %@?"
+          }
+        }
+      }
+    },
+    "month.undone %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Removed %lld unconfirmed entries."
           }
         }
       }
@@ -1971,6 +2111,456 @@
         }
       }
     },
+    "templates.apply": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply…"
+          }
+        }
+      }
+    },
+    "templates.apply.button": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply"
+          }
+        }
+      }
+    },
+    "templates.apply.detail": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose the month. Every item is copied as a real entry on its day of the month (days 29–31 land on a short month's last day), unconfirmed until you check it."
+          }
+        }
+      }
+    },
+    "templates.apply.title %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply to %@"
+          }
+        }
+      }
+    },
+    "templates.delete": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete"
+          }
+        }
+      }
+    },
+    "templates.delete.confirm": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete template"
+          }
+        }
+      }
+    },
+    "templates.delete.message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entries already copied into months stay."
+          }
+        }
+      }
+    },
+    "templates.delete.title %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete “%@”?"
+          }
+        }
+      }
+    },
+    "templates.deleted": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Template deleted."
+          }
+        }
+      }
+    },
+    "templates.edit": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit"
+          }
+        }
+      }
+    },
+    "templates.empty.detail": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create a template, or save a month as one, to start a month from it."
+          }
+        }
+      }
+    },
+    "templates.empty.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No template selected"
+          }
+        }
+      }
+    },
+    "templates.error.amountPositive": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter an amount above zero."
+          }
+        }
+      }
+    },
+    "templates.error.day": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a day from 1 to 31."
+          }
+        }
+      }
+    },
+    "templates.error.name": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a name."
+          }
+        }
+      }
+    },
+    "templates.error.nameTaken": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You already have a template with that name."
+          }
+        }
+      }
+    },
+    "templates.error.nameTooLong %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use at most %lld characters."
+          }
+        }
+      }
+    },
+    "templates.expense.add": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add item"
+          }
+        }
+      }
+    },
+    "templates.expense.addTitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add expense item"
+          }
+        }
+      }
+    },
+    "templates.expense.editTitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit expense item"
+          }
+        }
+      }
+    },
+    "templates.field.day": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Day of month"
+          }
+        }
+      }
+    },
+    "templates.income.add": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add income"
+          }
+        }
+      }
+    },
+    "templates.income.addTitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add income item"
+          }
+        }
+      }
+    },
+    "templates.income.allSources": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All sources"
+          }
+        }
+      }
+    },
+    "templates.income.editTitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit income item"
+          }
+        }
+      }
+    },
+    "templates.income.header": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Income"
+          }
+        }
+      }
+    },
+    "templates.itemCount %lld %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld bills · %2$lld paychecks"
+          }
+        }
+      }
+    },
+    "templates.list.empty": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No templates yet. Create one below."
+          }
+        }
+      }
+    },
+    "templates.list.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your templates"
+          }
+        }
+      }
+    },
+    "templates.new.button": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New template"
+          }
+        }
+      }
+    },
+    "templates.new.placeholder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New template name"
+          }
+        }
+      }
+    },
+    "templates.remove": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove"
+          }
+        }
+      }
+    },
+    "templates.removeItem.confirm": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove item"
+          }
+        }
+      }
+    },
+    "templates.removeItem.message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entries already copied into months stay. You can add the item again."
+          }
+        }
+      }
+    },
+    "templates.removeItem.title %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove “%@” from this template?"
+          }
+        }
+      }
+    },
+    "templates.rename": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename"
+          }
+        }
+      }
+    },
+    "templates.rename.placeholder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Template name"
+          }
+        }
+      }
+    },
+    "templates.rename.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename template"
+          }
+        }
+      }
+    },
+    "templates.renamed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Template renamed."
+          }
+        }
+      }
+    },
+    "templates.tile.leftOver": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Left over"
+          }
+        }
+      }
+    },
+    "templates.tile.net": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Net income"
+          }
+        }
+      }
+    },
+    "templates.tile.savedDetail %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ saved"
+          }
+        }
+      }
+    },
+    "templates.tile.spending": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Planned spending"
+          }
+        }
+      }
+    },
+    "transactions.applied.banner %lld %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld items copied from %2$@ · unconfirmed until you check each one"
+          }
+        }
+      }
+    },
+    "transactions.applyTemplate": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply template…"
+          }
+        }
+      }
+    },
     "transactions.chip.accessibility %@ %lld %@ %@": {
       "localizations": {
         "en": {
@@ -2251,6 +2841,16 @@
         }
       }
     },
+    "transactions.review": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review"
+          }
+        }
+      }
+    },
     "transactions.saved": {
       "localizations": {
         "en": {
@@ -2267,6 +2867,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Search merchant or note"
+          }
+        }
+      }
+    },
+    "transactions.showAll": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show all"
           }
         }
       }
@@ -2347,6 +2957,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld items copied from a template are unconfirmed until you check each one."
+          }
+        }
+      }
+    },
+    "transactions.undo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo"
           }
         }
       }

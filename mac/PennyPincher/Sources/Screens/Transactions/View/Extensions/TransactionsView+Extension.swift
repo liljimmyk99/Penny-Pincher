@@ -30,6 +30,44 @@ extension TransactionsView {
         viewModel.dismissMessages()
     }
 
+    func review() {
+        viewModel.toggleReview()
+    }
+
+    func undoApply() {
+        Task { await viewModel.templates.undo() }
+    }
+
+    func selectTemplate(_ id: String) {
+        Task { await viewModel.templates.select(id) }
+    }
+
+    func copyTemplate() {
+        let id = viewModel.templates.selectedTemplateID
+        Task { await viewModel.templates.apply(id) }
+    }
+
+    func startBlank() {
+        viewModel.templates.startBlank()
+    }
+
+    func applyTemplate(_ id: String) {
+        Task { await viewModel.templates.apply(id) }
+    }
+
+    func confirmReset() {
+        Task { await viewModel.templates.confirmReset() }
+    }
+
+    func cancelReset() {
+        viewModel.templates.cancelReset()
+    }
+
+    var resetDialogPresented: Binding<Bool> {
+        Binding(get: { viewModel.templates.pendingReset != nil },
+                set: { if !$0 { viewModel.templates.cancelReset() } })
+    }
+
     func confirmAll() {
         Task { await viewModel.confirmAll() }
     }

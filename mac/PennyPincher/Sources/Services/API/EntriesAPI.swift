@@ -23,4 +23,4 @@ protocol EntriesAPI: Sendable {
 }
 
 /// What the entry screens need: their pickers come from `CategoriesAPI`.
-typealias LedgerAPI = CategoriesAPI & EntriesAPI
+typealias LedgerAPI = CategoriesAPI & EntriesAPI & TemplatesAPI

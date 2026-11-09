@@ -73,6 +73,10 @@ enum PreviewData {
         TransactionsViewModel(api: PreviewLedgerAPI(failing: failing), month: MonthSelection(month: "2026-10"))
     }
 
+    static func templates(failing: Bool = false) -> TemplatesViewModel {
+        TemplatesViewModel(api: PreviewLedgerAPI(failing: failing), month: "2026-10")
+    }
+
     static func settings() -> SettingsViewModel {
         SettingsViewModel(appearance: AppearanceService(defaults: defaults))
     }

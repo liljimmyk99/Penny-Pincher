@@ -1,9 +1,14 @@
 import SwiftUI
 
-/// Template copies still need a look: the count and "Confirm all as-is".
+/// Template copies still need a look: the count, Review, Undo (right after
+/// copying) and "Confirm all as-is".
 struct UnconfirmedBanner: View {
     let text: String
     let isWorking: Bool
+    let isReviewing: Bool
+    let canUndo: Bool
+    let onReview: () -> Void
+    let onUndo: () -> Void
     let onConfirmAll: () -> Void
 
     var body: some View {
@@ -15,6 +20,11 @@ struct UnconfirmedBanner: View {
             Text(text)
                 .foregroundStyle(Color.unconfirmed)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            Button(isReviewing ? "transactions.showAll" : "transactions.review", action: onReview)
+            if canUndo {
+                Button("transactions.undo", action: onUndo)
+                    .disabled(isWorking)
+            }
             Button("transactions.confirmAll", action: onConfirmAll)
                 .disabled(isWorking)
         }
