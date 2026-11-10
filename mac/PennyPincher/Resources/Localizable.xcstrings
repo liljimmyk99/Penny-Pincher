@@ -3431,6 +3431,786 @@
         }
       }
     },
+    "trends.bar.accessibility %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: %2$@. Shows that month's entries."
+          }
+        }
+      }
+    },
+    "trends.category.all": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All spending"
+          }
+        }
+      }
+    },
+    "trends.category.picker": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category"
+          }
+        }
+      }
+    },
+    "trends.category.savingOption %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ (counted as savings)"
+          }
+        }
+      }
+    },
+    "trends.category.tile.previous": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vs. previous month"
+          }
+        }
+      }
+    },
+    "trends.category.tile.spend %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ spend"
+          }
+        }
+      }
+    },
+    "trends.category.tile.ytd": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Year to date vs. last year"
+          }
+        }
+      }
+    },
+    "trends.change.better %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Better: %1$@ %2$@"
+          }
+        }
+      }
+    },
+    "trends.change.none %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No change %@"
+          }
+        }
+      }
+    },
+    "trends.change.worse %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Worse: %1$@ %2$@"
+          }
+        }
+      }
+    },
+    "trends.chart.hint": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a month to list its entries."
+          }
+        }
+      }
+    },
+    "trends.chart.perMonth %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Per month · %@"
+          }
+        }
+      }
+    },
+    "trends.empty.description": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create one to follow a merchant, category or note over time."
+          }
+        }
+      }
+    },
+    "trends.empty.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No saved trends yet"
+          }
+        }
+      }
+    },
+    "trends.entries.none %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No matching entries in %@."
+          }
+        }
+      }
+    },
+    "trends.entries.open": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open in Transactions"
+          }
+        }
+      }
+    },
+    "trends.entries.refund": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refund"
+          }
+        }
+      }
+    },
+    "trends.entries.title %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ entries"
+          }
+        }
+      }
+    },
+    "trends.list.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved trends"
+          }
+        }
+      }
+    },
+    "trends.match.category %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category: %@"
+          }
+        }
+      }
+    },
+    "trends.match.merchant %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merchant: %@"
+          }
+        }
+      }
+    },
+    "trends.match.note %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Note contains “%@”"
+          }
+        }
+      }
+    },
+    "trends.matchBy.category": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category"
+          }
+        }
+      }
+    },
+    "trends.matchBy.merchant": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merchant"
+          }
+        }
+      }
+    },
+    "trends.matchBy.note": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Note contains"
+          }
+        }
+      }
+    },
+    "trends.measure": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Measure"
+          }
+        }
+      }
+    },
+    "trends.measure.amount": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Amount"
+          }
+        }
+      }
+    },
+    "trends.measure.count": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Count"
+          }
+        }
+      }
+    },
+    "trends.mode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trend view"
+          }
+        }
+      }
+    },
+    "trends.mode.byCategory": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "By category"
+          }
+        }
+      }
+    },
+    "trends.mode.custom": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom trends"
+          }
+        }
+      }
+    },
+    "trends.movers.accessibility %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$@. Charts this category."
+          }
+        }
+      }
+    },
+    "trends.movers.description %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change in %1$@ %2$@. Select a category to chart it."
+          }
+        }
+      }
+    },
+    "trends.movers.empty %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No category changed in %@."
+          }
+        }
+      }
+    },
+    "trends.movers.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Biggest movers"
+          }
+        }
+      }
+    },
+    "trends.new": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Trend"
+          }
+        }
+      }
+    },
+    "trends.new.category": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category"
+          }
+        }
+      }
+    },
+    "trends.new.description": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Track one merchant, category or note text month by month. Saved trends appear in the list."
+          }
+        }
+      }
+    },
+    "trends.new.error.chooseCategory": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a category."
+          }
+        }
+      }
+    },
+    "trends.new.error.chooseMerchant": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a merchant."
+          }
+        }
+      }
+    },
+    "trends.new.error.name": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a name for the trend."
+          }
+        }
+      }
+    },
+    "trends.new.error.note": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter the text to look for."
+          }
+        }
+      }
+    },
+    "trends.new.error.unknownMerchant": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No merchant has that name. Pick one from the suggestions."
+          }
+        }
+      }
+    },
+    "trends.new.help": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save a new custom trend"
+          }
+        }
+      }
+    },
+    "trends.new.matchBy": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Match by"
+          }
+        }
+      }
+    },
+    "trends.new.merchant": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merchant"
+          }
+        }
+      }
+    },
+    "trends.new.merchantPrompt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start typing a merchant"
+          }
+        }
+      }
+    },
+    "trends.new.name": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name"
+          }
+        }
+      }
+    },
+    "trends.new.note": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Note contains"
+          }
+        }
+      }
+    },
+    "trends.new.notePrompt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text in the note"
+          }
+        }
+      }
+    },
+    "trends.new.save": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save Trend"
+          }
+        }
+      }
+    },
+    "trends.new.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Trend"
+          }
+        }
+      }
+    },
+    "trends.noMatches": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No matches yet"
+          }
+        }
+      }
+    },
+    "trends.pairs.accessibility %@ %@ %@ %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: %2$@ %3$@, %4$@ %5$@. Selects that month."
+          }
+        }
+      }
+    },
+    "trends.pairs.description %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ per month. Select a month to compare it."
+          }
+        }
+      }
+    },
+    "trends.pairs.title %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ vs. %2$@"
+          }
+        }
+      }
+    },
+    "trends.row.values %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last %1$@ months: %2$@."
+          }
+        }
+      }
+    },
+    "trends.selectTrend": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a saved trend"
+          }
+        }
+      }
+    },
+    "trends.since %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tracking since %@"
+          }
+        }
+      }
+    },
+    "trends.table.description %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@. January compares with last December."
+          }
+        }
+      }
+    },
+    "trends.table.month": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Month"
+          }
+        }
+      }
+    },
+    "trends.table.none": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "None yet"
+          }
+        }
+      }
+    },
+    "trends.table.spend": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spend"
+          }
+        }
+      }
+    },
+    "trends.table.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Month by month"
+          }
+        }
+      }
+    },
+    "trends.table.vsPrevious": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vs. previous month"
+          }
+        }
+      }
+    },
+    "trends.table.vsYear %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vs. %@"
+          }
+        }
+      }
+    },
+    "trends.table.ytd": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Year to date"
+          }
+        }
+      }
+    },
+    "trends.tile.average": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monthly average"
+          }
+        }
+      }
+    },
+    "trends.tile.lastMonths %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last %@ months"
+          }
+        }
+      }
+    },
+    "trends.tile.peak": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Peak month"
+          }
+        }
+      }
+    },
+    "trends.tile.perVisit": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Average per visit"
+          }
+        }
+      }
+    },
+    "trends.tile.sameAsLast %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ same as last month"
+          }
+        }
+      }
+    },
+    "trends.tile.thisMonthVsLast": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "this month vs. last"
+          }
+        }
+      }
+    },
+    "trends.tile.ytd": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Year to date"
+          }
+        }
+      }
+    },
+    "trends.vsLastDecember": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vs. last December"
+          }
+        }
+      }
+    },
+    "trends.vsLastMonth": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vs. last month"
+          }
+        }
+      }
+    },
+    "trends.vsLastYearTotal %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vs. %@ last year"
+          }
+        }
+      }
+    },
+    "trends.vsMonthYear %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vs. %1$@ %2$@"
+          }
+        }
+      }
+    },
     "yearly.average.accessibility %@ %@": {
       "localizations": {
         "en": {

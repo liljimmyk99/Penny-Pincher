@@ -10,6 +10,20 @@ extension APIClient: EntriesAPI {
         }
     }
 
+    func allMerchants() async throws(APIError) -> [Merchant] {
+        var items: [Merchant] = []
+        var cursor: String?
+        repeat {
+            let page = cursor
+            let body = try await perform {
+                try await client.listMerchants(query: .init(limit: Self.pageSize, cursor: page)).ok.body.json
+            }
+            items += body.items.map(Merchant.init)
+            cursor = body.nextCursor
+        } while cursor != nil
+        return items
+    }
+
     func expenses(_ query: ExpenseQuery) async throws(APIError) -> [Expense] {
         var items: [Expense] = []
         var cursor: String?

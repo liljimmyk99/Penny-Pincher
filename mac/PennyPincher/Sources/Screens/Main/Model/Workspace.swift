@@ -13,6 +13,7 @@ final class Workspace {
     let templates: TemplatesViewModel
     let summary: SummaryViewModel
     let yearly: YearlyViewModel
+    let trends: TrendsViewModel
 
     init(accountID: String, api: LedgerAPI, today: String = CalendarDate.today(), defaults: UserDefaults = .standard) {
         self.accountID = accountID
@@ -23,5 +24,6 @@ final class Workspace {
         templates = TemplatesViewModel(api: api, month: month.month)
         summary = SummaryViewModel(api: api, month: month, defaults: defaults, today: { CalendarDate.today() })
         yearly = YearlyViewModel(api: api, today: today)
+        trends = TrendsViewModel(api: api, defaults: defaults, today: { CalendarDate.today() })
     }
 }

@@ -30,6 +30,12 @@ final class FakeLedgerAPI: LedgerAPI, @unchecked Sendable {
         var templateIncomeDrafts: [TemplateIncomeItemDraft] = []
         var monthly: [String: MonthlySummary] = [:]
         var yearly: [Int: YearlySummary] = [:]
+        var savedTrends: [SavedTrend] = []
+        var trendDrafts: [SavedTrendDraft] = []
+        var trendQueries: [CustomTrendQuery] = []
+        /// Buckets by the trend's filter (merchant, category or note text).
+        var trendBuckets: [String: [TrendBucket]] = [:]
+        var categoryTrends: [Int: CategoryTrends] = [:]
     }
 
     func with<T>(_ body: (inout State) -> T) -> T { lock.withLock { body(&state) } }
@@ -132,6 +138,11 @@ final class FakeLedgerAPI: LedgerAPI, @unchecked Sendable {
     func merchants(prefix: String) async throws(APIError) -> [Merchant] {
         try record("merchants:\(prefix)")
         return with { $0.merchants.filter { $0.name.lowercased().hasPrefix(prefix.lowercased()) } }
+    }
+
+    func allMerchants() async throws(APIError) -> [Merchant] {
+        try record("allMerchants")
+        return with { $0.merchants.sorted { $0.name < $1.name } }
     }
 
     func expenses(_ query: ExpenseQuery) async throws(APIError) -> [Expense] {
@@ -447,6 +458,62 @@ final class FakeLedgerAPI: LedgerAPI, @unchecked Sendable {
                 categories: [], totals: .init(grossCents: 0, grossTaxableCents: 0, netCents: 0, spentCents: 0,
                                               savingCents: 0, leftOverCents: 0),
                 averageMonthCount: 0)
+        }
+    }
+
+    // MARK: Trends
+
+    func savedTrends() async throws(APIError) -> [SavedTrend] {
+        try record("savedTrends")
+        return with { $0.savedTrends }
+    }
+
+    /// Like the API: names are unique per user, case-insensitively.
+    func createSavedTrend(_ draft: SavedTrendDraft) async throws(APIError) -> SavedTrend {
+        try record("createSavedTrend:\(draft.name)")
+        let created: SavedTrend? = with { state in
+            state.trendDrafts.append(draft)
+            guard !state.savedTrends.contains(where: { $0.name.lowercased() == draft.name.lowercased() }) else { return nil }
+            let trend = SavedTrend(id: "trend-\(draft.name)", name: draft.name, matchType: draft.matchType,
+                                   merchantID: draft.merchantID, categoryID: draft.categoryID, matchText: draft.matchText,
+                                   measure: draft.measure, sortOrder: state.savedTrends.count)
+            state.savedTrends.append(trend)
+            return trend
+        }
+        guard let created else {
+            var error = APIError.code("name_taken", status: 409)
+            error.details = [APIError.Detail(field: "name", issue: "A trend with this name already exists.")]
+            throw error
+        }
+        return created
+    }
+
+    /// Zero-filled months from `from` through `to`, with any scripted buckets laid over them.
+    func customTrend(_ query: CustomTrendQuery) async throws(APIError) -> [TrendBucket] {
+        let key = query.merchantID ?? query.categoryID ?? query.text ?? ""
+        try record("customTrend:\(key)")
+        return with { state in
+            state.trendQueries.append(query)
+            let scripted = state.trendBuckets[key] ?? []
+            var month = CalendarDate.month(of: query.from)
+            var buckets: [TrendBucket] = []
+            while month <= CalendarDate.month(of: query.to) {
+                buckets.append(scripted.first { $0.period == month } ?? TrendBucket(period: month, totalCents: 0, count: 0))
+                month = CalendarDate.shiftMonth(month, by: 1)
+            }
+            return buckets
+        }
+    }
+
+    func categoryTrends(year: Int) async throws(APIError) -> CategoryTrends {
+        try record("categoryTrends:\(year)")
+        return with { state in
+            state.categoryTrends[year] ?? CategoryTrends(
+                year: year,
+                allSpending: CategoryTrends.Series(categoryID: nil, name: "All spending", color: nil, isSaving: false,
+                                                   thisYearCents: Array(repeating: 0, count: 12),
+                                                   lastYearCents: Array(repeating: 0, count: 12)),
+                categories: [])
         }
     }
 }

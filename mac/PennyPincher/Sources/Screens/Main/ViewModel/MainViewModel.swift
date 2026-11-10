@@ -65,7 +65,7 @@ final class MainViewModel {
         return created
     }
 
-    /// Lets Summary and Yearly send the person to another screen.
+    /// Lets Summary, Yearly and Trends send the person to another screen.
     private func connect(_ workspace: Workspace) {
         workspace.summary.navigate = { [weak self] item in self?.selection = item }
         workspace.summary.review = { [weak self, weak workspace] in
@@ -75,6 +75,15 @@ final class MainViewModel {
         workspace.yearly.openMonth = { [weak self, weak workspace] month in
             workspace?.month.month = month
             self?.selection = .summary
+        }
+        workspace.trends.custom.openTransactions = { [weak self, weak workspace] link in
+            guard let workspace else { return }
+            workspace.transactions.showUnconfirmedOnly = false
+            workspace.transactions.refundFilter = nil
+            workspace.transactions.categoryFilter = link.categoryID
+            workspace.transactions.search = link.search ?? ""
+            workspace.month.month = link.month
+            self?.selection = .transactions
         }
     }
 

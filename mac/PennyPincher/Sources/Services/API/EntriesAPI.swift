@@ -2,6 +2,8 @@
 protocol EntriesAPI: Sendable {
     /// Case-insensitive prefix search, sorted by name.
     func merchants(prefix: String) async throws(APIError) -> [Merchant]
+    /// Every merchant (every page), sorted by name.
+    func allMerchants() async throws(APIError) -> [Merchant]
 
     /// Newest first. Reads every page unless the query sets a limit.
     func expenses(_ query: ExpenseQuery) async throws(APIError) -> [Expense]
@@ -23,4 +25,4 @@ protocol EntriesAPI: Sendable {
 }
 
 /// What the entry screens need: their pickers come from `CategoriesAPI`.
-typealias LedgerAPI = CategoriesAPI & EntriesAPI & TemplatesAPI & SummariesAPI
+typealias LedgerAPI = CategoriesAPI & EntriesAPI & TemplatesAPI & SummariesAPI & TrendsAPI
