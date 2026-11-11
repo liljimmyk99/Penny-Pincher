@@ -277,4 +277,4 @@ Rules:
 
 ### Open
 
-- **Go library for `.xlsx`** (import template, reading uploads, problem rows, export). Leaning `github.com/xuri/excelize/v2`: pure Go, supports data-validation dropdowns and streaming large sheets. Decide before building import or export. Whichever library is chosen must cap the unzipped and XML sizes of uploads (zip and XML bombs; `docs/security.md`).
+- **Go library for `.xlsx`** (import template, reading uploads, problem rows, export): **`github.com/xuri/excelize/v2`** (chosen in #49 for export; import reuses it). Pure Go, streaming writer. The import must still cap the unzipped and XML sizes of uploads (`UnzipSizeLimit`, `UnzipXMLSizeLimit`; `docs/security.md`). *(Owner: confirm or override.)*

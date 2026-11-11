@@ -1631,6 +1631,11 @@ paths:
         - `csv`: a zip holding `expenses.csv` and `income.csv`.
 
         Amounts are integer cents, as everywhere else. With no range, exports everything.
+
+        Each amount is a numeric `(cents)` column; a separate `(formatted dollars)` column is text for
+        reading only. Refunds are negative. User-entered text that starts with `=`, `+`, `-` or `@` is
+        prefixed with `'` so spreadsheets don't run it as a formula. Only the caller's own rows are
+        exported. `from` after `to` is `400 invalid_request`.
       parameters:
         - name: format
           in: query
