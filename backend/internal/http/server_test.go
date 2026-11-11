@@ -87,14 +87,6 @@ func wantError(t *testing.T, rec *httptest.ResponseRecorder, status int, code ap
 	}
 }
 
-func TestUnimplementedRoutesReturnStandard501(t *testing.T) {
-	for _, r := range [][2]string{
-		{"POST", "/v1/imports/1/start"},
-	} {
-		wantError(t, do(t, r[0], r[1], tokAdmin), http.StatusNotImplemented, api.ErrorErrorCodeNotImplemented)
-	}
-}
-
 func TestMissingOrInvalidTokenIs401(t *testing.T) {
 	wantError(t, do(t, "GET", "/v1/me", ""), http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated)
 	wantError(t, do(t, "GET", "/v1/me", "garbage"), http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated)

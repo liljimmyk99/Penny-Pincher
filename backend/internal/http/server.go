@@ -2,6 +2,7 @@
 package http
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"log/slog"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/liljimmyk99/penny-pincher/backend/internal/api"
+	"github.com/liljimmyk99/penny-pincher/backend/internal/importrun"
 	"github.com/liljimmyk99/penny-pincher/backend/internal/store"
 )
 
@@ -32,6 +34,7 @@ type Server struct {
 	admin         store.Admin
 	export        store.Export
 	imports       store.Imports
+	runner        *importrun.Runner
 	backups       Backups
 	authCheck     AuthCheck
 	now           func() time.Time
@@ -55,12 +58,18 @@ type Deps struct {
 	// Limits are the rate limits; nil turns them off. Body caps and write
 	// deadlines always apply.
 	Limits *Limits
+	// ImportRunner runs imports in the background; nil makes one that lives
+	// as long as the process.
+	ImportRunner *importrun.Runner
 }
 
 var _ api.StrictServerInterface = (*Server)(nil)
 
 // NewRouter builds the API router.
 func NewRouter(d Deps) http.Handler {
+	if d.ImportRunner == nil {
+		d.ImportRunner = importrun.New(context.Background(), d.Data, importrun.Options{})
+	}
 	s := &Server{
 		version:       d.Version,
 		db:            d.DB,
@@ -77,6 +86,7 @@ func NewRouter(d Deps) http.Handler {
 		admin:         store.Admin{DB: d.Data},
 		export:        store.Export{DB: d.Data},
 		imports:       store.Imports{DB: d.Data},
+		runner:        d.ImportRunner,
 		backups:       d.Backups,
 		authCheck:     d.AuthCheck,
 		now:           d.Now,
