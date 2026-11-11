@@ -941,6 +941,86 @@
         }
       }
     },
+    "change.none": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No change"
+          }
+        }
+      }
+    },
+    "change.words.better %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "better %1$@%2$@ vs. last month"
+          }
+        }
+      }
+    },
+    "change.words.none": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "no change vs. last month"
+          }
+        }
+      }
+    },
+    "change.words.worse %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "worse %1$@%2$@ vs. last month"
+          }
+        }
+      }
+    },
+    "chart.amount": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Amount"
+          }
+        }
+      }
+    },
+    "chart.category": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category"
+          }
+        }
+      }
+    },
+    "chart.month": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Month"
+          }
+        }
+      }
+    },
+    "chart.series": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Series"
+          }
+        }
+      }
+    },
     "common.cancel": {
       "localizations": {
         "en": {
@@ -957,6 +1037,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dismiss"
+          }
+        }
+      }
+    },
+    "common.done": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
           }
         }
       }
@@ -2111,6 +2201,376 @@
         }
       }
     },
+    "summary.category.accessibility %@ %@ %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: %2$@, %3$@ of income, %4$@"
+          }
+        }
+      }
+    },
+    "summary.category.saving": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saving"
+          }
+        }
+      }
+    },
+    "summary.category.share %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ of income"
+          }
+        }
+      }
+    },
+    "summary.chart.bars": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bars"
+          }
+        }
+      }
+    },
+    "summary.chart.donut": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Donut"
+          }
+        }
+      }
+    },
+    "summary.chart.mode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chart"
+          }
+        }
+      }
+    },
+    "summary.empty.note": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yearly and Trends fill in as you log months."
+          }
+        }
+      }
+    },
+    "summary.income.accessibility %@ %@ %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, net %2$@, %3$lld entries"
+          }
+        }
+      }
+    },
+    "summary.income.add": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add income"
+          }
+        }
+      }
+    },
+    "summary.income.combined": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All sources combined"
+          }
+        }
+      }
+    },
+    "summary.income.empty": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No income logged this month yet."
+          }
+        }
+      }
+    },
+    "summary.income.entries %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld entries"
+          }
+        }
+      }
+    },
+    "summary.income.hint": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shows this month's entries"
+          }
+        }
+      }
+    },
+    "summary.income.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Income"
+          }
+        }
+      }
+    },
+    "summary.income.total %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ total"
+          }
+        }
+      }
+    },
+    "summary.spending.add": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add expenses"
+          }
+        }
+      }
+    },
+    "summary.spending.empty": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No spending logged this month yet."
+          }
+        }
+      }
+    },
+    "summary.spending.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spending by category"
+          }
+        }
+      }
+    },
+    "summary.tile.left": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Left over"
+          }
+        }
+      }
+    },
+    "summary.tile.net": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Net income"
+          }
+        }
+      }
+    },
+    "summary.tile.saved": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved & invested"
+          }
+        }
+      }
+    },
+    "summary.tile.savedDetail": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Counted in Spent"
+          }
+        }
+      }
+    },
+    "summary.tile.spent": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spent"
+          }
+        }
+      }
+    },
+    "summary.tile.vsLast": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vs. last month"
+          }
+        }
+      }
+    },
+    "summary.welcome.categories.detail": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename, reorder or add the ones you use."
+          }
+        }
+      }
+    },
+    "summary.welcome.categories.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check categories & sources"
+          }
+        }
+      }
+    },
+    "summary.welcome.done": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        }
+      }
+    },
+    "summary.welcome.entry.detail": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An expense or a paycheck."
+          }
+        }
+      }
+    },
+    "summary.welcome.entry.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Log your first entry"
+          }
+        }
+      }
+    },
+    "summary.welcome.hide": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide"
+          }
+        }
+      }
+    },
+    "summary.welcome.note": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yearly and Trends fill in as you log months."
+          }
+        }
+      }
+    },
+    "summary.welcome.open": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open"
+          }
+        }
+      }
+    },
+    "summary.welcome.progress %lld %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld of %2$lld done"
+          }
+        }
+      }
+    },
+    "summary.welcome.template.detail": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bills and paychecks you can copy into any month."
+          }
+        }
+      }
+    },
+    "summary.welcome.template.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Build a template month"
+          }
+        }
+      }
+    },
+    "summary.welcome.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Welcome. Get set up in three steps"
+          }
+        }
+      }
+    },
+    "summary.welcome.todo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not done"
+          }
+        }
+      }
+    },
     "templates.apply": {
       "localizations": {
         "en": {
@@ -2967,6 +3427,186 @@
           "stringUnit": {
             "state": "translated",
             "value": "Undo"
+          }
+        }
+      }
+    },
+    "yearly.average.accessibility %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: %2$@ a month on average"
+          }
+        }
+      }
+    },
+    "yearly.bar.accessibility %@ %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: net income %2$@, spent %3$@. Opens that month."
+          }
+        }
+      }
+    },
+    "yearly.chart.averages": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monthly average by category"
+          }
+        }
+      }
+    },
+    "yearly.chart.incomeVsSpent": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Income vs. spent"
+          }
+        }
+      }
+    },
+    "yearly.column.left": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Left over"
+          }
+        }
+      }
+    },
+    "yearly.column.month": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Month"
+          }
+        }
+      }
+    },
+    "yearly.column.net": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Net income"
+          }
+        }
+      }
+    },
+    "yearly.column.spent": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spent"
+          }
+        }
+      }
+    },
+    "yearly.current %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Year %@"
+          }
+        }
+      }
+    },
+    "yearly.empty": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing logged this year yet."
+          }
+        }
+      }
+    },
+    "yearly.next %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next year, %@"
+          }
+        }
+      }
+    },
+    "yearly.previous %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous year, %@"
+          }
+        }
+      }
+    },
+    "yearly.series.income": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Net income"
+          }
+        }
+      }
+    },
+    "yearly.series.spent": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spent"
+          }
+        }
+      }
+    },
+    "yearly.table.average": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monthly average"
+          }
+        }
+      }
+    },
+    "yearly.table.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Month by month"
+          }
+        }
+      }
+    },
+    "yearly.table.total": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total"
+          }
+        }
+      }
+    },
+    "yearly.tile.average %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ a month on average"
           }
         }
       }

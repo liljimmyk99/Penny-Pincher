@@ -59,14 +59,28 @@ final class MainViewModel {
     var workspace: Workspace? {
         guard let account else { return nil }
         if let cachedWorkspace, cachedWorkspace.accountID == account.id { return cachedWorkspace }
-        let created = Workspace(accountID: account.id, api: api)
+        let created = Workspace(accountID: account.id, api: api, defaults: defaults)
+        connect(created)
         cachedWorkspace = created
         return created
     }
 
-    /// View ▸ Previous/Next Month works on the screens that show a month.
+    /// Lets Summary and Yearly send the person to another screen.
+    private func connect(_ workspace: Workspace) {
+        workspace.summary.navigate = { [weak self] item in self?.selection = item }
+        workspace.summary.review = { [weak self, weak workspace] in
+            workspace?.transactions.showUnconfirmedOnly = true
+            self?.selection = .transactions
+        }
+        workspace.yearly.openMonth = { [weak self, weak workspace] month in
+            workspace?.month.month = month
+            self?.selection = .summary
+        }
+    }
+
+    /// View ▸ Previous/Next Month works on the screens that show a month (Summary, Add entries, Transactions).
     var canChangeMonth: Bool {
-        account != nil && (detailItem == .addEntries || detailItem == .transactions)
+        account != nil && (detailItem == .summary || detailItem == .addEntries || detailItem == .transactions)
     }
 
     func previousMonth() {

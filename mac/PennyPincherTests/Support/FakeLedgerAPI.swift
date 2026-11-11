@@ -28,6 +28,8 @@ final class FakeLedgerAPI: LedgerAPI, @unchecked Sendable {
         var applyRequests: [(month: String, templateID: String, reset: Bool)] = []
         var templateDrafts: [TemplateExpenseItemDraft] = []
         var templateIncomeDrafts: [TemplateIncomeItemDraft] = []
+        var monthly: [String: MonthlySummary] = [:]
+        var yearly: [Int: YearlySummary] = [:]
     }
 
     func with<T>(_ body: (inout State) -> T) -> T { lock.withLock { body(&state) } }
@@ -411,6 +413,40 @@ final class FakeLedgerAPI: LedgerAPI, @unchecked Sendable {
             state.expenses.removeAll { $0.templateApplyID == id && !$0.confirmed }
             state.income.removeAll { $0.templateApplyID == id && !$0.confirmed }
             return TemplateUndoResult(removedExpenseCount: expenses, removedIncomeEntryCount: income)
+        }
+    }
+    // MARK: Summaries
+
+    func monthlySummary(month: String) async throws(APIError) -> MonthlySummary {
+        try record("monthlySummary:\(month)")
+        return with { state in
+            state.monthly[month] ?? MonthlySummary(
+                month: month,
+                sources: state.sources.map { MonthlySummary.Source(id: $0.id, name: $0.name, isProtected: $0.isProtected, totals: .zero) },
+                combined: .zero,
+                categories: state.categories.map {
+                    MonthlySummary.Category(id: $0.id, name: $0.name, color: $0.color, isSaving: $0.isSaving,
+                                            isProtected: $0.isProtected, totalCents: 0, expenseCount: 0, refundCount: 0,
+                                            previousMonthTotalCents: 0)
+                },
+                totalCents: 0, savingCents: 0, previousMonthTotalCents: 0, leftOverCents: 0,
+                unconfirmedExpenseCount: 0, unconfirmedIncomeCount: 0, applies: [], isEmpty: true)
+        }
+    }
+
+    func yearlySummary(year: Int) async throws(APIError) -> YearlySummary {
+        try record("yearlySummary:\(year)")
+        return with { state in
+            state.yearly[year] ?? YearlySummary(
+                year: year,
+                months: (1...12).map { index in
+                    YearlySummary.Month(month: "\(year)-\(index < 10 ? "0" : "")\(index)", grossCents: 0,
+                                        grossTaxableCents: 0, netCents: 0, spentCents: 0, savingCents: 0,
+                                        leftOverCents: 0, hasEntries: false)
+                },
+                categories: [], totals: .init(grossCents: 0, grossTaxableCents: 0, netCents: 0, spentCents: 0,
+                                              savingCents: 0, leftOverCents: 0),
+                averageMonthCount: 0)
         }
     }
 }
