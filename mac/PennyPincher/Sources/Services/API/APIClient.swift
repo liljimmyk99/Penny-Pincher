@@ -16,6 +16,7 @@ struct APIClient: AccountAPI {
     ) {
         client = Client(
             serverURL: serverURL,
+            configuration: Configuration(dateTranscoder: FlexibleDateTranscoder()),
             transport: transport,
             middlewares: [ErrorMiddleware(), AuthMiddleware(token: token, onSessionError: onSessionError)]
         )

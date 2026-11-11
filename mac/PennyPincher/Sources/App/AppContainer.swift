@@ -43,7 +43,13 @@ final class AppContainer {
             let session = SessionService(auth: auth, api: api)
             relay.session = session
             session.start()
-            let main = MainViewModel(session: session, api: api, adminURL: config.adminURL)
+            let events = ImportEventStream(
+                serverURL: config.serverURL,
+                token: { forceRefresh in try await auth.idToken(forceRefresh: forceRefresh) },
+                onSessionError: { error in relay.send(error) }
+            )
+            let main = MainViewModel(session: session, api: api, adminURL: config.adminURL,
+                                     importEvents: events, notifier: .live)
             return AppContainer(setup: .ready(session: session, main: main), appearance: appearance)
         }
     }
