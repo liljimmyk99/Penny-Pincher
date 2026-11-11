@@ -44,7 +44,7 @@ https://claude.ai/code/artifact/420ff31e-17a4-4f1d-b07d-9d958efeab9c
 
 Every screen exists in light and dark. Sample numbers and names on the canvas are mock data; never copy them into code, seeds or tests. When this file and the canvas disagree, this file wins; flag the difference.
 
-The Excel import screens (root §6.14) are on a separate canvas, **Penny-Pincher Screens · Import** (https://claude.ai/artifact/Whsrs2CRLpZ2aCArpdbuAa), until they are moved into the main one.
+The Excel import screens (root §6.14: Import, Import · Dark, Progress banner and Progress banner · Dark) are on the same canvas, to the right of the Empty boards.
 
 ## Design system
 
@@ -247,7 +247,6 @@ Root §6.14; API `imports` routes. One page with four stages and a step indicato
 - **Finished:** "Import finished" with counts, Open Yearly, Download skipped rows, Import another file.
 - **Import history** (Upload and Finished stages): file, date, entries, years, status chip, and Undo for completed imports (alert dialog: deletes every entry it added, including edited ones; hand-added entries stay).
 - **Progress banner** across every screen while an import runs, under the page header area: blue while running (name, percent, entries, time left, View progress, and a thin progress line), green when finished (counts, View details, dismiss), red when it stopped (nothing was saved, Try again, dismiss). On load the app checks `GET /v1/imports?status=running`.
-- **Canvas difference:** the Importing stage's note says imported months appear once the whole import finishes. Entries actually appear as each batch is written (root §10); word the note as "Months fill in as the import runs."
 - **Progress stream:** read `/v1/imports/{id}/events` with `fetch` and a stream reader (not `EventSource`, which cannot send the token), in one module under `src/api`. Reconnect if it drops before `finished`. When it finishes, invalidate the queries for every affected month, year and trend. Caddy must not buffer the stream (check `flush_interval` for this route).
 
 ### Empty states
