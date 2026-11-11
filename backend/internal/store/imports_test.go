@@ -319,3 +319,37 @@ func TestMigrate0002OnExistingSchema(t *testing.T) {
 		t.Fatalf("entries after migrate = %+v %v", e, err)
 	}
 }
+
+func TestImportYearsAndExistingMonths(t *testing.T) {
+	f := newImportFixture(t)
+	ctx := context.Background()
+	imp := f.create(f.a)
+
+	years, err := f.imports().Years(ctx, f.a, imp.ID)
+	if err != nil || len(years) != 2 {
+		t.Fatalf("years = %+v, %v", years, err)
+	}
+	if y := years[0]; y.Year != 2019 || y.Months != 1 || y.ExpenseRows != 1 || y.SpentCents != 1250 || y.RowsWithProblems != 0 {
+		t.Fatalf("2019 = %+v", y)
+	}
+	if y := years[1]; y.Year != 2020 || y.IncomeRows != 1 || y.ExpenseRows != 0 {
+		t.Fatalf("2020 = %+v", y)
+	}
+
+	// Detection with real entries is covered through the API (TestImportMonthsWithExistingEntries).
+	if months, err := f.imports().ExistingMonths(ctx, f.a, imp.ID); err != nil || len(months) != 0 {
+		t.Fatalf("months = %+v, %v", months, err)
+	}
+}
+
+func TestImportSummariesAreTenantScoped(t *testing.T) {
+	f := newImportFixture(t)
+	ctx := context.Background()
+	imp := f.create(f.a)
+	if _, err := f.imports().Years(ctx, f.b, imp.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("Years as other user: %v", err)
+	}
+	if _, err := f.imports().ExistingMonths(ctx, f.b, imp.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("ExistingMonths as other user: %v", err)
+	}
+}

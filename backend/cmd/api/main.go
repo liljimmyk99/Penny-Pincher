@@ -106,6 +106,7 @@ func run() error {
 	} else {
 		log.Warn("backups are not configured; set BACKUP_AGE_RECIPIENT and BACKUP_S3_*")
 	}
+	go sweepImports(ctx, store.Imports{DB: db}, 15*time.Minute, log)
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
 		Handler:           apihttp.NewRouter(deps),
@@ -155,4 +156,21 @@ func limits(cfg config.Config) *apihttp.Limits {
 		l.PerUser = cfg.RateLimitPerUser
 	}
 	return &l
+}
+
+// sweepImports expires imports left in review for more than 24 hours, deleting
+// their checked rows. Requests also expire the caller's own imports lazily.
+func sweepImports(ctx context.Context, imports store.Imports, every time.Duration, log *slog.Logger) {
+	t := time.NewTicker(every)
+	defer t.Stop()
+	for {
+		if _, err := imports.ExpireAllStale(ctx, time.Now()); err != nil && ctx.Err() == nil {
+			log.Error("import expiry failed", "err_type", fmt.Sprintf("%T", err))
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+	}
 }

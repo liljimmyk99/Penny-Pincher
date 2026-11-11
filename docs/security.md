@@ -149,6 +149,8 @@ Every M6 issue is done in the code. Before the first deployment (#42), complete 
 
 **Excel import (M8)** brings file uploads into scope. `.xlsx` files are zipped XML, so the library chosen in #93 must cap the unzipped size and the XML size (for example excelize's `UnzipSizeLimit` and `UnzipXMLSizeLimit`), on top of the 10 MB / 50,000-row limits in AGENTS.md §10. This covers audit items 39 and 65.
 
+*Implemented in #95* (`backend/internal/imports`, `internal/http/imports.go`): uploads are opened with `UnzipSizeLimit` 100 MB and `UnzipXMLSizeLimit` 20 MB and read with the streaming `Rows` iterator. A file over 10 MB answers `413 file_too_large`; more than 50,000 data rows (blank rows are skipped, and scanning stops at 200,000 rows) or a file that is not a template answers `400 invalid_import_file`. Cell values, file contents and file names are never logged, and error text is never logged, only its type. Text echoed back into the problem-rows workbook goes through the same formula-injection guard as export, except dates and dollar amounts, which are written back as found so a fixed file can be uploaded again. Review imports expire after 24 hours, on read and from a 15-minute sweep, and their checked rows are deleted.
+
 ### Lock someone out now
 
 Use this when an account is compromised, a device is lost, or someone should no longer have access. Either step stops their API access within 5 minutes (the revocation cache); their data stays in the database.

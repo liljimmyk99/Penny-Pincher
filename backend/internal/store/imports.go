@@ -446,3 +446,83 @@ func intPtr(n sql.NullInt64) *int64 {
 	}
 	return &n.Int64
 }
+
+// ImportYear is one row of the review table: the file's ready rows in a
+// calendar year. RowsWithProblems counts problem rows whose date could be
+// read; rows with an unreadable date belong to no year.
+type ImportYear struct {
+	Year             int
+	Months           int // months with at least one ready row
+	ExpenseRows      int
+	IncomeRows       int
+	SpentCents       int64 // ready expense amounts, refunds lowering it
+	RowsWithProblems int
+}
+
+// ImportMonth is a month in the file that already has entries in the app.
+type ImportMonth struct {
+	Month           string // YYYY-MM
+	ExistingEntries int    // expenses and income entries already there
+	FileEntries     int    // ready rows in the file for this month
+}
+
+// Years returns the per-year review table, oldest first.
+func (x Imports) Years(ctx context.Context, userID, id int64) ([]ImportYear, error) {
+	if _, err := getImport(ctx, x.DB, userID, id); err != nil {
+		return nil, err
+	}
+	rows, err := x.DB.QueryContext(ctx, `SELECT CAST(substr(occurred_on, 1, 4) AS INTEGER),
+			count(DISTINCT CASE WHEN ready = 1 THEN substr(occurred_on, 1, 7) END),
+			coalesce(sum(ready = 1 AND sheet = 'expenses'), 0),
+			coalesce(sum(ready = 1 AND sheet = 'income'), 0),
+			coalesce(sum(CASE WHEN ready = 1 AND sheet = 'expenses' THEN amount_cents END), 0),
+			coalesce(sum(ready = 0), 0)
+		FROM import_rows WHERE import_id = ? AND user_id = ? AND occurred_on IS NOT NULL
+		GROUP BY 1 ORDER BY 1`, id, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []ImportYear{}
+	for rows.Next() {
+		var y ImportYear
+		if err := rows.Scan(&y.Year, &y.Months, &y.ExpenseRows, &y.IncomeRows, &y.SpentCents, &y.RowsWithProblems); err != nil {
+			return nil, err
+		}
+		out = append(out, y)
+	}
+	return out, rows.Err()
+}
+
+// ExistingMonths returns the months of the file's ready rows that already have
+// expenses or income entries (not counting entries this import added),
+// oldest first.
+func (x Imports) ExistingMonths(ctx context.Context, userID, id int64) ([]ImportMonth, error) {
+	if _, err := getImport(ctx, x.DB, userID, id); err != nil {
+		return nil, err
+	}
+	rows, err := x.DB.QueryContext(ctx, `WITH f AS (
+			SELECT substr(occurred_on, 1, 7) AS m, count(*) AS n FROM import_rows
+			WHERE import_id = ? AND user_id = ? AND ready = 1 GROUP BY 1)
+		SELECT m, n, existing FROM (
+			SELECT f.m AS m, f.n AS n,
+			  (SELECT count(*) FROM expenses e WHERE e.user_id = ? AND e.import_id IS NOT ?
+			     AND e.occurred_on >= f.m || '-01' AND e.occurred_on <= f.m || '-31')
+			  + (SELECT count(*) FROM income_entries i WHERE i.user_id = ? AND i.import_id IS NOT ?
+			     AND i.received_on >= f.m || '-01' AND i.received_on <= f.m || '-31') AS existing
+			FROM f)
+		WHERE existing > 0 ORDER BY m`, id, userID, userID, id, userID, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []ImportMonth{}
+	for rows.Next() {
+		var m ImportMonth
+		if err := rows.Scan(&m.Month, &m.FileEntries, &m.ExistingEntries); err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
