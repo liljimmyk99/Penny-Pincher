@@ -9,11 +9,11 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"strings"
 
 	"github.com/xuri/excelize/v2"
 
 	"github.com/liljimmyk99/penny-pincher/backend/internal/api"
+	"github.com/liljimmyk99/penny-pincher/backend/internal/imports"
 	"github.com/liljimmyk99/penny-pincher/backend/internal/store"
 )
 
@@ -219,15 +219,8 @@ func sheetRow(cs []cell) []any {
 	return out
 }
 
-// safeText stops spreadsheet formula injection: a user-entered text cell that
-// starts with a formula character is prefixed with an apostrophe (OWASP).
-// Generated text (dates, formatted amounts) is never passed through here.
-func safeText(s string) string {
-	if s != "" && strings.ContainsRune("=+-@\t\r", rune(s[0])) {
-		return "'" + s
-	}
-	return s
-}
+// safeText stops spreadsheet formula injection; see imports.SafeText.
+func safeText(s string) string { return imports.SafeText(s) }
 
 // formatCents renders integer cents as dollars with two decimals, without floats.
 func formatCents(c int64) string {
