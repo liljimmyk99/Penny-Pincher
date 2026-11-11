@@ -108,6 +108,25 @@ struct MainViewModelTests {
         #expect(workspace.addEntries.focusRequest == 1)
     }
 
+    @Test("Open in Transactions from Trends shows that month, narrowed to the trend")
+    func trendsOpenTransactions() async throws {
+        let (viewModel, _, _) = await makeViewModel()
+        let workspace = try #require(viewModel.workspace)
+        workspace.transactions.showUnconfirmedOnly = true
+        workspace.transactions.refundFilter = .refunds
+        viewModel.selection = .trends
+        workspace.trends.custom.openTransactions(TransactionsLink(month: "2025-03", categoryID: "c-food"))
+        #expect(viewModel.selection == .transactions)
+        #expect(workspace.month.month == "2025-03")
+        #expect(workspace.transactions.categoryFilter == "c-food")
+        #expect(workspace.transactions.search.isEmpty)
+        #expect(!workspace.transactions.showUnconfirmedOnly && workspace.transactions.refundFilter == nil)
+
+        workspace.trends.custom.openTransactions(TransactionsLink(month: "2025-04", search: "Corner Store"))
+        #expect(workspace.transactions.categoryFilter == nil)
+        #expect(workspace.transactions.search == "Corner Store")
+    }
+
     @Test("Screens are rebuilt for another account")
     func workspacePerAccount() async throws {
         let (viewModel, session, auth) = await makeViewModel()

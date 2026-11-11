@@ -4,6 +4,8 @@
 struct PreviewLedgerAPI: LedgerAPI {
     var failing = false
     var month = "2026-10"
+    /// No saved trends, for the empty Trends preview.
+    var emptyTrends = false
 
     private var failure: APIError { APIError.network() }
 
@@ -100,6 +102,11 @@ struct PreviewLedgerAPI: LedgerAPI {
     func merchants(prefix: String) async throws(APIError) -> [Merchant] {
         Set(expenseList.map(\.merchant)).filter { $0.name.lowercased().hasPrefix(prefix.lowercased()) }
             .sorted { $0.name < $1.name }
+    }
+
+    func allMerchants() async throws(APIError) -> [Merchant] {
+        if failing { throw failure }
+        return Set(expenseList.map(\.merchant)).sorted { $0.name < $1.name }
     }
 
     func expenses(_ query: ExpenseQuery) async throws(APIError) -> [Expense] {
@@ -293,6 +300,58 @@ struct PreviewLedgerAPI: LedgerAPI {
                           netCents: months.reduce(0) { $0 + $1.netCents }, spentCents: months.reduce(0) { $0 + $1.spentCents },
                           savingCents: 600_000, leftOverCents: months.reduce(0) { $0 + $1.leftOverCents }),
             averageMonthCount: 10)
+    }
+
+    // MARK: Trends
+
+    private var trendList: [SavedTrend] {
+        [SavedTrend(id: "tr0", name: "Corner Market runs", matchType: .merchant, merchantID: "m-Corner Market",
+                    categoryID: nil, matchText: nil, measure: .amount, sortOrder: 0),
+         SavedTrend(id: "tr1", name: "Eating out", matchType: .category, merchantID: nil, categoryID: "c3",
+                    matchText: nil, measure: .count, sortOrder: 1),
+         SavedTrend(id: "tr2", name: "Weekly shops", matchType: .note, merchantID: nil, categoryID: nil,
+                    matchText: "weekly", measure: .amount, sortOrder: 2)]
+    }
+
+    func savedTrends() async throws(APIError) -> [SavedTrend] {
+        if failing { throw failure }
+        return emptyTrends ? [] : trendList
+    }
+
+    func createSavedTrend(_ draft: SavedTrendDraft) async throws(APIError) -> SavedTrend {
+        SavedTrend(id: "new", name: draft.name, matchType: draft.matchType, merchantID: draft.merchantID,
+                   categoryID: draft.categoryID, matchText: draft.matchText, measure: draft.measure, sortOrder: 99)
+    }
+
+    func customTrend(_ query: CustomTrendQuery) async throws(APIError) -> [TrendBucket] {
+        if failing { throw failure }
+        let first = CalendarDate.month(of: query.from)
+        let seed = (query.merchantID ?? query.categoryID ?? query.text ?? "").count
+        return (0..<12).map { offset in
+            let count = offset < 2 ? 0 : (offset * 3 + seed) % 7 + 1
+            return TrendBucket(period: CalendarDate.shiftMonth(first, by: offset), totalCents: count * (2_150 + seed * 40),
+                               count: count)
+        }
+    }
+
+    func categoryTrends(year: Int) async throws(APIError) -> CategoryTrends {
+        if failing { throw failure }
+        let series = categoryList.enumerated().map { index, category in
+            let base = [40_000, 120_000, 13_000, 52_000, 18_000, 9_000, 0, 3_000][index]
+            func values(_ shift: Int) -> [Int] {
+                (0..<12).map { month in base == 0 ? 0 : base + ((month + shift + index) % 5 - 2) * base / 10 }
+            }
+            return CategoryTrends.Series(categoryID: category.id, name: category.name, color: nil,
+                                         isSaving: category.isSaving, thisYearCents: values(1), lastYearCents: values(3))
+        }
+        func total(_ path: KeyPath<CategoryTrends.Series, [Int]>) -> [Int] {
+            (0..<12).map { month in series.reduce(0) { $0 + $1[keyPath: path][month] } }
+        }
+        return CategoryTrends(
+            year: year,
+            allSpending: CategoryTrends.Series(categoryID: nil, name: "All spending", color: nil, isSaving: false,
+                                               thisYearCents: total(\.thisYearCents), lastYearCents: total(\.lastYearCents)),
+            categories: series)
     }
 }
 #endif

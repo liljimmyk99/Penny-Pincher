@@ -11,6 +11,8 @@ struct ScreenDetail: View {
             SummaryView(viewModel: workspace.summary)
         case (.yearly, .some(let workspace)):
             YearlyView(viewModel: workspace.yearly)
+        case (.trends, .some(let workspace)):
+            TrendsView(viewModel: workspace.trends)
         case (.addEntries, .some(let workspace)):
             AddEntriesView(viewModel: workspace.addEntries)
         case (.transactions, .some(let workspace)):

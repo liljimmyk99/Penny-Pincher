@@ -82,6 +82,18 @@ enum PreviewData {
         YearlyViewModel(api: PreviewLedgerAPI(failing: failing), today: "2026-10-15")
     }
 
+    static func trends(_ mode: TrendsMode = .custom, failing: Bool = false, empty: Bool = false) -> TrendsViewModel {
+        let viewModel = TrendsViewModel(api: PreviewLedgerAPI(failing: failing, emptyTrends: empty), defaults: defaults,
+                                        today: { "2026-10-15" })
+        viewModel.mode = mode
+        return viewModel
+    }
+
+    static func newTrend() -> NewTrendViewModel {
+        NewTrendViewModel(categories: [], merchants: [Merchant(id: "m1", name: "Corner Market")],
+                          api: PreviewLedgerAPI(), onCreated: { _ in })
+    }
+
     static func templates(failing: Bool = false) -> TemplatesViewModel {
         TemplatesViewModel(api: PreviewLedgerAPI(failing: failing), month: "2026-10")
     }
