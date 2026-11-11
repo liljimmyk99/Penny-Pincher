@@ -275,6 +275,9 @@ Rules:
   - **The sign-in screen replaces the main window's content** until someone is signed in, rather than opening a second window. The main window is a single `Window` scene, and Settings (⌘,) holds Appearance.
   - **Architecture (owner's rules):** Swift 6 language mode. Each screen is `Screens/<Screen>/` with `Model`, `View` and `ViewModel` folders. Views hold layout only; their actions go in `View/Extensions/<Screen>View+Extension.swift`, and as much logic as possible goes in the view model. Every view struct is its own file in `View/Components` (no `@ViewBuilder` helpers). All services live in a top-level `Services/` folder, and every user-facing string is in a string catalog. Every screen has `#Preview`s for its states (DEBUG only), and tests use Swift Testing (XCTest only for UI tests). Details in `mac/AGENTS.md`, Architecture.
 
-### Open
+- **Go library for `.xlsx`** (decided 2026-11-10, #93; spike: `backend/internal/xlsxspike`)
+  - **`github.com/xuri/excelize/v2`** for the import template, reading uploads, the problem-rows workbook and export. BSD-3-Clause, pure Go (builds with `CGO_ENABLED=0`), builds with the pinned Go toolchain.
+  - The spike confirmed: a template with a data-validation dropdown reading from a hidden `Lists` sheet; a streaming read (`Rows`) of a 50,000-row file; date cells read both as real Excel serials (`RawCellValue`, then `ExcelDateToTime`) and as `YYYY-MM-DD` text; and `UnzipSizeLimit` rejecting oversized archives.
+  - **Reading:** use the streaming `Rows` iterator with `RawCellValue: true`, one `Columns` call per row (it is single-pass), and always set `UnzipSizeLimit` and `UnzipXMLSizeLimit` (`docs/security.md`).
+  - **Rejected:** `tealeg/xlsx` and similar readers (no data validation or streaming writer, so the template and export would need a second library).
 
-- **Go library for `.xlsx`** (import template, reading uploads, problem rows, export): **`github.com/xuri/excelize/v2`** (chosen in #49 for export; import reuses it). Pure Go, streaming writer. The import must still cap the unzipped and XML sizes of uploads (`UnzipSizeLimit`, `UnzipXMLSizeLimit`; `docs/security.md`). *(Owner: confirm or override.)*
