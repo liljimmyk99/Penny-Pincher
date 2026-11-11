@@ -373,6 +373,15 @@ func (x Imports) DeleteEntries(ctx context.Context, userID, id int64) (int, erro
 	}
 	defer tx.Rollback()
 
+	n, err := deleteImportEntries(ctx, tx, userID, id)
+	if err != nil {
+		return 0, err
+	}
+	return n, tx.Commit()
+}
+
+// deleteImportEntries is DeleteEntries inside the caller's transaction.
+func deleteImportEntries(ctx context.Context, tx *sql.Tx, userID, id int64) (int, error) {
 	if _, err := getImport(ctx, tx, userID, id); err != nil {
 		return 0, err
 	}
@@ -394,7 +403,7 @@ func (x Imports) DeleteEntries(ctx context.Context, userID, id int64) (int, erro
 		}
 		total += int(n)
 	}
-	return total, tx.Commit()
+	return total, nil
 }
 
 func getImport(ctx context.Context, q querier, userID, id int64) (Import, error) {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,6 +16,7 @@ import (
 	"github.com/liljimmyk99/penny-pincher/backend/internal/auth"
 	"github.com/liljimmyk99/penny-pincher/backend/internal/config"
 	apihttp "github.com/liljimmyk99/penny-pincher/backend/internal/http"
+	"github.com/liljimmyk99/penny-pincher/backend/internal/importrun"
 	"github.com/liljimmyk99/penny-pincher/backend/internal/logging"
 	"github.com/liljimmyk99/penny-pincher/backend/internal/store"
 )
@@ -92,11 +94,19 @@ func run() error {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	// An import still marked running belongs to a process that is gone: fail it
+	// and remove what it added, before anything can start a new one.
+	if n, err := (store.Imports{DB: db}).RecoverRunning(ctx); err != nil {
+		return fmt.Errorf("recover running imports: %T", err)
+	} else if n > 0 {
+		log.Warn("failed imports left running by a previous process", "count", n)
+	}
 	bsvc, err := newBackupService(cfg.Backup, db, "")
 	if err != nil {
 		return err
 	}
-	deps := apihttp.Deps{Version: cfg.Version, DB: db, Data: db, Now: time.Now, Authn: authn, AuthCheck: auth.ProbeProvider, Limits: limits(cfg)}
+	deps := apihttp.Deps{Version: cfg.Version, DB: db, Data: db, Now: time.Now, Authn: authn, AuthCheck: auth.ProbeProvider, Limits: limits(cfg),
+		ImportRunner: importrun.New(ctx, db, importrun.Options{})}
 	if cfg.AuthEmulatorHost != "" {
 		deps.AuthCheck = nil // the emulator is local; there is no remote provider to probe
 	}
@@ -108,8 +118,10 @@ func run() error {
 	}
 	go sweepImports(ctx, store.Imports{DB: db}, 15*time.Minute, log)
 	srv := &http.Server{
-		Addr:              fmt.Sprintf(":%d", cfg.Port),
-		Handler:           apihttp.NewRouter(deps),
+		Addr:    fmt.Sprintf(":%d", cfg.Port),
+		Handler: apihttp.NewRouter(deps),
+		// Open event streams end when the process is asked to stop.
+		BaseContext:       func(net.Listener) context.Context { return ctx },
 		ReadHeaderTimeout: 5 * time.Second,
 		// Long enough for a 10 MB import upload on a slow link. There is no
 		// WriteTimeout: the router sets write deadlines per route, so SSE

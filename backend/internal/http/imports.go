@@ -352,6 +352,9 @@ func (s *Server) importResponse(ctx context.Context, uid int64, imp store.Import
 		Status:           api.ImportStatus(imp.Status),
 		Years:            make([]api.ImportYear, len(years)),
 	}
+	if imp.Status == store.ImportRunning {
+		out.Progress = s.importProgress(uid, imp)
+	}
 	for i, y := range years {
 		out.Years[i] = api.ImportYear{
 			Year: y.Year, Months: y.Months, ExpenseRows: y.ExpenseRows, IncomeRows: y.IncomeRows,
