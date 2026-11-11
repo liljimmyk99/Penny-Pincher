@@ -144,16 +144,23 @@ func TestExpensiveRoutesHaveATighterLimit(t *testing.T) {
 		Expensive: ratelimit.Rule{Rate: 0.1, Burst: 2},
 	})
 	for range 2 {
-		wantError(t, a.send("GET", "/v1/export?format=csv", tokMember, "", nil, 0), http.StatusNotImplemented, api.ErrorErrorCodeNotImplemented)
+		wantOK(t, a.send("GET", "/v1/export?format=csv", tokMember, "", nil, 0))
 	}
 	wantRateLimited(t, a.send("GET", "/v1/export?format=csv", tokMember, "", nil, 0), "10")
 	// Ordinary routes still work, and the expensive bucket is per user.
 	if rec := a.send("GET", "/v1/categories", tokMember, "", nil, 0); rec.Code != http.StatusOK {
 		t.Fatalf("ordinary route: status = %d", rec.Code)
 	}
-	wantError(t, a.send("GET", "/v1/export?format=csv", tokAdmin, "", nil, 0), http.StatusNotImplemented, api.ErrorErrorCodeNotImplemented)
+	wantOK(t, a.send("GET", "/v1/export?format=csv", tokAdmin, "", nil, 0))
 	clock.Add(10 * time.Second)
-	wantError(t, a.send("GET", "/v1/export?format=csv", tokMember, "", nil, 0), http.StatusNotImplemented, api.ErrorErrorCodeNotImplemented)
+	wantOK(t, a.send("GET", "/v1/export?format=csv", tokMember, "", nil, 0))
+}
+
+func wantOK(t *testing.T, rec *httptest.ResponseRecorder) {
+	t.Helper()
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
 }
 
 func TestClientIP(t *testing.T) {

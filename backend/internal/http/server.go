@@ -30,6 +30,7 @@ type Server struct {
 	trends        store.Trends
 	savedTrends   store.SavedTrends
 	admin         store.Admin
+	export        store.Export
 	backups       Backups
 	authCheck     AuthCheck
 	now           func() time.Time
@@ -73,6 +74,7 @@ func NewRouter(d Deps) http.Handler {
 		trends:        store.Trends{DB: d.Data},
 		savedTrends:   store.SavedTrends{DB: d.Data},
 		admin:         store.Admin{DB: d.Data},
+		export:        store.Export{DB: d.Data},
 		backups:       d.Backups,
 		authCheck:     d.AuthCheck,
 		now:           d.Now,

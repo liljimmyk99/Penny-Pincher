@@ -89,7 +89,7 @@ func wantError(t *testing.T, rec *httptest.ResponseRecorder, status int, code ap
 
 func TestUnimplementedRoutesReturnStandard501(t *testing.T) {
 	for _, r := range [][2]string{
-		{"GET", "/v1/export?format=csv"},
+		{"GET", "/v1/imports"},
 	} {
 		wantError(t, do(t, r[0], r[1], tokAdmin), http.StatusNotImplemented, api.ErrorErrorCodeNotImplemented)
 	}
