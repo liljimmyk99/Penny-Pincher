@@ -87,6 +87,9 @@
   --color-success-bg: #f0fdf4;
   --color-success-border: #bbf7d0;
   --color-success-text: #166534;
+  --color-info-bg: #eff6ff;
+  --color-info-border: #bfdbfe;
+  --color-info-text: #1e3a8a;
 
   /* On the dark brand panel (sidebar colour) */
   --color-on-sidebar: #ffffff;
@@ -177,6 +180,9 @@
   --color-success-bg: #0f2a1c;
   --color-success-border: #1e4d33;
   --color-success-text: #86efac;
+  --color-info-bg: #0f1d3a;
+  --color-info-border: #1e3a6e;
+  --color-info-text: #bfdbfe;
 
   --color-on-brand: #0b1220;
   --color-sidebar-edge: #1c2638;

@@ -32,10 +32,11 @@ export {
   useImport,
   useImportMutations,
   useImports,
+  useRunningImports,
   type ImportRecord,
   type ImportSummary,
 } from "./imports";
-export { useImportProgress, readSse, type ImportProgress } from "./importEvents";
+export { followImport, refreshAfterImport, useImportProgress, readSse, type ImportProgress } from "./importEvents";
 export { useMe, meQueryKey } from "./me";
 export { createQueryClient } from "./queryClient";
 export {
