@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "./errors";
+import { saveBlob } from "../lib/download";
 import { unwrap } from "./client";
 import { useApi } from "./context";
 import type { Schemas } from "./types";
@@ -67,15 +68,4 @@ export function useDownloadBackup() {
       saveBlob(result.data as Blob, name);
     },
   });
-}
-
-function saveBlob(blob: Blob, name: string) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = name;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 0);
 }

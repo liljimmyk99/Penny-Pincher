@@ -12,6 +12,7 @@ struct MainView: View {
                     AccountMenu(
                         viewModel: viewModel,
                         onImport: importTransactions,
+                        onExport: openExport,
                         onAdminDashboard: openAdminDashboard,
                         onSignOut: signOut
                     )
@@ -19,6 +20,9 @@ struct MainView: View {
                 }
         } detail: {
             ScreenDetail(item: viewModel.detailItem, workspace: viewModel.workspace)
+        }
+        .sheet(isPresented: $viewModel.showsExport) {
+            ExportSheet(viewModel: viewModel.exporter, onExport: export, onCancel: closeExport)
         }
     }
 }

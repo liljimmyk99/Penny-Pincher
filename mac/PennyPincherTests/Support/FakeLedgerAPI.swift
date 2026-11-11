@@ -36,6 +36,8 @@ final class FakeLedgerAPI: LedgerAPI, @unchecked Sendable {
         /// Buckets by the trend's filter (merchant, category or note text).
         var trendBuckets: [String: [TrendBucket]] = [:]
         var categoryTrends: [Int: CategoryTrends] = [:]
+        var exportFile = ExportFile(data: Data([0x50, 0x4B]), fileName: "export.xlsx")
+        var exportFormats: [ExportFormat] = []
     }
 
     func with<T>(_ body: (inout State) -> T) -> T { lock.withLock { body(&state) } }
@@ -514,6 +516,16 @@ final class FakeLedgerAPI: LedgerAPI, @unchecked Sendable {
                                                    thisYearCents: Array(repeating: 0, count: 12),
                                                    lastYearCents: Array(repeating: 0, count: 12)),
                 categories: [])
+        }
+    }
+
+    // MARK: Export
+
+    func exportData(format: ExportFormat) async throws(APIError) -> ExportFile {
+        try record("exportData:\(format.rawValue)")
+        return with { state in
+            state.exportFormats.append(format)
+            return state.exportFile
         }
     }
 }

@@ -17,6 +17,8 @@ final class MainViewModel {
     /// The current account's screens; rebuilt when the account changes.
     @ObservationIgnored private var cachedWorkspace: Workspace?
     let adminURL: URL
+    let exporter: ExportViewModel
+    var showsExport = false
     let sidebarItems = SidebarItem.allCases
 
     var selection: SidebarItem? {
@@ -32,11 +34,13 @@ final class MainViewModel {
         api: LedgerAPI,
         adminURL: URL,
         defaults: UserDefaults = .standard,
+        saver: FileSaver = .savePanel,
         openURL: @escaping @MainActor (URL) -> Void = { NSWorkspace.shared.open($0) }
     ) {
         self.session = session
         self.api = api
         self.adminURL = adminURL
+        exporter = ExportViewModel(api: api, saver: saver)
         self.defaults = defaults
         self.openURL = openURL
         selection = defaults.string(forKey: Self.selectionKey).flatMap(SidebarItem.init(rawValue:)) ?? .summary
@@ -134,6 +138,16 @@ final class MainViewModel {
 
     func importTransactions() {
         selection = .importData
+    }
+
+    func openExport() {
+        exporter.reset()
+        showsExport = true
+    }
+
+    /// Fetches the file and saves it; the sheet closes once it is saved.
+    func export() async {
+        if await exporter.export() { showsExport = false }
     }
 
     /// The admin dashboard is web-only (mac/AGENTS.md); open it in the browser.
