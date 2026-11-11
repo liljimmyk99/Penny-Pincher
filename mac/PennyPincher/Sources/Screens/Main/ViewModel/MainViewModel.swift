@@ -14,6 +14,8 @@ final class MainViewModel {
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let openURL: @MainActor (URL) -> Void
     @ObservationIgnored private let api: LedgerAPI
+    @ObservationIgnored private let importEvents: ImportEventSource
+    @ObservationIgnored private let notifier: FinishNotifier
     /// The current account's screens; rebuilt when the account changes.
     @ObservationIgnored private var cachedWorkspace: Workspace?
     let adminURL: URL
@@ -33,12 +35,16 @@ final class MainViewModel {
         session: SessionService,
         api: LedgerAPI,
         adminURL: URL,
+        importEvents: ImportEventSource = NoImportEvents(),
+        notifier: FinishNotifier = .silent,
         defaults: UserDefaults = .standard,
         saver: FileSaver = .savePanel,
         openURL: @escaping @MainActor (URL) -> Void = { NSWorkspace.shared.open($0) }
     ) {
         self.session = session
         self.api = api
+        self.importEvents = importEvents
+        self.notifier = notifier
         self.adminURL = adminURL
         exporter = ExportViewModel(api: api, saver: saver)
         self.defaults = defaults
@@ -63,7 +69,7 @@ final class MainViewModel {
     var workspace: Workspace? {
         guard let account else { return nil }
         if let cachedWorkspace, cachedWorkspace.accountID == account.id { return cachedWorkspace }
-        let created = Workspace(accountID: account.id, api: api, defaults: defaults)
+        let created = Workspace(accountID: account.id, api: api, importEvents: importEvents, notifier: notifier, defaults: defaults)
         connect(created)
         cachedWorkspace = created
         return created
@@ -71,6 +77,7 @@ final class MainViewModel {
 
     /// Lets Summary, Yearly and Trends send the person to another screen.
     private func connect(_ workspace: Workspace) {
+        workspace.importer.openYearly = { [weak self] in self?.selection = .yearly }
         workspace.summary.navigate = { [weak self] item in self?.selection = item }
         workspace.summary.review = { [weak self, weak workspace] in
             workspace?.transactions.showUnconfirmedOnly = true
@@ -134,6 +141,23 @@ final class MainViewModel {
         guard canAddEntries else { return }
         selection = .addEntries
         workspace?.addEntries.requestFocus()
+    }
+
+    /// The banner's View/Try again.
+    func showImport() {
+        selection = .importData
+    }
+
+    func dismissImportBanner() {
+        workspace?.importTracker.dismissBanner()
+    }
+
+    var importBanner: ImportTracker.Banner? { workspace?.importTracker.banner }
+    var importProgress: ImportProgress? { workspace?.importTracker.progress }
+
+    /// Picks up an import that was already running when the window opened.
+    func resumeImport() async {
+        await workspace?.importTracker.resume()
     }
 
     func importTransactions() {

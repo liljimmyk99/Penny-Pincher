@@ -20,6 +20,13 @@ struct MainView: View {
                 }
         } detail: {
             ScreenDetail(item: viewModel.detailItem, workspace: viewModel.workspace)
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    if let banner = viewModel.importBanner {
+                        ImportBanner(banner: banner, progress: viewModel.importProgress,
+                                     onView: showImport, onDismiss: dismissImportBanner)
+                    }
+                }
+                .task(resumeImport)
         }
         .sheet(isPresented: $viewModel.showsExport) {
             ExportSheet(viewModel: viewModel.exporter, onExport: export, onCancel: closeExport)

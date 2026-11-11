@@ -38,6 +38,10 @@ final class FakeLedgerAPI: LedgerAPI, @unchecked Sendable {
         var categoryTrends: [Int: CategoryTrends] = [:]
         var exportFile = ExportFile(data: Data([0x50, 0x4B]), fileName: "export.xlsx")
         var exportFormats: [ExportFormat] = []
+        var importDetail = ImportFixtures.review
+        var importHistory: [ImportSummary] = []
+        var importFile = ExportFile(data: Data([0x50, 0x4B]), fileName: "template.xlsx")
+        var uploadedFiles: [(name: String, size: Int)] = []
     }
 
     func with<T>(_ body: (inout State) -> T) -> T { lock.withLock { body(&state) } }
@@ -526,6 +530,66 @@ final class FakeLedgerAPI: LedgerAPI, @unchecked Sendable {
         return with { state in
             state.exportFormats.append(format)
             return state.exportFile
+        }
+    }
+
+    // MARK: Import
+
+    func downloadImportTemplate() async throws(APIError) -> ImportFile {
+        try record("downloadImportTemplate")
+        return with { $0.importFile }
+    }
+
+    func uploadImport(fileName: String, data: Data) async throws(APIError) -> ImportDetail {
+        try record("uploadImport")
+        return with { state in
+            state.uploadedFiles.append((fileName, data.count))
+            return state.importDetail
+        }
+    }
+
+    func listImports(status: ImportStatus?) async throws(APIError) -> [ImportSummary] {
+        try record("listImports:\(status?.rawValue ?? "all")")
+        return with { state in
+            status == nil ? state.importHistory : state.importHistory.filter { $0.status == status }
+        }
+    }
+
+    func getImport(id: String) async throws(APIError) -> ImportDetail {
+        try record("getImport")
+        return with { $0.importDetail }
+    }
+
+    func discardImport(id: String) async throws(APIError) { try record("discardImport") }
+
+    func downloadImportProblems(id: String) async throws(APIError) -> ImportFile {
+        try record("downloadImportProblems")
+        return with { $0.importFile }
+    }
+
+    func startImport(id: String) async throws(APIError) -> ImportDetail {
+        try record("startImport")
+        return with { state in
+            state.importDetail.summary.status = .running
+            return state.importDetail
+        }
+    }
+
+    func cancelImport(id: String) async throws(APIError) -> ImportDetail {
+        try record("cancelImport")
+        return with { state in
+            state.importDetail.summary.status = .cancelled
+            state.importDetail.summary.entriesImported = 0
+            return state.importDetail
+        }
+    }
+
+    func undoImport(id: String) async throws(APIError) -> ImportDetail {
+        try record("undoImport")
+        return with { state in
+            state.importDetail.summary.status = .undone
+            state.importDetail.summary.entriesImported = 0
+            return state.importDetail
         }
     }
 }

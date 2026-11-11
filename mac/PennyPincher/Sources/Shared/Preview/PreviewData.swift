@@ -94,6 +94,23 @@ enum PreviewData {
                           api: PreviewLedgerAPI(), onCreated: { _ in })
     }
 
+    enum ImportState { case upload, review, running, finished }
+
+    static func importer(_ state: ImportState = .upload, failing: Bool = false) -> ImportViewModel {
+        let api = PreviewLedgerAPI(failing: failing)
+        let tracker = ImportTracker(api: api, source: NoImportEvents())
+        let viewModel = ImportViewModel(api: api, tracker: tracker)
+        Task {
+            switch state {
+            case .upload: await viewModel.load()
+            case .review: await viewModel.upload(url: URL(filePath: "/tmp/past-years.xlsx"))
+            case .running: tracker.preview(running: PreviewImports.running)
+            case .finished: tracker.preview(finished: PreviewImports.completed)
+            }
+        }
+        return viewModel
+    }
+
     static func templates(failing: Bool = false) -> TemplatesViewModel {
         TemplatesViewModel(api: PreviewLedgerAPI(failing: failing), month: "2026-10")
     }
