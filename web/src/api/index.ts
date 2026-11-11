@@ -24,6 +24,19 @@ export {
   useStartBackup,
 } from "./admin";
 export { useExportData, type ExportFormat, type ExportInput } from "./export";
+export {
+  importQueryKey,
+  importsQueryKey,
+  useDownloadImportProblems,
+  useDownloadImportTemplate,
+  useImport,
+  useImportMutations,
+  useImports,
+  useRunningImports,
+  type ImportRecord,
+  type ImportSummary,
+} from "./imports";
+export { followImport, refreshAfterImport, useImportProgress, readSse, type ImportProgress } from "./importEvents";
 export { useMe, meQueryKey } from "./me";
 export { createQueryClient } from "./queryClient";
 export {

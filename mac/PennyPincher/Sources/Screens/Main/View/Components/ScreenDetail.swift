@@ -21,6 +21,8 @@ struct ScreenDetail: View {
             TemplatesView(viewModel: workspace.templates)
         case (.categories, .some(let workspace)):
             CategoriesView(viewModel: workspace.categories)
+        case (.importData, .some(let workspace)):
+            ImportView(viewModel: workspace.importer)
         default:
             ScreenPlaceholder(item: item)
         }

@@ -22,4 +22,16 @@ extension MainView {
     func signOut() {
         viewModel.signOut()
     }
+
+    func showImport() {
+        viewModel.showImport()
+    }
+
+    func dismissImportBanner() {
+        viewModel.dismissImportBanner()
+    }
+
+    @Sendable func resumeImport() async {
+        await viewModel.resumeImport()
+    }
 }

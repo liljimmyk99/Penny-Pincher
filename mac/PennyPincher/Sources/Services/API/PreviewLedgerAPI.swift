@@ -361,5 +361,77 @@ struct PreviewLedgerAPI: LedgerAPI {
         if failing { throw failure }
         return ExportFile(data: Data(), fileName: format.fallbackFileName)
     }
+
+    // MARK: Import
+
+    func downloadImportTemplate() async throws(APIError) -> ImportFile {
+        if failing { throw failure }
+        return ImportFile(data: Data(), fileName: "penny-pincher-import.xlsx")
+    }
+
+    func uploadImport(fileName: String, data: Data) async throws(APIError) -> ImportDetail {
+        if failing { throw failure }
+        return PreviewImports.review
+    }
+
+    func listImports(status: ImportStatus?) async throws(APIError) -> [ImportSummary] {
+        if failing { throw failure }
+        return PreviewImports.history
+    }
+
+    func getImport(id: String) async throws(APIError) -> ImportDetail { PreviewImports.review }
+    func discardImport(id: String) async throws(APIError) {}
+    func downloadImportProblems(id: String) async throws(APIError) -> ImportFile {
+        ImportFile(data: Data(), fileName: "problems.xlsx")
+    }
+    func startImport(id: String) async throws(APIError) -> ImportDetail { PreviewImports.running }
+    func cancelImport(id: String) async throws(APIError) -> ImportDetail { PreviewImports.review }
+    func undoImport(id: String) async throws(APIError) -> ImportDetail { PreviewImports.review }
+}
+
+/// Made-up imports for previews.
+enum PreviewImports {
+    static let summary = ImportSummary(
+        id: "i1", fileName: "past-years.xlsx", status: .review, createdAt: Date(timeIntervalSince1970: 1_760_000_000),
+        finishedAt: nil, firstMonth: "2022-01", lastMonth: "2024-12", rowsReady: 4_820, rowsWithProblems: 126,
+        entriesImported: 0)
+
+    static let review = ImportDetail(
+        summary: summary, expenseRows: 4_300, incomeRows: 646,
+        years: [ImportYear(year: 2022, months: 12, expenseRows: 1_400, incomeRows: 200, spentCents: 3_120_000, rowsWithProblems: 40),
+                ImportYear(year: 2023, months: 12, expenseRows: 1_500, incomeRows: 220, spentCents: 3_410_000, rowsWithProblems: 50),
+                ImportYear(year: 2024, months: 12, expenseRows: 1_300, incomeRows: 200, spentCents: 3_050_000, rowsWithProblems: 36)],
+        monthsWithExistingEntries: [.init(month: "2024-12", existingEntries: 14, fileEntries: 60)],
+        issues: [ImportIssue(sheet: .expenses, row: 4, column: "Category", code: "unknown_category", value: "Pets", message: "Unknown category"),
+                 ImportIssue(sheet: .expenses, row: 9, column: "Category", code: "unknown_category", value: "Pets", message: "Unknown category"),
+                 ImportIssue(sheet: .income, row: 3, column: "Date", code: "invalid_date", value: "31/02", message: "Invalid date")],
+        issuesTruncated: false, progress: nil, failureReason: nil)
+
+    static var running: ImportDetail {
+        var detail = review
+        detail.summary.status = .running
+        detail.progress = progress
+        return detail
+    }
+
+    static let progress = ImportProgress(
+        status: .running, rowsDone: 2_275, rowsTotal: 4_820, currentMonth: "2023-03", etaSeconds: 67,
+        years: [.init(year: 2022, rowsDone: 1_600, rowsTotal: 1_600), .init(year: 2023, rowsDone: 675, rowsTotal: 1_720),
+                .init(year: 2024, rowsDone: 0, rowsTotal: 1_500)])
+
+    static var completed: ImportDetail {
+        var detail = review
+        detail.summary.status = .completed
+        detail.summary.entriesImported = 4_820
+        return detail
+    }
+
+    static var history: [ImportSummary] {
+        var done = summary
+        done.id = "i0"
+        done.status = .completed
+        done.entriesImported = 3_100
+        return [done]
+    }
 }
 #endif

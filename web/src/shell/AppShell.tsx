@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from "react-router";
 import { useMe } from "../api";
 import { SETTINGS_PATH } from "./navigation";
 import { readSidebarCollapsed, writeSidebarCollapsed } from "./sidebarPreference";
+import { ImportBanner } from "./importBanner/ImportBanner";
 import { Sidebar } from "./Sidebar";
 import "./AppShell.css";
 
@@ -25,6 +26,7 @@ export function AppShell() {
       </a>
       <Sidebar collapsed={collapsed} onToggle={toggle} />
       <main id="main" className="shell__main" tabIndex={-1} ref={mainRef}>
+        <ImportBanner />
         <Outlet />
       </main>
     </div>

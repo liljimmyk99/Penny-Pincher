@@ -82,8 +82,12 @@ export interface Expense {
   note: string | null;
   refunded_expense_id: string | null;
   refunded_total_cents: number;
+  confirmed?: boolean;
+  import_id?: string | null;
 }
 export interface IncomeEntry { id: string; date: string; income_source_id: string; gross_cents: number; gross_taxable_cents: number; net_cents: number; note: string | null }
+
+export interface ImportRecord { id: string; file_name: string; status: string }
 
 const items = <T>(body: unknown): T[] => (Array.isArray(body) ? body : (body as { items: T[] }).items);
 
@@ -133,6 +137,7 @@ export class Api {
   async merchants() { return items<Merchant>(await this.json("GET", "/v1/merchants?limit=200")); }
   async expenses(month: string) { return items<Expense>(await this.json("GET", `/v1/expenses?month=${month}&limit=200`)); }
   async expense(id: string) { return this.json<Expense>("GET", `/v1/expenses/${id}`); }
+  async imports() { return items<ImportRecord>(await this.json("GET", "/v1/imports")); }
   async income(month: string) { return items<IncomeEntry>(await this.json("GET", `/v1/income-entries?month=${month}&limit=200`)); }
 
   async createExpense(e: { date: string; amount_cents: number; category: string; merchant: string; note?: string; refunded_expense_id?: string }) {

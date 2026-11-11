@@ -1,0 +1,196 @@
+.import-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+.import-steps__step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+.import-steps__step--current {
+  color: var(--color-text);
+}
+.import-steps__num {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  background: var(--color-badge);
+  font-size: 12px;
+}
+.import-steps__step--current .import-steps__num {
+  background: var(--color-primary);
+  color: #fff;
+}
+.import-steps__step--done .import-steps__num {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+.import-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.import-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  margin-bottom: var(--space-4);
+}
+.import-grid .import-card {
+  margin-bottom: 0;
+}
+.import-card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 18px;
+}
+.import-muted {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+.import-preview {
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-soft);
+  font-size: 13px;
+}
+.import-preview p {
+  margin: 4px 0 0;
+}
+.import-preview__tab {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-badge);
+  font-weight: 700;
+  font-size: 12px;
+}
+.import-rules {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--color-text-muted);
+}
+.import-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 16px;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-card);
+  text-align: center;
+}
+.import-drop p {
+  margin: 0;
+}
+.import-drop--over {
+  border-color: var(--color-primary);
+  background: var(--color-surface-soft);
+}
+.import-review {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.import-review .import-card {
+  margin-bottom: 0;
+}
+.import-filebar,
+.import-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.import-footer {
+  justify-content: flex-end;
+}
+.import-footer .import-muted {
+  margin-right: auto;
+}
+.import-warning {
+  display: flex;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--radius-card);
+  background: var(--color-unconfirmed-tint);
+  color: var(--color-unconfirmed-text);
+}
+.import-tile--warn {
+  color: var(--color-unconfirmed-text);
+}
+.import-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.import-table th,
+.import-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+.import-problem h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 15px;
+}
+.import-problem ul {
+  margin: 6px 0;
+  padding-left: 20px;
+  font-size: 14px;
+}
+.import-percent {
+  margin: 0;
+  font: var(--text-tile-value);
+}
+.import-bar {
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-badge);
+  overflow: hidden;
+}
+.import-bar__fill {
+  height: 100%;
+  background: var(--color-primary);
+  transition: width 0.3s;
+}
+.import-years {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-variant-numeric: tabular-nums;
+}
+.import-years li {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.import-chip--completed {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+.import-chip--failed,
+.import-chip--cancelled {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+}

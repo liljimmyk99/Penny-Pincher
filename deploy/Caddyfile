@@ -88,7 +88,11 @@
 		request_body {
 			max_size 12MiB
 		}
-		reverse_proxy api:8080
+		# flush_interval -1 sends every write at once, so import progress
+		# (text/event-stream) arrives live and is never buffered.
+		reverse_proxy api:8080 {
+			flush_interval -1
+		}
 	}
 	handle {
 		reverse_proxy web:8080

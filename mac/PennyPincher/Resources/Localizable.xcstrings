@@ -4460,6 +4460,1076 @@
           }
         }
       }
+    },
+    "import.banner.finished %lld %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import finished · %1$lld entries added, %2$lld rows skipped"
+          }
+        }
+      }
+    },
+    "import.banner.running %@ %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importing %1$@ · %2$lld%%"
+          }
+        }
+      }
+    },
+    "import.banner.stopped %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import of %@ stopped · nothing was saved"
+          }
+        }
+      }
+    },
+    "import.banner.tryAgain": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try again"
+          }
+        }
+      }
+    },
+    "import.banner.view": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View"
+          }
+        }
+      }
+    },
+    "import.cancel.confirm": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel import"
+          }
+        }
+      }
+    },
+    "import.cancel.message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The entries already added by this import are removed."
+          }
+        }
+      }
+    },
+    "import.cancel.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel this import?"
+          }
+        }
+      }
+    },
+    "import.error.notXLSX": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose an Excel (.xlsx) file."
+          }
+        }
+      }
+    },
+    "import.error.save": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file couldn't be saved."
+          }
+        }
+      }
+    },
+    "import.error.tooLarge": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That file is over 10 MB."
+          }
+        }
+      }
+    },
+    "import.error.unreadable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file couldn't be read."
+          }
+        }
+      }
+    },
+    "import.finished.another": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import another file"
+          }
+        }
+      }
+    },
+    "import.finished.cancelled": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import cancelled"
+          }
+        }
+      }
+    },
+    "import.finished.completed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import finished"
+          }
+        }
+      }
+    },
+    "import.finished.counts %lld %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld entries added. %2$lld rows were skipped because of problems."
+          }
+        }
+      }
+    },
+    "import.finished.downloadSkipped": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download skipped rows"
+          }
+        }
+      }
+    },
+    "import.finished.failed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import stopped"
+          }
+        }
+      }
+    },
+    "import.finished.nothingSaved": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing from the file was saved."
+          }
+        }
+      }
+    },
+    "import.finished.openYearly": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Yearly"
+          }
+        }
+      }
+    },
+    "import.hint.invalidDate": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use a date such as 2024-03-15."
+          }
+        }
+      }
+    },
+    "import.hint.invalidNumber": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Amounts are numbers in dollars, such as 12.50."
+          }
+        }
+      }
+    },
+    "import.hint.missingValue": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fill in the blank cell."
+          }
+        }
+      }
+    },
+    "import.hint.negativeIncome": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Income can't be negative."
+          }
+        }
+      }
+    },
+    "import.hint.netExceedsGross": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Net can't be more than gross."
+          }
+        }
+      }
+    },
+    "import.hint.other": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fix the cell and upload the file again."
+          }
+        }
+      }
+    },
+    "import.hint.taxableExceedsGross": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gross taxable can't be more than gross."
+          }
+        }
+      }
+    },
+    "import.hint.textTooLong": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shorten the text."
+          }
+        }
+      }
+    },
+    "import.hint.tooManyDecimals": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use at most two decimals."
+          }
+        }
+      }
+    },
+    "import.hint.unknownCategory": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick one of your categories from the dropdown, or add it in Categories & sources first."
+          }
+        }
+      }
+    },
+    "import.hint.unknownSource": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick one of your income sources from the dropdown, or add it first."
+          }
+        }
+      }
+    },
+    "import.hint.zeroAmount": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An amount can't be zero."
+          }
+        }
+      }
+    },
+    "import.history.empty": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No imports yet."
+          }
+        }
+      }
+    },
+    "import.history.entries %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld entries"
+          }
+        }
+      }
+    },
+    "import.history.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import history"
+          }
+        }
+      }
+    },
+    "import.history.undo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo"
+          }
+        }
+      }
+    },
+    "import.issue.invalidDate": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid date"
+          }
+        }
+      }
+    },
+    "import.issue.invalidNumber": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not a number"
+          }
+        }
+      }
+    },
+    "import.issue.missingValue": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Missing value"
+          }
+        }
+      }
+    },
+    "import.issue.negativeIncome": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Negative income"
+          }
+        }
+      }
+    },
+    "import.issue.netExceedsGross": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Net is more than gross"
+          }
+        }
+      }
+    },
+    "import.issue.taxableExceedsGross": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taxable is more than gross"
+          }
+        }
+      }
+    },
+    "import.issue.textTooLong": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text too long"
+          }
+        }
+      }
+    },
+    "import.issue.tooManyDecimals": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Too many decimals"
+          }
+        }
+      }
+    },
+    "import.issue.unknownCategory": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown category"
+          }
+        }
+      }
+    },
+    "import.issue.unknownSource": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown income source"
+          }
+        }
+      }
+    },
+    "import.issue.zeroAmount": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zero amount"
+          }
+        }
+      }
+    },
+    "import.notify.finished.body %lld %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld entries from %2$@ were added."
+          }
+        }
+      }
+    },
+    "import.notify.finished.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import finished"
+          }
+        }
+      }
+    },
+    "import.notify.stopped.body %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The import of %@ stopped. Nothing was saved."
+          }
+        }
+      }
+    },
+    "import.notify.stopped.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import stopped"
+          }
+        }
+      }
+    },
+    "import.problems.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Problems"
+          }
+        }
+      }
+    },
+    "import.problems.truncated": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only the first 500 problems are listed. Download the file with problems marked to see them all."
+          }
+        }
+      }
+    },
+    "import.progress.accessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import progress"
+          }
+        }
+      }
+    },
+    "import.progress.almostDone": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Almost done"
+          }
+        }
+      }
+    },
+    "import.progress.cancel": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel import"
+          }
+        }
+      }
+    },
+    "import.progress.entries %lld %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld of %2$lld entries"
+          }
+        }
+      }
+    },
+    "import.progress.minutesLeft %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About %lld min left"
+          }
+        }
+      }
+    },
+    "import.progress.month %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Writing %@"
+          }
+        }
+      }
+    },
+    "import.progress.note": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can leave this screen. Months fill in as the import runs."
+          }
+        }
+      }
+    },
+    "import.progress.percent %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld%%"
+          }
+        }
+      }
+    },
+    "import.progress.secondsLeft %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld sec left"
+          }
+        }
+      }
+    },
+    "import.reference %@ %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ row %2$lld"
+          }
+        }
+      }
+    },
+    "import.reference.more %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+ %lld more"
+          }
+        }
+      }
+    },
+    "import.review.chooseDifferent": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a different file"
+          }
+        }
+      }
+    },
+    "import.review.downloadProblems": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download file with problems marked"
+          }
+        }
+      }
+    },
+    "import.review.existing %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These months already have entries: %@. Imported entries are added alongside them, not replaced."
+          }
+        }
+      }
+    },
+    "import.review.nothingSaved": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing is saved yet."
+          }
+        }
+      }
+    },
+    "import.review.start %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import %lld entries"
+          }
+        }
+      }
+    },
+    "import.review.uploadFixed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upload fixed file"
+          }
+        }
+      }
+    },
+    "import.sheet.expenses": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expenses"
+          }
+        }
+      }
+    },
+    "import.sheet.income": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Income"
+          }
+        }
+      }
+    },
+    "import.status.cancelled": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelled"
+          }
+        }
+      }
+    },
+    "import.status.completed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completed"
+          }
+        }
+      }
+    },
+    "import.status.expired": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expired"
+          }
+        }
+      }
+    },
+    "import.status.failed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed"
+          }
+        }
+      }
+    },
+    "import.status.problemsSaved": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved the rows with problems."
+          }
+        }
+      }
+    },
+    "import.status.review": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In review"
+          }
+        }
+      }
+    },
+    "import.status.running": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running"
+          }
+        }
+      }
+    },
+    "import.status.templateSaved": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved the template."
+          }
+        }
+      }
+    },
+    "import.status.undone": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import undone. Its entries were removed."
+          }
+        }
+      }
+    },
+    "import.status.undone.chip": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undone"
+          }
+        }
+      }
+    },
+    "import.template.detail": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An Excel workbook with an Expenses sheet and an Income sheet."
+          }
+        }
+      }
+    },
+    "import.template.download": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download template"
+          }
+        }
+      }
+    },
+    "import.template.ruleDropdowns": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dropdowns hold your categories and income sources."
+          }
+        }
+      }
+    },
+    "import.template.ruleRefunds": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refunds are negative amounts."
+          }
+        }
+      }
+    },
+    "import.template.ruleYears": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One file can hold any number of years."
+          }
+        }
+      }
+    },
+    "import.template.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1. Get the template"
+          }
+        }
+      }
+    },
+    "import.tile.found": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entries found"
+          }
+        }
+      }
+    },
+    "import.tile.problems": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Need fixing"
+          }
+        }
+      }
+    },
+    "import.tile.range": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date range"
+          }
+        }
+      }
+    },
+    "import.tile.ready": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ready to import"
+          }
+        }
+      }
+    },
+    "import.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import"
+          }
+        }
+      }
+    },
+    "import.undo.confirm": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo import"
+          }
+        }
+      }
+    },
+    "import.undo.message %@ %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deletes all %2$lld entries added from %1$@, including ones you edited since. Entries you added by hand stay."
+          }
+        }
+      }
+    },
+    "import.undo.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo this import?"
+          }
+        }
+      }
+    },
+    "import.upload.checking": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking every row…"
+          }
+        }
+      }
+    },
+    "import.upload.choose": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose file"
+          }
+        }
+      }
+    },
+    "import.upload.detail": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drop an .xlsx file here (up to 10 MB). Nothing is saved until you start the import."
+          }
+        }
+      }
+    },
+    "import.upload.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2. Upload the filled-out template"
+          }
+        }
+      }
+    },
+    "import.years.expenses": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expenses"
+          }
+        }
+      }
+    },
+    "import.years.income": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Income"
+          }
+        }
+      }
+    },
+    "import.years.months": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Months"
+          }
+        }
+      }
+    },
+    "import.years.problems": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Problems"
+          }
+        }
+      }
+    },
+    "import.years.spent": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spent"
+          }
+        }
+      }
+    },
+    "import.years.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "By year"
+          }
+        }
+      }
+    },
+    "import.years.year": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Year"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
