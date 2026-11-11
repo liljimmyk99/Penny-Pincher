@@ -227,7 +227,7 @@ Rules:
   - **Admin panel:** no sidecar. The backup code lives inside the API (one container, one process). Admin-only endpoints list the bucket, start a manual backup, and stream the encrypted object for download; the status tiles read the last run from the same data. The API never decrypts.
   - **Restore** is a documented manual procedure (download, `age -d` with the private key, replace the DB file with the API stopped) and must be tested end to end before v1 ships, per section 8.
 
-- **Excel import** (decided 2026-11-06; design: the **Penny-Pincher Screens · Import** canvas, https://claude.ai/artifact/Whsrs2CRLpZ2aCArpdbuAa)
+- **Excel import** (decided 2026-11-06; design: the **Penny-Pincher Screens** canvas, see `web/AGENTS.md`)
   - **Flow and API:** see §6.14 and the `imports` routes in `api/openapi.yaml`. Upload checks the file synchronously and stores the parsed rows and their problems (status `review`); "start" runs the import in the background.
   - **Limits:** 10 MB per file, 50,000 rows across both sheets, one running import per user. An import left in `review` expires after 24 hours.
   - **Progress is pushed with Server-Sent Events** (`GET /v1/imports/{id}/events`): `progress` events, then one `finished` event. Web reads it with `fetch` and a stream reader, because `EventSource` cannot send the bearer token; the Mac app uses `URLSession` bytes. `GET /v1/imports/{id}` returns the same progress for a fresh load.
