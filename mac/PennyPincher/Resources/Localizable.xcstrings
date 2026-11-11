@@ -31,6 +31,76 @@
         }
       }
     },
+    "export.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export data"
+          }
+        }
+      }
+    },
+    "export.detail": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saves everything you've entered. Amounts are in integer cents, with a formatted dollars column for reading."
+          }
+        }
+      }
+    },
+    "export.format": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Format"
+          }
+        }
+      }
+    },
+    "export.format.xlsx": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Excel (.xlsx): an Expenses sheet and an Income sheet"
+          }
+        }
+      }
+    },
+    "export.format.csv": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CSV (.zip): expenses.csv and income.csv"
+          }
+        }
+      }
+    },
+    "export.button": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export…"
+          }
+        }
+      }
+    },
+    "export.error.save": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file couldn't be saved."
+          }
+        }
+      }
+    },
     "account.fallbackName": {
       "localizations": {
         "en": {

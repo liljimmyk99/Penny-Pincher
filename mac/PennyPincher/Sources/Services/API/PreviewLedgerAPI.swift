@@ -1,3 +1,4 @@
+import Foundation
 #if DEBUG
 /// Fixed made-up data for SwiftUI previews only (never in a release build).
 /// Writes answer as if they worked but change nothing.
@@ -352,6 +353,13 @@ struct PreviewLedgerAPI: LedgerAPI {
             allSpending: CategoryTrends.Series(categoryID: nil, name: "All spending", color: nil, isSaving: false,
                                                thisYearCents: total(\.thisYearCents), lastYearCents: total(\.lastYearCents)),
             categories: series)
+    }
+
+    // MARK: Export
+
+    func exportData(format: ExportFormat) async throws(APIError) -> ExportFile {
+        if failing { throw failure }
+        return ExportFile(data: Data(), fileName: format.fallbackFileName)
     }
 }
 #endif

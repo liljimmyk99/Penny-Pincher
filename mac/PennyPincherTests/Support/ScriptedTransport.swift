@@ -7,6 +7,10 @@ final class ScriptedTransport: ClientTransport, @unchecked Sendable {
     struct Reply {
         var status: Int
         var json: String?
+        /// A binary answer (a file download) with its content type and headers.
+        var file: Data?
+        var contentType = "application/json"
+        var headers: [String: String] = [:]
     }
 
     private let lock = NSLock()
@@ -23,6 +27,13 @@ final class ScriptedTransport: ClientTransport, @unchecked Sendable {
             return replies.isEmpty ? Reply(status: 500, json: nil) : replies.removeFirst()
         }
         var response = HTTPResponse(status: .init(code: reply.status))
+        for (name, value) in reply.headers {
+            if let field = HTTPField.Name(name) { response.headerFields[field] = value }
+        }
+        if let file = reply.file {
+            response.headerFields[.contentType] = reply.contentType
+            return (response, HTTPBody(file))
+        }
         guard let json = reply.json else { return (response, nil) }
         response.headerFields[.contentType] = "application/json"
         return (response, HTTPBody(json))

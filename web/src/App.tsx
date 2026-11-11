@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { AddEntriesPage } from "./pages/add/AddEntriesPage";
 import { AdminPage } from "./pages/admin/AdminPage";
 import { AdminOnly } from "./pages/AdminOnly";
+import { ExportPage } from "./pages/export/ExportPage";
 import { CategoriesPage } from "./pages/categories/CategoriesPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { SummaryPage } from "./pages/summary/SummaryPage";
@@ -54,10 +55,7 @@ export function AppRoutes() {
           path={SETTINGS_PATH}
           element={<PlaceholderPage title="Settings" description="Preferences for your account." />}
         />
-        <Route
-          path={EXPORT_PATH}
-          element={<PlaceholderPage title="Export data" description="Download your entries as CSV or Excel." />}
-        />
+        <Route path={EXPORT_PATH} element={<ExportPage />} />
         <Route
           path={ADMIN_PATH}
           element={

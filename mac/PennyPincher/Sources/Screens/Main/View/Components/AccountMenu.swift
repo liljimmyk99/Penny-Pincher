@@ -6,6 +6,7 @@ import SwiftUI
 struct AccountMenu: View {
     let viewModel: MainViewModel
     let onImport: () -> Void
+    let onExport: () -> Void
     let onAdminDashboard: () -> Void
     let onSignOut: () -> Void
 
@@ -20,9 +21,7 @@ struct AccountMenu: View {
                 Label("account.settings", systemImage: "gearshape")
             }
             Button("account.import", systemImage: "square.and.arrow.down", action: onImport)
-            // Export is built last in v1 (AGENTS.md §6.13).
-            Button("account.export", systemImage: "square.and.arrow.up", action: {})
-                .disabled(true)
+            Button("account.export", systemImage: "square.and.arrow.up", action: onExport)
             if viewModel.isAdmin {
                 Button("account.admin", systemImage: "shield", action: onAdminDashboard)
             }

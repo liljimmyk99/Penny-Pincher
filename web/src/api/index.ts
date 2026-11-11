@@ -23,6 +23,7 @@ export {
   useDownloadBackup,
   useStartBackup,
 } from "./admin";
+export { useExportData, type ExportFormat, type ExportInput } from "./export";
 export { useMe, meQueryKey } from "./me";
 export { createQueryClient } from "./queryClient";
 export {
