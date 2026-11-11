@@ -7,6 +7,7 @@ import {
   ListIcon,
   PlusCircleIcon,
   TagIcon,
+  UploadIcon,
 } from "../components/icons";
 
 export interface NavItem {
@@ -24,9 +25,11 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { path: "/trends", label: "Trends", Icon: ChartIcon },
   { path: "/templates", label: "Templates", Icon: CopyIcon },
   { path: "/categories", label: "Categories & sources", Icon: TagIcon },
+  { path: "/import", label: "Import", Icon: UploadIcon },
 ];
 
 /** Pages reached from the account menu rather than the sidebar. */
 export const SETTINGS_PATH = "/settings";
+export const IMPORT_PATH = "/import";
 export const EXPORT_PATH = "/export";
 export const ADMIN_PATH = "/admin";

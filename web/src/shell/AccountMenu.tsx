@@ -11,12 +11,13 @@ import {
   ShieldIcon,
   SignOutIcon,
   SunIcon,
+  UploadIcon,
 } from "../components/icons";
 import { useTheme } from "../theme/context";
 import { isThemePreference, type ThemePreference } from "../theme/theme";
 import { Avatar } from "./Avatar";
 import { displayName, isAdmin } from "./me";
-import { ADMIN_PATH, EXPORT_PATH, SETTINGS_PATH } from "./navigation";
+import { ADMIN_PATH, EXPORT_PATH, IMPORT_PATH, SETTINGS_PATH } from "./navigation";
 import { isApplePlatform } from "./platform";
 import "./AccountMenu.css";
 
@@ -99,6 +100,15 @@ export function AccountMenu({ collapsed }: { collapsed: boolean }) {
               Settings
               <span className="account-menu__hint" aria-hidden="true">
                 {apple ? "⌘ ," : "Ctrl+,"}
+              </span>
+            </Link>
+          </Menu.Item>
+          <Menu.Item asChild className="account-menu__item">
+            <Link to={IMPORT_PATH}>
+              <UploadIcon />
+              Import transactions
+              <span className="account-menu__hint" aria-hidden="true">
+                Excel
               </span>
             </Link>
           </Menu.Item>

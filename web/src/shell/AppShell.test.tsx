@@ -22,6 +22,7 @@ const NAV_ORDER = [
   "Trends",
   "Templates",
   "Categories & sources",
+  "Import",
 ];
 
 function renderShell({ me = member, path = "/" }: { me?: Schemas["Me"]; path?: string } = {}) {
@@ -136,6 +137,7 @@ describe("account menu", () => {
     const items = within(menu).getAllByRole("menuitem").map((item) => item.textContent);
     expect(items).toEqual([
       expect.stringContaining("Settings"),
+      expect.stringContaining("Import transactions"),
       expect.stringContaining("Export data"),
       "Sign out",
     ]);
