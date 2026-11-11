@@ -1,6 +1,6 @@
 # AGENTS.md — /e2e
 
-Read the root `AGENTS.md` first. This folder is the end-to-end suite: Playwright driving the real Docker stack. It automates the **M1 testing gate**'s smoke checklist, the **M2 acceptance tests** (AT-1 to AT-24), the **M3 acceptance tests** (MS, RB, YS, ED) the M6 security headers (#105) and request limits (#106).
+Read the root `AGENTS.md` first. This folder is the end-to-end suite: Playwright driving the real Docker stack. It automates the **M1 testing gate**'s smoke checklist, the **M2 acceptance tests** (AT-1 to AT-24), the **M3 acceptance tests** (MS, RB, YS, ED) the M6 security headers (#105) and request limits (#106), and the **M8 import gate** (#100).
 
 ## Running it
 
@@ -130,6 +130,24 @@ Each test seeds the doc's golden month (Dec 2026 to Mar 2027, generic names) for
 | The sixth export in a row gets `429 rate_limited` with `Retry-After` and `no-store`; other routes still answer | `request-limits` · expensive route |
 
 - Every test reaches the API from the same Docker network address, one after another, which no real client does. So `compose.yml` raises the per-IP and per-user limits (`RATE_LIMIT_PER_IP`, `RATE_LIMIT_PER_USER`), and the 429 is checked on the expensive-route limit, which keeps its production value. The backend tests cover the per-IP and per-user buckets. The `Api` helper also waits out `Retry-After` on a 429 (`once` doesn't).
+
+### M8 import (`import.spec.ts`, #100)
+
+Fixture workbooks are built in the test with `exceljs` (`support/workbooks.ts`) from generic data, in the import template's layout. Every test has its own user, so months never overlap between tests.
+
+| Gate item | Test |
+| --- | --- |
+| Template downloads as a workbook with the Expenses and Income sheets and the documented columns | `import` · IM-1 |
+| Upload: the review shows the right counts and date range, one problem group per issue code with sheet and row, and the existing-months warning; nothing is saved | `import` · IM-1 |
+| Import valid rows only: skipped rows are absent, imported ones are confirmed; Yearly and Summary show the imported month | `import` · IM-2 |
+| The banner appears on another screen while the import runs, then turns to finished and can be dismissed | `import` · IM-3 |
+| Cancel mid-run removes everything the import added | `import` · IM-4 |
+| Undo removes the batch but keeps a hand-added entry in the same month | `import` · IM-5 |
+| Import page and review in dark mode (axe colour contrast + screenshots) | `import` · IM-6 |
+
+- **Timing:** the import writes 200 rows per batch, so a small file finishes instantly. IM-3 and IM-4 use a 49,000-row file (just under the 50,000-row limit) with a unique merchant and a long note on every row, which keeps the import running for about four seconds, long enough to see the banner and press Cancel. The banner only follows an import it saw running, so a tiny file would never show it.
+- **`exceljs` is loaded with Node's `require`** (`createRequire`), because Playwright's module loader cannot load its dependency tree.
+- **Not automated:** the Mac import screens, an import interrupted by a server restart (the backend tests cover recovery), and opening the downloaded problem-rows file in Excel.
 
 ### Where the automation differs from the manual checklist
 
