@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { AddEntriesPage } from "./pages/add/AddEntriesPage";
 import { AdminPage } from "./pages/admin/AdminPage";
 import { AdminOnly } from "./pages/AdminOnly";
+import { ImportPage } from "./pages/import/ImportPage";
 import { ExportPage } from "./pages/export/ExportPage";
 import { CategoriesPage } from "./pages/categories/CategoriesPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
@@ -22,6 +23,7 @@ const DESCRIPTIONS: Record<string, string> = {};
 const SCREENS: Record<string, ReactElement> = {
   "/add": <AddEntriesPage />,
   "/categories": <CategoriesPage />,
+  "/import": <ImportPage />,
   "/summary": <SummaryPage />,
   "/templates": <TemplatesPage />,
   "/transactions": <TransactionsPage />,
