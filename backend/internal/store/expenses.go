@@ -25,6 +25,7 @@ type Expense struct {
 	LastRefundDate     *string // date of the latest linked refund (YYYY-MM-DD); never stored
 	Confirmed          bool
 	TemplateApplyID    *int64
+	ImportID           *int64 // the import that created it, if any
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
 }
@@ -85,7 +86,7 @@ const expenseCols = `e.id, e.occurred_on, e.amount_cents, e.type, e.category_id,
 	           WHERE r.user_id = e.user_id AND r.refunded_expense_id = e.id), 0),
 	(SELECT MAX(r.occurred_on) FROM expenses r
 	  WHERE r.user_id = e.user_id AND r.refunded_expense_id = e.id),
-	e.confirmed, e.template_apply_id, e.created_at, e.updated_at`
+	e.confirmed, e.template_apply_id, e.import_id, e.created_at, e.updated_at`
 
 const expenseFrom = ` FROM expenses e JOIN merchants m ON m.id = e.merchant_id AND m.user_id = e.user_id`
 
@@ -452,11 +453,12 @@ func scanExpense(s interface{ Scan(...any) error }) (Expense, error) {
 		exp              Expense
 		note, lastRefund sql.NullString
 		refunded, apply  sql.NullInt64
+		importID         sql.NullInt64
 		created, updated string
 	)
 	if err := s.Scan(&exp.ID, &exp.Date, &exp.AmountCents, &exp.Type, &exp.CategoryID,
 		&exp.Merchant.ID, &exp.Merchant.Name, &note, &refunded, &exp.RefundedTotalCents, &lastRefund,
-		&exp.Confirmed, &apply, &created, &updated); err != nil {
+		&exp.Confirmed, &apply, &importID, &created, &updated); err != nil {
 		return Expense{}, err
 	}
 	if note.Valid {
@@ -470,6 +472,9 @@ func scanExpense(s interface{ Scan(...any) error }) (Expense, error) {
 	}
 	if apply.Valid {
 		exp.TemplateApplyID = &apply.Int64
+	}
+	if importID.Valid {
+		exp.ImportID = &importID.Int64
 	}
 	var err error
 	if exp.CreatedAt, err = parseTS(created); err != nil {

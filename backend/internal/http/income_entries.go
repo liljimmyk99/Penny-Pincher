@@ -174,10 +174,14 @@ func incomeEntryError(err error) (int, api.Error, bool) {
 }
 
 func toAPIIncomeEntry(e store.IncomeEntry) api.IncomeEntry {
-	var apply *string
+	var apply, imp *string
 	if e.TemplateApplyID != nil {
 		s := formatID(*e.TemplateApplyID)
 		apply = &s
+	}
+	if e.ImportID != nil {
+		s := formatID(*e.ImportID)
+		imp = &s
 	}
 	return api.IncomeEntry{
 		Id:                formatID(e.ID),
@@ -189,6 +193,7 @@ func toAPIIncomeEntry(e store.IncomeEntry) api.IncomeEntry {
 		Note:              nullableOf(e.Note),
 		Confirmed:         e.Confirmed,
 		TemplateApplyId:   nullableOf(apply),
+		ImportId:          nullableOf(imp),
 		CreatedAt:         &e.CreatedAt,
 		UpdatedAt:         &e.UpdatedAt,
 	}

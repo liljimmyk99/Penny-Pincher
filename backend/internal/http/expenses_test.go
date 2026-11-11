@@ -59,7 +59,7 @@ func TestCreateExpenseHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, k := range []string{"id", "date", "amount_cents", "type", "category_id", "merchant", "note",
-		"refunded_expense_id", "refunded_total_cents", "confirmed", "template_apply_id", "created_at", "updated_at"} {
+		"refunded_expense_id", "refunded_total_cents", "confirmed", "template_apply_id", "import_id", "created_at", "updated_at"} {
 		if _, ok := raw[k]; !ok {
 			t.Errorf("missing %q in %s", k, rec.Body)
 		}
