@@ -26,6 +26,16 @@ export function useImports() {
   });
 }
 
+/** Imports that are running now. The app-wide banner checks this on load. */
+export function useRunningImports() {
+  const api = useApi();
+  return useQuery<ImportSummary[]>({
+    queryKey: [...importsQueryKey, "running"],
+    queryFn: async ({ signal }) =>
+      (await unwrap(api.GET("/v1/imports", { params: { query: { status: "running" } }, signal }))).items,
+  });
+}
+
 export function useImport(id: string | null) {
   const api = useApi();
   return useQuery<ImportRecord>({
