@@ -241,7 +241,7 @@ func newExpenseFrom(b api.ExpenseCreate) store.NewExpense {
 
 func toAPIExpense(exp store.Expense) api.Expense {
 	typ := api.ExpenseType(exp.Type)
-	var refunded, apply *string
+	var refunded, apply, imp *string
 	if exp.RefundedExpenseID != nil {
 		id := formatID(*exp.RefundedExpenseID)
 		refunded = &id
@@ -249,6 +249,10 @@ func toAPIExpense(exp store.Expense) api.Expense {
 	if exp.TemplateApplyID != nil {
 		id := formatID(*exp.TemplateApplyID)
 		apply = &id
+	}
+	if exp.ImportID != nil {
+		id := formatID(*exp.ImportID)
+		imp = &id
 	}
 	var lastRefund *openapi_types.Date
 	if exp.LastRefundDate != nil {
@@ -267,6 +271,7 @@ func toAPIExpense(exp store.Expense) api.Expense {
 		LastRefundDate:     nullableOf(lastRefund),
 		Confirmed:          exp.Confirmed,
 		TemplateApplyId:    nullableOf(apply),
+		ImportId:           nullableOf(imp),
 		CreatedAt:          &exp.CreatedAt,
 		UpdatedAt:          &exp.UpdatedAt,
 	}

@@ -65,7 +65,7 @@ func TestCreateAndGetIncomeEntryHTTP(t *testing.T) {
 	want := map[string]any{
 		"date": "2026-03-15", "income_source_id": job.Id, "gross_cents": 250000.0,
 		"gross_taxable_cents": 230000.0, "net_cents": 180000.0, "note": nil,
-		"confirmed": true, "template_apply_id": nil,
+		"confirmed": true, "template_apply_id": nil, "import_id": nil,
 	}
 	for k, v := range want {
 		if got, ok := e[k]; !ok || got != v {

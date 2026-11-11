@@ -21,6 +21,7 @@ type IncomeEntry struct {
 	Note              *string
 	Confirmed         bool
 	TemplateApplyID   *int64
+	ImportID          *int64 // the import that created it, if any
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 }
@@ -66,7 +67,7 @@ type IncomeEntryFilter struct {
 type IncomeEntries struct{ DB *sql.DB }
 
 const incomeEntryCols = `id, income_source_id, received_on, gross_cents, gross_taxable_cents, net_cents,
-	note, confirmed, template_apply_id, created_at, updated_at`
+	note, confirmed, template_apply_id, import_id, created_at, updated_at`
 
 // Get returns one of the user's entries.
 func (s IncomeEntries) Get(ctx context.Context, userID, id int64) (IncomeEntry, error) {
@@ -281,11 +282,11 @@ func scanIncomeEntry(s interface{ Scan(...any) error }) (IncomeEntry, error) {
 	var (
 		e                IncomeEntry
 		note             sql.NullString
-		apply            sql.NullInt64
+		apply, importID  sql.NullInt64
 		created, updated string
 	)
 	if err := s.Scan(&e.ID, &e.SourceID, &e.Date, &e.GrossCents, &e.GrossTaxableCents, &e.NetCents,
-		&note, &e.Confirmed, &apply, &created, &updated); err != nil {
+		&note, &e.Confirmed, &apply, &importID, &created, &updated); err != nil {
 		return IncomeEntry{}, err
 	}
 	if note.Valid {
@@ -293,6 +294,9 @@ func scanIncomeEntry(s interface{ Scan(...any) error }) (IncomeEntry, error) {
 	}
 	if apply.Valid {
 		e.TemplateApplyID = &apply.Int64
+	}
+	if importID.Valid {
+		e.ImportID = &importID.Int64
 	}
 	var err error
 	if e.CreatedAt, err = parseTS(created); err != nil {
