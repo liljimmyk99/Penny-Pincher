@@ -82,6 +82,8 @@ var adminRoutes = []struct{ method, path string }{
 	{"GET", "/v1/admin/backups"},
 	{"POST", "/v1/admin/backups"},
 	{"GET", "/v1/admin/backups/abc/download"},
+	{"GET", "/v1/admin/users"},
+	{"POST", "/v1/admin/users"},
 }
 
 func TestAdminRoutesRejectMembersAndStrangers(t *testing.T) {
@@ -275,4 +277,62 @@ func TestAdminWithoutBackupsConfigured(t *testing.T) {
 	}
 	wantError(t, a.call("POST", "/v1/admin/backups", tokAdmin, ""), 501, api.ErrorErrorCodeNotImplemented)
 	wantError(t, a.call("GET", "/v1/admin/backups/x/download", tokAdmin, ""), 404, api.ErrorErrorCodeNotFound)
+}
+
+func addUserBody(uid string) string {
+	return `{"firebase_uid":"` + uid + `","email":"new@example.com","display_name":"New Person"}`
+}
+
+func TestAdminAddAndListUsers(t *testing.T) {
+	a := newTestAPI(t)
+	rec := a.call("POST", "/v1/admin/users", tokAdmin, addUserBody("uid-new"))
+	if rec.Code != 201 {
+		t.Fatalf("add = %d %s", rec.Code, rec.Body)
+	}
+	var added api.AdminUser
+	if err := json.Unmarshal(rec.Body.Bytes(), &added); err != nil {
+		t.Fatal(err)
+	}
+	if added.FirebaseUid != "uid-new" || added.Role != api.AdminUserRole("member") || added.CreatedAt == nil {
+		t.Fatalf("added = %+v", added)
+	}
+
+	list := a.call("GET", "/v1/admin/users", tokAdmin, "")
+	var out struct{ Items []api.AdminUser }
+	if err := json.Unmarshal(list.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, u := range out.Items {
+		found = found || u.FirebaseUid == "uid-new"
+	}
+	if !found {
+		t.Fatalf("list lacks the new user: %s", list.Body)
+	}
+	if strings.Contains(list.Body.String(), "amount") {
+		t.Fatal("the users list must hold no entry data")
+	}
+
+	// The new user is allowlisted, seeded and isolated from the admin's data.
+	var cats int
+	if err := a.db.QueryRow(`SELECT COUNT(*) FROM categories WHERE user_id = ?`, added.Id).Scan(&cats); err != nil || cats < 8 {
+		t.Fatalf("seeded categories = %d, %v", cats, err)
+	}
+
+	wantError(t, a.call("POST", "/v1/admin/users", tokAdmin, addUserBody("uid-new")), 409, api.ErrorErrorCodeUserExists)
+}
+
+func TestAdminAddUserValidation(t *testing.T) {
+	a := newTestAPI(t)
+	for _, body := range []string{
+		`{"firebase_uid":"  "}`,
+		`{"firebase_uid":"u1","role":"owner"}`,
+		`{"firebase_uid":"u1","email":"not-an-email"}`,
+	} {
+		wantError(t, a.call("POST", "/v1/admin/users", tokAdmin, body), 400, api.ErrorErrorCodeInvalidRequest)
+	}
+	rec := a.call("POST", "/v1/admin/users", tokAdmin, `{"firebase_uid":"u2","role":"admin"}`)
+	if rec.Code != 201 || !strings.Contains(rec.Body.String(), `"role":"admin"`) {
+		t.Fatalf("admin role = %d %s", rec.Code, rec.Body)
+	}
 }

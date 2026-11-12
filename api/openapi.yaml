@@ -80,7 +80,7 @@ tags:
   - name: saved-trends
     description: Trends the user saved to reopen later.
   - name: admin
-    description: Admins only. Members get `403 admin_required`. No user-management routes in v1.
+    description: Admins only. Members get `403 admin_required`. The only user routes list users and add one to the app's database; nothing here creates or changes a Firebase account.
   - name: imports
     description: Multi-year import from the Excel template, checked before anything is saved. Built with export, last in v1.
   - name: export
@@ -1338,6 +1338,50 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /v1/admin/users:
+    get:
+      tags: [admin]
+      operationId: listUsers
+      summary: List the app's users
+      description: Account details only, oldest first. Never any entries, amounts or counts of them.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdminUser' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [admin]
+      operationId: addUser
+      summary: Add a user to the database
+      description: |
+        Adds the Firebase uid to the users table (the allowlist) and seeds the default categories,
+        the "Other" income source and an empty template. Database only: the Firebase account must
+        already exist, and Firebase is never called. `409 user_exists` for a uid already added.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewAdminUser' }
+      responses:
+        '201':
+          description: Added
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
   # ---------------------------------------------------------------------------
   # Import (multi-year Excel import; built with export, last in v1)
   # ---------------------------------------------------------------------------
@@ -1786,7 +1830,7 @@ components:
       description: |
         A business rule blocked the request. Codes: `protected_resource`, `source_has_entries`,
         `name_taken`, `has_linked_refunds`, `month_not_empty`, `backup_in_progress`, `backup_not_ready`,
-        `import_in_progress`, `import_wrong_status`.
+        `import_in_progress`, `import_wrong_status`, `user_exists`.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
@@ -2060,6 +2104,7 @@ components:
                 - has_linked_refunds
                 - month_not_empty
                 - backup_in_progress
+                - user_exists
                 - backup_not_ready
                 - invalid_import_file
                 - file_too_large
@@ -2782,6 +2827,33 @@ components:
         error_message:
           type: [string, 'null']
           description: Short, safe reason when `status` is failed.
+    AdminUser:
+      type: object
+      required: [id, firebase_uid, email, display_name, role, created_at]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        firebase_uid: { type: string }
+        email: { type: [string, 'null'] }
+        display_name: { type: [string, 'null'] }
+        role:
+          type: string
+          enum: [admin, member]
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+    NewAdminUser:
+      type: object
+      required: [firebase_uid]
+      properties:
+        firebase_uid:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: The uid of the account already created in the Firebase console.
+        email: { type: [string, 'null'], maxLength: 254 }
+        display_name: { type: [string, 'null'], maxLength: 100 }
+        role:
+          type: string
+          enum: [admin, member]
+          default: member
     AdminStatus:
       type: object
       required: [version, started_at, uptime_seconds, database, backups, auth_provider]

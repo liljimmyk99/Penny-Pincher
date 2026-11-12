@@ -125,3 +125,52 @@
   font-size: 12px;
   color: var(--color-text-muted);
 }
+
+.admin__tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin__tab {
+  padding: 10px 16px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin__tab.is-active {
+  color: var(--color-text);
+  border-bottom-color: var(--color-primary);
+}
+
+.admin-users__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.admin-users__uid {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.admin-users__role {
+  font-weight: 700;
+}
+
+.admin-users__role--admin {
+  color: var(--color-primary);
+}
+
+.admin-users__error {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--color-danger-text);
+}
