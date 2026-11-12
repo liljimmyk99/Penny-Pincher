@@ -33,7 +33,7 @@ docker-compose.yml
 
 - v1: a single user. Later: roughly 3–5 users, each with fully private data and their own templates. No sharing between users.
 - Every table has `user_id`, and every query is scoped to the authenticated user. Build this in from day one.
-- Sign-ups are disabled or allowlisted. Accounts are created by an admin. In v1 that happens outside the app: in the Firebase console plus an admin-only step that adds the user to the local users table (for example a backend CLI command). In-app account management is v2.
+- Sign-ups are disabled or allowlisted. Accounts are created by an admin. In v1 the sign-in account is created in the Firebase console (outside the app), and an admin then **adds the person to the local users table from the admin panel's Users tab** (the `api user add` CLI does the same and stays as a fallback). The panel only writes the app's database; it never creates, changes or disables anything in Firebase. The rest of account management (creating Firebase accounts, invites, password resets, disable/enable) is v2.
 - Users have a role: `admin` or `member`. Only admins can open the admin panel.
 - **New accounts are seeded** with:
   - the default categories (Saving flagged as saving; Other protected)
@@ -126,7 +126,11 @@ Rules:
 12. **Admin panel** (admins only, web only), limited in v1 to app status and backups:
     - Status: API health and version (from `/healthz`), database size and last write, backup schedule and last run, sign-in provider connectivity.
     - Backups: a list of snapshots, "Back up now", and download of the encrypted snapshot.
-    - **Not in v1:** account-specific tiles and actions (user list, user counts, create account, invites, password reset, disable/enable). Those stay in the Firebase console until v2.
+    - **Users (add a user to the database):** a read-only list of the app's users (name, email, role, added date, Firebase uid) and an **Add user** form.
+      - The admin first creates the account in the Firebase console, then pastes its **Firebase uid** into the form, with optional email and display name and a role (`admin` | `member`). The new row is what allowlists the person (section 4); seeding is the same as for the CLI (default categories, "Other" category and income source, empty template).
+      - **Database only:** the panel never calls Firebase to create or look up an account. A uid already in the table is refused (`user_exists`); a uid that matches no Firebase account simply cannot sign in.
+      - The list shows account details only. Admins never see any user's entries, amounts or counts of them.
+    - **Not in v1:** creating Firebase accounts from the app, invites, password reset, disable/enable, editing or removing users, user counts. Those stay in the Firebase console (and `api user revoke`) until v2.
 13. Export to CSV/Excel. **Export and import (14) are the last v1 items**, built after the UI and backend for everything above are complete.
 14. **Import past years from Excel** (web and Mac; reached from the sidebar's **Import** item and the account menu's "Import transactions"):
     - **Download the template:** an `.xlsx` with an **Expenses** sheet (Date, Category, Merchant, Amount, Note) and an **Income** sheet (Date, Source, Gross, Gross taxable, Net, Note). Category and Source are dropdowns filled with the user's current categories and sources. Amounts are dollars in the file and integer cents everywhere else. Refunds are negative amounts. One file may hold any number of years.
@@ -150,7 +154,7 @@ Rules:
 - Receipt scanning, multi-currency
 - Sharing between users or household budgets
 - Offline mode (planned later: cached read-only; add/edit must show an error when offline)
-- In-app account management in the admin panel: user list, create account, invites, password resets, disable/enable (v2)
+- In-app account management in the admin panel beyond the Users tab (§6.12): creating Firebase accounts, invites, password resets, disable/enable, editing or removing users (v2)
 - In-app multi-factor sign-in (TOTP enrolment and challenge) and idle sign-out (v2; see §10)
 
 ## 8. Non-functional requirements

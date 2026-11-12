@@ -9,6 +9,7 @@ import type { Schemas } from "./types";
 
 export const adminStatusQueryKey = ["admin", "status"] as const;
 export const backupsQueryKey = ["admin", "backups"] as const;
+export const adminUsersQueryKey = ["admin", "users"] as const;
 
 /** How often the backups list refreshes while a backup is running. */
 const RUNNING_POLL_MS = 2000;
@@ -67,5 +68,24 @@ export function useDownloadBackup() {
         `penny-pincher-${backup.kind}-${backup.id}.enc`;
       saveBlob(result.data as Blob, name);
     },
+  });
+}
+
+/** The app's users (database only; account details, never entries). */
+export function useAdminUsers() {
+  const api = useApi();
+  return useQuery<Schemas["AdminUser"][]>({
+    queryKey: adminUsersQueryKey,
+    queryFn: async ({ signal }) => (await unwrap(api.GET("/v1/admin/users", { signal }))).items,
+  });
+}
+
+/** Adds a user to the database. Nothing is created or changed in Firebase. */
+export function useAddUser() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation<Schemas["AdminUser"], Error, Schemas["NewAdminUser"]>({
+    mutationFn: (body) => unwrap(api.POST("/v1/admin/users", { body })),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: adminUsersQueryKey }),
   });
 }

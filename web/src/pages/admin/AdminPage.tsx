@@ -11,6 +11,7 @@ import { firebaseConfigFromEnv } from "../../auth/config";
 import { AlertIcon, DownloadIcon, LinkIcon } from "../../components/icons";
 import { Toast } from "../../components/Toast";
 import { Page } from "../Page";
+import { UsersSection } from "./UsersSection";
 import { formatBytes, formatDateTime, formatUptime } from "./format";
 import "./AdminPage.css";
 
@@ -29,10 +30,11 @@ function firebaseConsoleUrl(): string {
 }
 
 /**
- * Admin dashboard: app status and backups only (root §6.12). Accounts stay in
- * the Firebase console, linked from the header.
+ * Admin dashboard: app status, backups and the Users tab (root §6.12). Firebase
+ * accounts are still created in the Firebase console, linked from the header.
  */
 export function AdminPage() {
+  const [tab, setTab] = useState<"status" | "users">("status");
   return (
     <Page
       title="Admin dashboard"
@@ -45,8 +47,37 @@ export function AdminPage() {
         </a>
       }
     >
-      <StatusTiles />
-      <BackupsSection />
+      <div role="tablist" aria-label="Admin sections" className="admin__tabs">
+        {(
+          [
+            ["status", "Status & backups"],
+            ["users", "Users"],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            id={`admin-tab-${id}`}
+            aria-selected={tab === id}
+            aria-controls="admin-panel"
+            className={`admin__tab${tab === id ? " is-active" : ""}`}
+            onClick={() => setTab(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div role="tabpanel" id="admin-panel" aria-labelledby={`admin-tab-${tab}`}>
+        {tab === "status" ? (
+          <>
+            <StatusTiles />
+            <BackupsSection />
+          </>
+        ) : (
+          <UsersSection />
+        )}
+      </div>
     </Page>
   );
 }

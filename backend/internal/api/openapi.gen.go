@@ -39,6 +39,24 @@ func (e AdminStatusAuthProviderStatus) Valid() bool {
 	}
 }
 
+// Defines values for AdminUserRole.
+const (
+	AdminUserRoleAdmin  AdminUserRole = "admin"
+	AdminUserRoleMember AdminUserRole = "member"
+)
+
+// Valid indicates whether the value is a known member of the AdminUserRole enum.
+func (e AdminUserRole) Valid() bool {
+	switch e {
+	case AdminUserRoleAdmin:
+		return true
+	case AdminUserRoleMember:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BackupStatus.
 const (
 	BackupStatusFailed    BackupStatus = "failed"
@@ -123,6 +141,7 @@ const (
 	ErrorErrorCodeSessionExpired    ErrorErrorCode = "session_expired"
 	ErrorErrorCodeSourceHasEntries  ErrorErrorCode = "source_has_entries"
 	ErrorErrorCodeUnauthenticated   ErrorErrorCode = "unauthenticated"
+	ErrorErrorCodeUserExists        ErrorErrorCode = "user_exists"
 )
 
 // Valid indicates whether the value is a known member of the ErrorErrorCode enum.
@@ -171,6 +190,8 @@ func (e ErrorErrorCode) Valid() bool {
 	case ErrorErrorCodeSourceHasEntries:
 		return true
 	case ErrorErrorCodeUnauthenticated:
+		return true
+	case ErrorErrorCodeUserExists:
 		return true
 	default:
 		return false
@@ -311,16 +332,34 @@ func (e ImportStatus) Valid() bool {
 
 // Defines values for MeRole.
 const (
-	Admin  MeRole = "admin"
-	Member MeRole = "member"
+	MeRoleAdmin  MeRole = "admin"
+	MeRoleMember MeRole = "member"
 )
 
 // Valid indicates whether the value is a known member of the MeRole enum.
 func (e MeRole) Valid() bool {
 	switch e {
-	case Admin:
+	case MeRoleAdmin:
 		return true
-	case Member:
+	case MeRoleMember:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NewAdminUserRole.
+const (
+	NewAdminUserRoleAdmin  NewAdminUserRole = "admin"
+	NewAdminUserRoleMember NewAdminUserRole = "member"
+)
+
+// Valid indicates whether the value is a known member of the NewAdminUserRole enum.
+func (e NewAdminUserRole) Valid() bool {
+	switch e {
+	case NewAdminUserRoleAdmin:
+		return true
+	case NewAdminUserRoleMember:
 		return true
 	default:
 		return false
@@ -435,6 +474,23 @@ type AdminStatus struct {
 
 // AdminStatusAuthProviderStatus defines model for AdminStatus.AuthProvider.Status.
 type AdminStatusAuthProviderStatus string
+
+// AdminUser defines model for AdminUser.
+type AdminUser struct {
+	CreatedAt   *Timestamp                `json:"created_at,omitempty"`
+	DisplayName nullable.Nullable[string] `json:"display_name"`
+	Email       nullable.Nullable[string] `json:"email"`
+	FirebaseUid string                    `json:"firebase_uid"`
+
+	// Id Opaque identifier.
+	//
+	// Examples: 42
+	Id   Id            `json:"id"`
+	Role AdminUserRole `json:"role"`
+}
+
+// AdminUserRole defines model for AdminUser.Role.
+type AdminUserRole string
 
 // Backup defines model for Backup.
 type Backup struct {
@@ -1116,6 +1172,19 @@ type MonthlySummary struct {
 // Name Trimmed; unique per user, case-insensitively, within its kind.
 type Name = string
 
+// NewAdminUser defines model for NewAdminUser.
+type NewAdminUser struct {
+	DisplayName nullable.Nullable[string] `json:"display_name,omitempty"`
+	Email       nullable.Nullable[string] `json:"email,omitempty"`
+
+	// FirebaseUid The uid of the account already created in the Firebase console.
+	FirebaseUid string            `json:"firebase_uid"`
+	Role        *NewAdminUserRole `json:"role,omitempty"`
+}
+
+// NewAdminUserRole defines model for NewAdminUser.Role.
+type NewAdminUserRole string
+
 // NextCursor Pass as `cursor` to get the next page; null on the last page.
 type NextCursor = string
 
@@ -1633,6 +1702,9 @@ type GetCustomTrendParams struct {
 // GetCustomTrendParamsGroupBy defines parameters for GetCustomTrend.
 type GetCustomTrendParamsGroupBy string
 
+// AddUserJSONRequestBody defines body for AddUser for application/json ContentType.
+type AddUserJSONRequestBody = NewAdminUser
+
 // CreateCategoryJSONRequestBody defines body for CreateCategory for application/json ContentType.
 type CreateCategoryJSONRequestBody = CategoryCreate
 
@@ -1716,6 +1788,12 @@ type ServerInterface interface {
 	// GetAdminStatus App status for the admin panel
 	// (GET /v1/admin/status)
 	GetAdminStatus(w http.ResponseWriter, r *http.Request)
+	// ListUsers List the app's users
+	// (GET /v1/admin/users)
+	ListUsers(w http.ResponseWriter, r *http.Request)
+	// AddUser Add a user to the database
+	// (POST /v1/admin/users)
+	AddUser(w http.ResponseWriter, r *http.Request)
 	// ListCategories List categories
 	// (GET /v1/categories)
 	ListCategories(w http.ResponseWriter, r *http.Request)
@@ -1983,6 +2061,34 @@ func (siw *ServerInterfaceWrapper) GetAdminStatus(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetAdminStatus(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListUsers operation middleware
+func (siw *ServerInterfaceWrapper) ListUsers(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListUsers(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddUser operation middleware
+func (siw *ServerInterfaceWrapper) AddUser(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddUser(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3966,6 +4072,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/admin/backups", wrapper.ListBackups)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/admin/backups", wrapper.StartBackup)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/admin/backups/{id}/download", wrapper.DownloadBackup)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/admin/users", wrapper.ListUsers)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/admin/users", wrapper.AddUser)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/imports/template", wrapper.DownloadImportTemplate)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/imports", wrapper.ListImports)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/imports", wrapper.UploadImport)
@@ -4305,6 +4413,135 @@ func (response GetAdminStatus403JSONResponse) VisitGetAdminStatusResponse(w http
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListUsersRequestObject struct {
+}
+
+type ListUsersResponseObject interface {
+	VisitListUsersResponse(w http.ResponseWriter) error
+}
+
+type ListUsers200JSONResponse struct {
+	Items []AdminUser `json:"items"`
+}
+
+func (response ListUsers200JSONResponse) VisitListUsersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListUsers401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListUsers401JSONResponse) VisitListUsersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListUsers403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListUsers403JSONResponse) VisitListUsersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddUserRequestObject struct {
+	Body *AddUserJSONRequestBody
+}
+
+type AddUserResponseObject interface {
+	VisitAddUserResponse(w http.ResponseWriter) error
+}
+
+type AddUser201JSONResponse AdminUser
+
+func (response AddUser201JSONResponse) VisitAddUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddUser400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AddUser400JSONResponse) VisitAddUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddUser401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response AddUser401JSONResponse) VisitAddUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddUser403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response AddUser403JSONResponse) VisitAddUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddUser409JSONResponse struct{ ConflictJSONResponse }
+
+func (response AddUser409JSONResponse) VisitAddUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -8680,6 +8917,12 @@ type StrictServerInterface interface {
 	// GetAdminStatus App status for the admin panel
 	// (GET /v1/admin/status)
 	GetAdminStatus(ctx context.Context, request GetAdminStatusRequestObject) (GetAdminStatusResponseObject, error)
+	// ListUsers List the app's users
+	// (GET /v1/admin/users)
+	ListUsers(ctx context.Context, request ListUsersRequestObject) (ListUsersResponseObject, error)
+	// AddUser Add a user to the database
+	// (POST /v1/admin/users)
+	AddUser(ctx context.Context, request AddUserRequestObject) (AddUserResponseObject, error)
 	// ListCategories List categories
 	// (GET /v1/categories)
 	ListCategories(ctx context.Context, request ListCategoriesRequestObject) (ListCategoriesResponseObject, error)
@@ -9019,6 +9262,61 @@ func (sh *strictHandler) GetAdminStatus(w http.ResponseWriter, r *http.Request) 
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetAdminStatusResponseObject); ok {
 		if err := validResponse.VisitGetAdminStatusResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListUsers operation middleware
+func (sh *strictHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
+	var request ListUsersRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListUsers(ctx, request.(ListUsersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListUsers")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListUsersResponseObject); ok {
+		if err := validResponse.VisitListUsersResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AddUser operation middleware
+func (sh *strictHandler) AddUser(w http.ResponseWriter, r *http.Request) {
+	var request AddUserRequestObject
+
+	var body AddUserJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AddUser(ctx, request.(AddUserRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddUser")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AddUserResponseObject); ok {
+		if err := validResponse.VisitAddUserResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

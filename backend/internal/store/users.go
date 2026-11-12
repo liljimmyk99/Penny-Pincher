@@ -98,3 +98,43 @@ func AddUser(ctx context.Context, db *sql.DB, u NewUser) (int64, error) {
 	}
 	return id, nil
 }
+
+// UserRow is one account as the admin panel lists it. It holds account details
+// only, never any of the user's entries or counts of them.
+type UserRow struct {
+	ID          int64
+	FirebaseUID string
+	Email       *string
+	DisplayName *string
+	Role        string
+	CreatedAt   string
+}
+
+// ListUsers returns every user, oldest first. It is not scoped to a user
+// because it serves the admin-only Users tab and returns no user data.
+func ListUsers(ctx context.Context, db *sql.DB) ([]UserRow, error) {
+	rows, err := db.QueryContext(ctx,
+		`SELECT id, firebase_uid, email, display_name, role, created_at FROM users ORDER BY id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []UserRow{}
+	for rows.Next() {
+		var u UserRow
+		if err := rows.Scan(&u.ID, &u.FirebaseUID, &u.Email, &u.DisplayName, &u.Role, &u.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, u)
+	}
+	return out, rows.Err()
+}
+
+// GetUserRow returns one user by id.
+func GetUserRow(ctx context.Context, db *sql.DB, id int64) (UserRow, error) {
+	var u UserRow
+	err := db.QueryRowContext(ctx,
+		`SELECT id, firebase_uid, email, display_name, role, created_at FROM users WHERE id = ?`, id).
+		Scan(&u.ID, &u.FirebaseUID, &u.Email, &u.DisplayName, &u.Role, &u.CreatedAt)
+	return u, err
+}

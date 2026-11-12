@@ -813,6 +813,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the app's users
+         * @description Account details only, oldest first. Never any entries, amounts or counts of them.
+         */
+        get: operations["listUsers"];
+        put?: never;
+        /**
+         * Add a user to the database
+         * @description Adds the Firebase uid to the users table (the allowlist) and seeds the default categories,
+         *     the "Other" income source and an empty template. Database only: the Firebase account must
+         *     already exist, and Firebase is never called. `409 user_exists` for a uid already added.
+         */
+        post: operations["addUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/imports/template": {
         parameters: {
             query?: never;
@@ -1224,7 +1250,7 @@ export interface components {
                  * @description Stable, machine-readable. Clients branch on this, never on `message`.
                  * @enum {string}
                  */
-                code: "invalid_request" | "invalid_refund_link" | "unauthenticated" | "session_expired" | "not_allowlisted" | "admin_required" | "not_found" | "protected_resource" | "source_has_entries" | "name_taken" | "has_linked_refunds" | "month_not_empty" | "backup_in_progress" | "backup_not_ready" | "invalid_import_file" | "file_too_large" | "import_in_progress" | "import_wrong_status" | "request_too_large" | "rate_limited" | "not_implemented" | "internal";
+                code: "invalid_request" | "invalid_refund_link" | "unauthenticated" | "session_expired" | "not_allowlisted" | "admin_required" | "not_found" | "protected_resource" | "source_has_entries" | "name_taken" | "has_linked_refunds" | "month_not_empty" | "backup_in_progress" | "user_exists" | "backup_not_ready" | "invalid_import_file" | "file_too_large" | "import_in_progress" | "import_wrong_status" | "request_too_large" | "rate_limited" | "not_implemented" | "internal";
                 /** @description Human-readable; safe to show. Never contains internals. */
                 message: string;
                 details?: {
@@ -1667,6 +1693,26 @@ export interface components {
             /** @description Short, safe reason when `status` is failed. */
             error_message: string | null;
         };
+        AdminUser: {
+            id: components["schemas"]["Id"];
+            firebase_uid: string;
+            email: string | null;
+            display_name: string | null;
+            /** @enum {string} */
+            role: "admin" | "member";
+            created_at: components["schemas"]["Timestamp"];
+        };
+        NewAdminUser: {
+            /** @description The uid of the account already created in the Firebase console. */
+            firebase_uid: string;
+            email?: string | null;
+            display_name?: string | null;
+            /**
+             * @default member
+             * @enum {string}
+             */
+            role: "admin" | "member";
+        };
         AdminStatus: {
             version: string;
             started_at: components["schemas"]["Timestamp"];
@@ -1794,7 +1840,7 @@ export interface components {
         /**
          * @description A business rule blocked the request. Codes: `protected_resource`, `source_has_entries`,
          *     `name_taken`, `has_linked_refunds`, `month_not_empty`, `backup_in_progress`, `backup_not_ready`,
-         *     `import_in_progress`, `import_wrong_status`.
+         *     `import_in_progress`, `import_wrong_status`, `user_exists`.
          */
         Conflict: {
             headers: {
@@ -3354,6 +3400,58 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listUsers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["AdminUser"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    addUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewAdminUser"];
+            };
+        };
+        responses: {
+            /** @description Added */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUser"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
         };
     };
