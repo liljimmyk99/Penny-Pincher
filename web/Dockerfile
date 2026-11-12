@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM node:26.12-alpine AS build
+FROM node:26.12-alpine@sha256:40cd011b55415bc894e45b02fdd5a5dfde056921b7d23a64c74f80497af48797 AS build
 WORKDIR /src
 COPY package.json package-lock.json .npmrc ./
 RUN npm ci
@@ -13,7 +13,7 @@ ARG VITE_FIREBASE_AUTH_EMULATOR_URL
 RUN npm run build
 
 # Static files served by a tiny Caddy; the public reverse proxy forwards non-API paths here.
-FROM caddy:2.11-alpine
+FROM caddy:2.11-alpine@sha256:78bd35025c7ba85961dd149ae670315129954e77abe2383ac47c89106b35ade9
 COPY Caddyfile /etc/caddy/Caddyfile
 COPY --from=build /src/dist /srv
 # Runs as a non-root user (#109). Caddy's /config and /data are its own, so it
