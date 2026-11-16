@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/mail"
+	"strings"
 	"time"
 
 	"github.com/liljimmyk99/penny-pincher/backend/internal/api"
 	"github.com/liljimmyk99/penny-pincher/backend/internal/auth"
 	"github.com/liljimmyk99/penny-pincher/backend/internal/backup"
 	"github.com/liljimmyk99/penny-pincher/backend/internal/logging"
+	"github.com/liljimmyk99/penny-pincher/backend/internal/store"
 )
 
 // Backups is what the admin routes need from the backup service. A nil
@@ -33,6 +36,18 @@ func logAdminAction(ctx context.Context, action, backupID string) {
 		"action", action,
 		"user_id", id.ID,
 		"backup_id", backupID,
+	)
+}
+
+// logAdminUserAdded logs that an admin added a user: ids only, never the new
+// user's uid or email.
+func logAdminUserAdded(ctx context.Context, newUserID int64) {
+	id, _ := auth.FromContext(ctx)
+	slog.Info("admin action",
+		"event", logging.EventAdminAction,
+		"action", logging.ActionUserAdded,
+		"user_id", id.ID,
+		"target_user_id", newUserID,
 	)
 }
 
@@ -154,4 +169,83 @@ func (s *Server) DownloadBackup(ctx context.Context, req api.DownloadBackupReque
 		ContentLength: d.Size,
 		Headers:       api.DownloadBackup200ResponseHeaders{ContentDisposition: &cd},
 	}, nil
+}
+
+func toAPIUser(u store.UserRow) api.AdminUser {
+	out := api.AdminUser{
+		Id:          formatID(u.ID),
+		FirebaseUid: u.FirebaseUID,
+		Email:       nullableOf(u.Email),
+		DisplayName: nullableOf(u.DisplayName),
+		Role:        api.AdminUserRole(u.Role),
+	}
+	if t, err := time.Parse(time.RFC3339Nano, u.CreatedAt); err == nil {
+		out.CreatedAt = &t
+	}
+	return out
+}
+
+// ListUsers implements GET /v1/admin/users. It returns account details only.
+func (s *Server) ListUsers(ctx context.Context, _ api.ListUsersRequestObject) (api.ListUsersResponseObject, error) {
+	rows, err := store.ListUsers(ctx, s.admin.DB)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]api.AdminUser, 0, len(rows))
+	for _, u := range rows {
+		items = append(items, toAPIUser(u))
+	}
+	return api.ListUsers200JSONResponse{Items: items}, nil
+}
+
+func addUserInvalid(field, issue string) api.AddUserResponseObject {
+	return api.AddUser400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse(
+		validationError(&store.ValidationError{Field: field, Issue: issue}))}
+}
+
+// AddUser implements POST /v1/admin/users. It writes the app's database only
+// (the allowlist plus the new user's defaults); Firebase is never called.
+func (s *Server) AddUser(ctx context.Context, req api.AddUserRequestObject) (api.AddUserResponseObject, error) {
+	in := store.NewUser{
+		FirebaseUID: strings.TrimSpace(req.Body.FirebaseUid),
+		Role:        store.RoleMember,
+	}
+	if e := ptrOf(req.Body.Email); e != nil {
+		in.Email = strings.TrimSpace(*e)
+	}
+	if n := ptrOf(req.Body.DisplayName); n != nil {
+		in.DisplayName = strings.TrimSpace(*n)
+	}
+	if req.Body.Role != nil {
+		in.Role = string(*req.Body.Role)
+	}
+	switch {
+	case in.FirebaseUID == "":
+		return addUserInvalid("firebase_uid", "is required"), nil
+	case len(in.FirebaseUID) > 128:
+		return addUserInvalid("firebase_uid", "must be at most 128 characters"), nil
+	case in.Role != store.RoleAdmin && in.Role != store.RoleMember:
+		return addUserInvalid("role", "must be admin or member"), nil
+	case len(in.DisplayName) > 100:
+		return addUserInvalid("display_name", "must be at most 100 characters"), nil
+	}
+	if in.Email != "" {
+		if a, err := mail.ParseAddress(in.Email); err != nil || a.Address != in.Email || len(in.Email) > 254 {
+			return addUserInvalid("email", "must be an email address"), nil
+		}
+	}
+	id, err := store.AddUser(ctx, s.admin.DB, in)
+	if errors.Is(err, store.ErrUserExists) {
+		return api.AddUser409JSONResponse{ConflictJSONResponse: api.ConflictJSONResponse(
+			newError(api.ErrorErrorCodeUserExists, "A user with this Firebase uid has already been added."))}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	row, err := store.GetUserRow(ctx, s.admin.DB, id)
+	if err != nil {
+		return nil, err
+	}
+	logAdminUserAdded(ctx, id)
+	return api.AddUser201JSONResponse(toAPIUser(row)), nil
 }

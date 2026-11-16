@@ -220,7 +220,7 @@ Two tabs at the top: **Custom trends** and **By category**.
 - **Canvas difference:** the canvas's income-source note and delete dialog say deleting a source moves its *income entries* to Other. That contradicts root §5 (a source with entries can never be deleted); this file wins, so the screen says a source with entries can only be renamed, and deleting an unused source moves its template items to Other.
 
 ### Admin panel (admins only)
-Reached from the account menu; hidden from members. **v1 builds only app status and backups** (root §6.12).
+Reached from the account menu; hidden from members. **v1 builds app status, backups and a Users tab that adds users to the database** (root §6.12).
 
 - **Status tiles (v1):**
   - API server (from `/healthz`: version, uptime)
@@ -228,15 +228,20 @@ Reached from the account menu; hidden from members. **v1 builds only app status 
   - backups (last and next run)
   - sign-in (Firebase connected; no user counts)
 - **Backups (v1):** list of weekly, monthly and manual snapshots with size and Download (encrypted archive), plus "Back up now". Confirm with a toast.
-- **Not in v1 — do not build:** everything account-specific shown on the canvas. That means:
-  - the users table, user counts, and Create account
-  - Reset password, Disable/Enable, and Resend/Cancel invite
+- **Users tab (v1):** tabs "Status & backups" and "Users" under the admin header.
+  - Users table: name, email, role chip, added date, Firebase uid (monospace, copyable). Read-only; no counts, no entry data.
+  - **Add user** button opens a dialog (`@radix-ui/react-dialog`): Firebase uid (required), email, display name, role (Member default / Admin). A note says: "Create the account in the Firebase console first, then paste its uid. This adds the person to Penny-Pincher only; nothing is changed in Firebase." Errors: `user_exists` and field errors inline. On success: toast "User added" and the list refreshes.
+  - Use the canvas's Users table and Create account layouts as the starting point, but drop its Firebase actions (password field, invite email, Reset password, Disable/Enable, Resend/Cancel invite).
+- **Not in v1 — do not build:** the rest of what the canvas shows for accounts. That means:
+  - user counts, creating Firebase accounts from the app
+  - Reset password, Disable/Enable, and Resend/Cancel invite, and editing or removing users
   - these stay in the Firebase console until v2; the canvas shows the v2 direction (admins cannot disable or demote themselves; admins never see other users' entries)
 - Keep a "Firebase console" link in the header for account tasks.
 - As built (`src/pages/admin`, hooks in `src/api/admin.ts`):
   - Reads `GET /v1/admin/status` and `GET /v1/admin/backups`; the list polls every 2s while any backup is `running`. "Back up now" posts to `/v1/admin/backups`, toasts "Backup started", and toasts "Backup finished" (or "Backup failed") when that backup leaves `running`.
   - Download fetches the encrypted archive through the API client (so the bearer token is sent) and saves it as a blob; it is offered only for succeeded backups.
   - The "Firebase console" link goes to the project's Authentication users page, built from `VITE_FIREBASE_PROJECT_ID`.
+  - Tabs ("Status & backups", "Users") are local state in `AdminPage`. `UsersSection` reads `GET /v1/admin/users` and `AddUserDialog` posts `POST /v1/admin/users` (hooks `useAdminUsers`, `useAddUser`); a blank uid is caught client-side, other failures show `fieldErrors` inline or the `errorMessage` (e.g. `user_exists`) in an alert.
 
 ### Import (Excel)
 Root §6.14; API `imports` routes. One page with four stages and a step indicator (Get template, Upload, Review, Import).

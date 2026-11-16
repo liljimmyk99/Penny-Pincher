@@ -85,4 +85,5 @@ const (
 const (
 	ActionBackupStarted    = "backup_started"
 	ActionBackupDownloaded = "backup_downloaded"
+	ActionUserAdded        = "user_added"
 )

@@ -110,3 +110,72 @@ describe("format", () => {
     expect(formatUptime(3700)).toBe("1h 1m");
   });
 });
+
+describe("Users tab", () => {
+  const user = (id: string, uid: string, role: Schemas["AdminUser"]["role"] = "member"): Schemas["AdminUser"] => ({
+    id,
+    firebase_uid: uid,
+    email: `${uid}@example.com`,
+    display_name: null,
+    role,
+    created_at: stamp,
+  });
+
+  function renderUsers(post: (body: unknown) => Response) {
+    let items = [user("1", "uid-admin", "admin")];
+    const bodies: unknown[] = [];
+    const fetch = (async (req: Request) => {
+      const { pathname } = new URL(req.url);
+      if (pathname === "/v1/admin/status") return Response.json(status);
+      if (pathname === "/v1/admin/backups") return Response.json({ items: [] });
+      if (pathname === "/v1/admin/users" && req.method === "POST") {
+        const body = await req.json();
+        bodies.push(body);
+        const res = post(body);
+        if (res.ok) items = [...items, user("2", body.firebase_uid)];
+        return res;
+      }
+      if (pathname === "/v1/admin/users") return Response.json({ items });
+      return Response.json({ error: { code: "not_found", message: "no" } }, { status: 404 });
+    }) as unknown as typeof globalThis.fetch;
+    const api = createApiClient({ getToken: async () => "t", baseUrl: "http://api.test", fetch });
+    render(
+      <ApiProvider client={api} queryClient={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <AdminPage />
+      </ApiProvider>,
+    );
+    return { bodies, user: userEvent.setup() };
+  }
+
+  it("lists users and adds one by Firebase uid", async () => {
+    const { bodies, user: u } = renderUsers((body) => Response.json(body, { status: 201 }));
+    await u.click(screen.getByRole("tab", { name: "Users" }));
+    expect(await screen.findByText("uid-admin")).toBeInTheDocument();
+
+    await u.click(screen.getByRole("button", { name: "Add user" }));
+    const dialog = await screen.findByRole("dialog", { name: "Add user" });
+    expect(dialog).toHaveTextContent("nothing is changed in Firebase");
+    await u.type(within(dialog).getByLabelText("Firebase uid"), " uid-new ");
+    await u.click(within(dialog).getByRole("button", { name: "Add user" }));
+
+    expect(await screen.findByText("uid-new")).toBeInTheDocument();
+    expect(screen.getByText("User added")).toBeInTheDocument();
+    expect(bodies).toEqual([{ firebase_uid: "uid-new", email: null, display_name: null, role: "member" }]);
+  });
+
+  it("requires a uid and shows a duplicate as an error", async () => {
+    const { bodies, user: u } = renderUsers(() =>
+      Response.json({ error: { code: "user_exists", message: "A user with this Firebase uid has already been added." } }, { status: 409 }),
+    );
+    await u.click(screen.getByRole("tab", { name: "Users" }));
+    await u.click(await screen.findByRole("button", { name: "Add user" }));
+    const dialog = await screen.findByRole("dialog", { name: "Add user" });
+    await u.click(within(dialog).getByRole("button", { name: "Add user" }));
+    expect(within(dialog).getByText("Paste the Firebase uid.")).toBeInTheDocument();
+    expect(bodies).toHaveLength(0);
+
+    await u.type(within(dialog).getByLabelText("Firebase uid"), "uid-admin");
+    await u.click(within(dialog).getByRole("button", { name: "Add user" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("already been added");
+  });
+});

@@ -36,6 +36,14 @@ func (Unimplemented) GetAdminStatus(context.Context, GetAdminStatusRequestObject
 	return nil, ErrNotImplemented
 }
 
+func (Unimplemented) ListUsers(context.Context, ListUsersRequestObject) (ListUsersResponseObject, error) {
+	return nil, ErrNotImplemented
+}
+
+func (Unimplemented) AddUser(context.Context, AddUserRequestObject) (AddUserResponseObject, error) {
+	return nil, ErrNotImplemented
+}
+
 func (Unimplemented) ListCategories(context.Context, ListCategoriesRequestObject) (ListCategoriesResponseObject, error) {
 	return nil, ErrNotImplemented
 }

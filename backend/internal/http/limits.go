@@ -68,10 +68,10 @@ func isImportUpload(r *http.Request) bool {
 	return r.Method == http.MethodPost && r.URL.Path == "/v1/imports"
 }
 
-// expensiveRoute: back up now, import upload and export.
+// expensiveRoute: back up now, add a user, import upload and export.
 func expensiveRoute(r *http.Request) bool {
 	return isImportUpload(r) ||
-		(r.Method == http.MethodPost && r.URL.Path == "/v1/admin/backups") ||
+		(r.Method == http.MethodPost && (r.URL.Path == "/v1/admin/backups" || r.URL.Path == "/v1/admin/users")) ||
 		(r.Method == http.MethodGet && r.URL.Path == "/v1/export")
 }
 

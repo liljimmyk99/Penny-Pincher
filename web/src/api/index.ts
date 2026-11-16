@@ -17,6 +17,9 @@ export {
 } from "./errors";
 export {
   adminStatusQueryKey,
+  adminUsersQueryKey,
+  useAddUser,
+  useAdminUsers,
   backupsQueryKey,
   useAdminStatus,
   useBackups,
