@@ -1,6 +1,6 @@
 # AGENTS.md — /e2e
 
-Read the root `AGENTS.md` first. This folder is the end-to-end suite: Playwright driving the real Docker stack. It automates the **M1 testing gate**'s smoke checklist, the **M2 acceptance tests** (AT-1 to AT-24), the **M3 acceptance tests** (MS, RB, YS, ED) the M6 security headers (#105) and request limits (#106), and the **M8 import gate** (#100).
+Read the root `AGENTS.md` first. This folder is the end-to-end suite: Playwright driving the real Docker stack. It automates the **M1 testing gate**'s smoke checklist, the **M2 acceptance tests** (AT-1 to AT-24), the **M3 acceptance tests** (MS, RB, YS, ED) the M6 security headers (#105) and request limits (#106), the **M8 import gate** (#100), and the admin panel's **Users tab** (#157).
 
 ## Running it
 
@@ -23,7 +23,7 @@ npm test                 # builds + starts compose.yml, runs every spec, removes
   - **API:** `FIREBASE_AUTH_EMULATOR_HOST` makes the Admin SDK accept emulator tokens. The API refuses to start with it unless `FIREBASE_PROJECT_ID` starts with `demo-` (`internal/config`).
   - **Web:** the build arg `VITE_FIREBASE_AUTH_EMULATOR_URL` connects the SDK to the emulator, and is likewise ignored unless the project id starts with `demo-`. A production build never sets either.
   - **Proxy:** `FIREBASE_AUTH_EMULATOR_URL` adds the emulator's origin to the Content-Security-Policy's `connect-src` and `frame-src`. Only this stack sets it.
-- Every test gets a **fresh user**: an emulator account with generated test credentials, added to the allowlist with the real CLI (`docker compose exec api /api user add …`). Tests share the stack but never each other's data.
+- Every test gets a **fresh user**: an emulator account with generated test credentials, added to the allowlist with the real CLI (`docker compose exec api /api user add …`). Tests share the stack but never each other's data. `admin-users.spec.ts` is the exception: its admin comes from the CLI, and the user under test is added from the admin panel.
 - Tests drive the UI and check results through the API (`support/stack.ts` `Api`). They arrange data through the API too, where the UI isn't what's being tested.
 - One worker. `security-headers.spec.ts` is its own Playwright project on full Chromium (below), so the smoke project keeps one worker throughout. `resilience.spec.ts` stops the API container, so it is its own project too, and runs after smoke.
 
@@ -148,6 +148,18 @@ Fixture workbooks are built in the test with `exceljs` (`support/workbooks.ts`) 
 - **Timing:** the import writes 200 rows per batch, so a small file finishes instantly. IM-3 and IM-4 use a 49,000-row file (just under the 50,000-row limit) with a unique merchant and a long note on every row, which keeps the import running for about four seconds, long enough to see the banner and press Cancel. The banner only follows an import it saw running, so a tiny file would never show it.
 - **`exceljs` is loaded with Node's `require`** (`createRequire`), because Playwright's module loader cannot load its dependency tree.
 - **Not automated:** the Mac import screens, an import interrupted by a server restart (the backend tests cover recovery), and opening the downloaded problem-rows file in Excel.
+
+### Admin panel · Users tab (`admin-users.spec.ts`, #157)
+
+| Check | Test |
+| --- | --- |
+| An emulator account that isn't in the database gets `403`; an admin pastes its uid into the Add user dialog; the row appears in the Users table; that person signs in to an empty account with the eight default categories and the "Other" income source, and has no admin rights | `admin-users` · admin adds a user |
+| Adding the same uid again shows the `user_exists` message in the dialog, which stays open; the table still has one row for it | `admin-users` · duplicate uid |
+| A member has no "Admin dashboard" menu item, gets "Page not found" at `/admin`, and `GET` and `POST /v1/admin/users` answer `403` (nothing is added) | `admin-users` · member |
+
+- **The "create the account in the Firebase console" step** is the emulator's sign-up endpoint (`createAccount`). The panel never calls Firebase, so nothing else stands in for it.
+- **The first admin still comes from the CLI** (`allowlist(admin, "admin")`), as on a real deployment. Each test has its own admin, so the limit on `POST /v1/admin/users` (burst 5 per user) is never reached.
+- The added person signs in in a second browser context, so the admin's session stays open alongside it.
 
 ### Where the automation differs from the manual checklist
 
