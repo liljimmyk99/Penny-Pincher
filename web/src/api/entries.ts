@@ -34,6 +34,17 @@ async function searchMerchants(api: ApiClient, q: string, signal?: AbortSignal) 
   return page.items;
 }
 
+/** Whether two merchant names are the same merchant: trimmed, case-insensitive (as the API matches them). */
+export function sameMerchantName(a: string, b: string) {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+/** The merchant in `list` with exactly this name (trimmed, case-insensitive), if any. */
+export function exactMerchant(list: readonly Schemas["Merchant"][], name: string) {
+  if (!name.trim()) return null;
+  return list.find((m) => sameMerchantName(m.name, name)) ?? null;
+}
+
 /** The existing merchant with exactly this name (case-insensitive), if any. */
 export async function findMerchant(qc: QueryClient, api: ApiClient, name: string) {
   const q = name.trim();
@@ -43,7 +54,7 @@ export async function findMerchant(qc: QueryClient, api: ApiClient, name: string
     queryFn: ({ signal }) => searchMerchants(api, q, signal),
     staleTime: 60_000,
   });
-  return items.find((m) => m.name.toLowerCase() === q.toLowerCase()) ?? null;
+  return exactMerchant(items, q);
 }
 
 /** A merchant's most recent expenses (not refunds), newest first. */

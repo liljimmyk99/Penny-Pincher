@@ -67,12 +67,14 @@ export {
 } from "./templates";
 export {
   expenseQueryKey,
+  exactMerchant,
   expensesBetweenQueryKey,
   findMerchant,
   lastCategoryFor,
   merchantSearchQueryKey,
   monthExpensesQueryKey,
   monthIncomeQueryKey,
+  sameMerchantName,
   useAllMerchants,
   useEntryMutations,
   useExpensesBetween,

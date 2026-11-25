@@ -250,7 +250,11 @@ describe("AddEntriesPage: expenses", () => {
     await user.click(merchant());
     await user.keyboard("cor");
     const list = await screen.findByRole("listbox", { name: "Past merchants" });
-    expect(within(list).getAllByRole("option").map((o) => o.textContent)).toEqual(["Corner Coffee", "Corner Store"]);
+    expect(within(list).getAllByRole("option").map((o) => o.textContent)).toEqual([
+      "Corner Coffee",
+      "Corner Store",
+      "Create “cor”",
+    ]);
 
     await user.keyboard("{ArrowDown}");
     expect(merchant()).toHaveAttribute("aria-activedescendant", within(list).getAllByRole("option")[0].id);
