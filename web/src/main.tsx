@@ -4,6 +4,8 @@ import { ApiProvider, createApiClient } from "./api";
 import { App } from "./App";
 import { AuthGate, createApiAuth, createSession, SessionProvider } from "./auth";
 import { ThemeProvider } from "./theme/ThemeProvider";
+// Tailwind first, so the old styles still win while both exist (#180 removes them).
+import "./index.css";
 import "./styles/tokens.css";
 import "./styles/global.css";
 import "./styles/controls.css";

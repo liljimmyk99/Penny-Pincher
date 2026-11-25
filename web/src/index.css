@@ -1,0 +1,12 @@
+/*
+ * Tailwind CSS v4 and tw-animate-css for the shadcn/ui components (#165, #166).
+ *
+ * Tailwind's preflight (its CSS reset) is left out on purpose: it would change
+ * the look of the screens still styled by src/styles/*.css. It is added when
+ * those styles are removed (#180), by importing "tailwindcss/preflight.css"
+ * layer(base) here. Tokens move to shadcn's variables in #167.
+ */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "tw-animate-css";
