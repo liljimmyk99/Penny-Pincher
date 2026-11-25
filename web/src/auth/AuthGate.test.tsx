@@ -71,6 +71,26 @@ describe("AuthGate", () => {
     expect(await screen.findByRole("navigation", { name: "Main" })).toBeInTheDocument();
   });
 
+  it("marks the password invalid on wrong credentials without saying which was wrong", async () => {
+    const auth = fakeAuth(null);
+    auth.signIn.mockRejectedValueOnce(new ApiError(401, "invalid_credentials", "no"));
+    const { user } = renderApp(auth, () => Response.json(me));
+
+    await user.type(screen.getByLabelText("Username"), "sam");
+    await user.type(screen.getByLabelText("Password"), "a-wrong-password");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    const alert = await screen.findByRole("alert");
+    const password = screen.getByLabelText("Password");
+    expect(password).toBeInvalid();
+    expect(password).toHaveAccessibleDescription(alert.textContent ?? "");
+    expect(screen.getByLabelText("Username")).toBeValid();
+
+    await user.click(screen.getByRole("button", { name: "Show password" }));
+    expect(password).toHaveAttribute("type", "text");
+    expect(screen.getByRole("button", { name: "Hide password" })).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("returns to the sign-in screen with a notice when the token is rejected", async () => {
     const auth = fakeAuth("stale");
     renderApp(auth, () => error(401, "unauthenticated"));

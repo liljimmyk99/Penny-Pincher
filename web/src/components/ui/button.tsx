@@ -3,31 +3,36 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 import { Slot } from "radix-ui"
 
+/*
+ * App-wide rules (#169, web/AGENTS.md):
+ * - 44px tall by default (our minimum touch target; shadcn's is 36px). `sm` (36px)
+ *   is only for dense table rows, `icon` / `icon-sm` are the square icon buttons.
+ * - Colours come from our tokens: hover shades are their own tokens rather than
+ *   an opacity, and `success` is the green Save / confirm button.
+ * - The focus ring is 3px of the ring colour at 35%; invalid uses the danger-alert line.
+ */
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-md text-sm font-semibold whitespace-nowrap no-underline transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-ring/35 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-danger-alert-line aria-invalid:ring-danger-alert-line/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        default: "bg-primary text-primary-foreground hover:bg-primary-hover",
+        success: "bg-success text-success-foreground hover:bg-success-hover",
         destructive:
-          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40",
+          "bg-destructive text-destructive-foreground hover:bg-destructive-hover",
         outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+          "border border-input bg-card text-foreground shadow-xs hover:bg-accent hover:text-accent-foreground",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-        link: "text-primary underline-offset-4 hover:underline",
+          "bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground",
+        link: "bg-transparent text-link underline-offset-4 hover:text-link-hover hover:underline",
       },
       size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3",
-        xs: "h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5",
-        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
-        icon: "size-9",
-        "icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
-        "icon-sm": "size-8",
-        "icon-lg": "size-10",
+        default: "h-11 px-4 has-[>svg]:px-3",
+        sm: "h-9 gap-1.5 px-3 has-[>svg]:px-2.5",
+        icon: "size-11",
+        "icon-sm": "size-9",
       },
     },
     defaultVariants: {
@@ -37,16 +42,26 @@ const buttonVariants = cva(
   }
 )
 
+type ButtonSize = NonNullable<VariantProps<typeof buttonVariants>["size"]>
+
+/** An icon-only button has no text, so it must be named with `aria-label`. */
+type SizeProps =
+  | { size?: Exclude<ButtonSize, "icon" | "icon-sm"> }
+  | { size: "icon" | "icon-sm"; "aria-label": string }
+
+type ButtonProps = Omit<React.ComponentProps<"button">, "aria-label"> & {
+  "aria-label"?: string
+  variant?: VariantProps<typeof buttonVariants>["variant"]
+  asChild?: boolean
+} & SizeProps
+
 function Button({
   className,
   variant = "default",
   size = "default",
   asChild = false,
   ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
-  }) {
+}: ButtonProps) {
   const Comp = asChild ? Slot.Root : "button"
 
   return (
@@ -61,3 +76,4 @@ function Button({
 }
 
 export { Button, buttonVariants }
+export type { ButtonProps }

@@ -26,7 +26,8 @@ h2 {
   margin: 0;
 }
 
-:focus-visible {
+/* Not on the shadcn/ui components (data-slot), which draw their own 3px ring (#169). */
+:where(:not([data-slot])):focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }

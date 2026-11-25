@@ -1,12 +1,14 @@
+import { Eye, EyeOff } from "lucide-react";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
+import { FormField } from "@/components/FormField";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ApiError, errorMessage } from "../api";
 import { Brand } from "../components/Brand";
 import {
   AlertIcon,
   ChartIcon,
   CopyIcon,
-  EyeIcon,
-  EyeOffIcon,
   LockIcon,
   PlusCircleIcon,
 } from "../components/icons";
@@ -68,54 +70,54 @@ export function SignInScreen({ notice }: { notice: SessionNotice | null }) {
             )}
 
             <div className="signin__fields">
-              <label className="signin__field">
-                <span className="field-label">Username</span>
-                <input
-                  className="field"
-                  type="text"
-                  name="username"
-                  autoComplete="username"
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  required
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                />
-              </label>
-
-              <div className="signin__field">
-                <label className="field-label" htmlFor={`${ids}-password`}>
-                  Password
-                </label>
-                <div className="signin__password">
-                  <input
-                    id={`${ids}-password`}
-                    className="field"
-                    type={showPassword ? "text" : "password"}
-                    name="password"
-                    autoComplete="current-password"
+              <FormField label="Username">
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="text"
+                    name="username"
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    aria-invalid={credentialError}
-                    aria-describedby={credentialError ? errorId : undefined}
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                   />
-                  <button
-                    type="button"
-                    className="signin__toggle"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    aria-pressed={showPassword}
-                    onClick={() => setShowPassword((v) => !v)}
-                  >
-                    {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-                  </button>
-                </div>
-              </div>
+                )}
+              </FormField>
+
+              <FormField label="Password" invalid={credentialError} describedBy={credentialError ? errorId : undefined}>
+                {(control) => (
+                  <div className="relative">
+                    <Input
+                      {...control}
+                      className="pr-12"
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      autoComplete="current-password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="absolute top-1 right-1 text-muted-foreground [&_svg:not([class*='size-'])]:size-[18px]"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      aria-pressed={showPassword}
+                      onClick={() => setShowPassword((v) => !v)}
+                    >
+                      {showPassword ? <EyeOff /> : <Eye />}
+                    </Button>
+                  </div>
+                )}
+              </FormField>
             </div>
 
-            <button type="submit" className="btn btn--primary btn--block" disabled={busy}>
+            <Button type="submit" className="w-full" disabled={busy}>
               {busy ? "Signing in…" : "Sign in"}
-            </button>
+            </Button>
 
             <p className="signin__note">
               New here, or forgot your password? Accounts are created and passwords are reset by an admin. Ask

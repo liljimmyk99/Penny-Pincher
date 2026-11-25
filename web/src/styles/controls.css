@@ -1,15 +1,18 @@
 /* Shared controls: buttons, text fields, inline alerts. Colours come from tokens.css. */
 
-a {
+/* :where() keeps these at element specificity, and skips the shadcn/ui
+   components (data-slot), whose Tailwind utilities are in a cascade layer that
+   these unlayered rules would otherwise beat (#169). */
+a:where(:not([data-slot])) {
   color: var(--color-link);
 }
 
-a:hover {
+a:where(:not([data-slot])):hover {
   color: var(--color-link-hover);
 }
 
-button,
-input {
+button:where(:not([data-slot])),
+input:where(:not([data-slot])) {
   font: inherit;
   color: inherit;
 }
