@@ -6,7 +6,8 @@ describe("errorMessage", () => {
     expect(errorMessage(ApiError.network(new TypeError("x")))).toMatch(/can't reach the server/i);
     expect(errorMessage(new ApiError(401, "unauthenticated", "token expired"))).toMatch(/sign in again/i);
     expect(errorMessage(new ApiError(401, "session_expired", "too old"))).toMatch(/sign in again/i);
-    expect(errorMessage(new ApiError(403, "not_allowlisted", "uid abc"))).toMatch(/ask an admin/i);
+    expect(errorMessage(new ApiError(401, "invalid_credentials", "x"))).toMatch(/wrong username or password/i);
+    expect(errorMessage(new ApiError(403, "password_change_required", "x"))).toMatch(/new password/i);
     expect(errorMessage(new ApiError(500, "internal", "boom"))).toMatch(/went wrong on the server/i);
   });
 
@@ -47,10 +48,10 @@ describe("fieldErrors", () => {
 });
 
 describe("isSessionError", () => {
-  it("is true only for unauthenticated, session_expired and not_allowlisted", () => {
+  it("is true only for unauthenticated, session_expired and password_change_required", () => {
     expect(isSessionError(new ApiError(401, "unauthenticated", ""))).toBe(true);
     expect(isSessionError(new ApiError(401, "session_expired", ""))).toBe(true);
-    expect(isSessionError(new ApiError(403, "not_allowlisted", ""))).toBe(true);
+    expect(isSessionError(new ApiError(403, "password_change_required", ""))).toBe(true);
     expect(isSessionError(new ApiError(403, "admin_required", ""))).toBe(false);
   });
 });

@@ -32,7 +32,6 @@ const status: Schemas["AdminStatus"] = {
     next_weekly_at: "2026-11-08T03:00:00Z",
     next_monthly_at: "2026-12-01T03:00:00Z",
   },
-  auth_provider: { status: "ok", checked_at: stamp },
 };
 
 function renderPage(items: Schemas["Backup"][], overrides: { status?: Schemas["AdminStatus"]; download?: Response } = {}) {
@@ -50,7 +49,7 @@ function renderPage(items: Schemas["Backup"][], overrides: { status?: Schemas["A
     if (pathname.endsWith("/download")) return overrides.download ?? new Response("x", { status: 200 });
     return Response.json({ error: { code: "not_found", message: "no" } }, { status: 404 });
   }) as unknown as typeof globalThis.fetch;
-  const api = createApiClient({ getToken: async () => "t", baseUrl: "http://api.test", fetch });
+  const api = createApiClient({ getToken: () => "t", baseUrl: "http://api.test", fetch });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <ApiProvider client={api} queryClient={queryClient}>
@@ -61,19 +60,13 @@ function renderPage(items: Schemas["Backup"][], overrides: { status?: Schemas["A
 }
 
 describe("AdminPage", () => {
-  it("shows the four status tiles", async () => {
+  it("shows the status tiles", async () => {
     renderPage([backup("1", "weekly")]);
     const tiles = await screen.findByRole("region", { name: "App status" });
     expect(within(tiles).getByText("1.2.3")).toBeInTheDocument();
     expect(within(tiles).getByText("1d 1h")).toBeInTheDocument();
     expect(within(tiles).getByText("1.5 KB")).toBeInTheDocument();
     expect(within(tiles).getByText("Weekly · Succeeded")).toBeInTheDocument();
-    expect(within(tiles).getByText("Firebase connected")).toBeInTheDocument();
-  });
-
-  it("flags an unreachable sign-in provider", async () => {
-    renderPage([], { status: { ...status, auth_provider: { status: "unreachable", checked_at: stamp } } });
-    expect(await screen.findByText("Firebase unreachable")).toBeInTheDocument();
   });
 
   it("lists backups with Download only for succeeded ones", async () => {
@@ -94,10 +87,11 @@ describe("AdminPage", () => {
     expect(await screen.findByText("Backup started")).toBeInTheDocument();
   });
 
-  it("links to the Firebase console and builds no account management", async () => {
+  it("has no Firebase link or sign-in provider tile", async () => {
     renderPage([]);
-    expect(screen.getByRole("link", { name: /firebase console/i })).toHaveAttribute("href", expect.stringContaining("console.firebase.google.com"));
-    expect(screen.queryByText(/create account|reset password|invite/i)).not.toBeInTheDocument();
+    await screen.findByRole("region", { name: "App status" });
+    expect(screen.queryByText(/firebase/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /console/i })).not.toBeInTheDocument();
   });
 });
 
@@ -112,17 +106,18 @@ describe("format", () => {
 });
 
 describe("Users tab", () => {
-  const user = (id: string, uid: string, role: Schemas["AdminUser"]["role"] = "member"): Schemas["AdminUser"] => ({
+  const user = (id: string, username: string, role: Schemas["AdminUser"]["role"] = "member"): Schemas["AdminUser"] => ({
     id,
-    firebase_uid: uid,
-    email: `${uid}@example.com`,
+    username,
+    email: `${username}@example.com`,
     display_name: null,
     role,
+    must_change_password: id !== "1",
     created_at: stamp,
   });
 
   function renderUsers(post: (body: unknown) => Response) {
-    let items = [user("1", "uid-admin", "admin")];
+    let items = [user("1", "root", "admin")];
     const bodies: unknown[] = [];
     const fetch = (async (req: Request) => {
       const { pathname } = new URL(req.url);
@@ -132,13 +127,13 @@ describe("Users tab", () => {
         const body = await req.json();
         bodies.push(body);
         const res = post(body);
-        if (res.ok) items = [...items, user("2", body.firebase_uid)];
+        if (res.ok) items = [...items, user("2", body.username)];
         return res;
       }
       if (pathname === "/v1/admin/users") return Response.json({ items });
       return Response.json({ error: { code: "not_found", message: "no" } }, { status: 404 });
     }) as unknown as typeof globalThis.fetch;
-    const api = createApiClient({ getToken: async () => "t", baseUrl: "http://api.test", fetch });
+    const api = createApiClient({ getToken: () => "t", baseUrl: "http://api.test", fetch });
     render(
       <ApiProvider client={api} queryClient={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <AdminPage />
@@ -147,35 +142,51 @@ describe("Users tab", () => {
     return { bodies, user: userEvent.setup() };
   }
 
-  it("lists users and adds one by Firebase uid", async () => {
+  it("lists users and adds one with an initial password", async () => {
     const { bodies, user: u } = renderUsers((body) => Response.json(body, { status: 201 }));
     await u.click(screen.getByRole("tab", { name: "Users" }));
-    expect(await screen.findByText("uid-admin")).toBeInTheDocument();
+    expect(await screen.findByText("root")).toBeInTheDocument();
+    expect(screen.getByText("Set by user")).toBeInTheDocument();
 
     await u.click(screen.getByRole("button", { name: "Add user" }));
     const dialog = await screen.findByRole("dialog", { name: "Add user" });
-    expect(dialog).toHaveTextContent("nothing is changed in Firebase");
-    await u.type(within(dialog).getByLabelText("Firebase uid"), " uid-new ");
+    await u.type(within(dialog).getByLabelText("Username"), " newbie ");
+    await u.type(within(dialog).getByLabelText("Initial password"), "a-long-initial-password");
+    expect(within(dialog).getByRole("checkbox")).toBeChecked();
     await u.click(within(dialog).getByRole("button", { name: "Add user" }));
 
-    expect(await screen.findByText("uid-new")).toBeInTheDocument();
+    expect(await screen.findByText("newbie")).toBeInTheDocument();
     expect(screen.getByText("User added")).toBeInTheDocument();
-    expect(bodies).toEqual([{ firebase_uid: "uid-new", email: null, display_name: null, role: "member" }]);
+    expect(screen.getByText("Must change at sign-in")).toBeInTheDocument();
+    expect(bodies).toEqual([
+      {
+        username: "newbie",
+        password: "a-long-initial-password",
+        must_change_password: true,
+        email: null,
+        display_name: null,
+        role: "member",
+      },
+    ]);
   });
 
-  it("requires a uid and shows a duplicate as an error", async () => {
+  it("requires a username and a long password, and shows a taken username", async () => {
     const { bodies, user: u } = renderUsers(() =>
-      Response.json({ error: { code: "user_exists", message: "A user with this Firebase uid has already been added." } }, { status: 409 }),
+      Response.json({ error: { code: "user_exists", message: "That username is already taken." } }, { status: 409 }),
     );
     await u.click(screen.getByRole("tab", { name: "Users" }));
     await u.click(await screen.findByRole("button", { name: "Add user" }));
     const dialog = await screen.findByRole("dialog", { name: "Add user" });
     await u.click(within(dialog).getByRole("button", { name: "Add user" }));
-    expect(within(dialog).getByText("Paste the Firebase uid.")).toBeInTheDocument();
+    expect(within(dialog).getByText("Enter a username.")).toBeInTheDocument();
+    await u.type(within(dialog).getByLabelText("Username"), "root");
+    await u.type(within(dialog).getByLabelText("Initial password"), "short");
+    await u.click(within(dialog).getByRole("button", { name: "Add user" }));
+    expect(within(dialog).getByText("Use at least 12 characters.")).toBeInTheDocument();
     expect(bodies).toHaveLength(0);
 
-    await u.type(within(dialog).getByLabelText("Firebase uid"), "uid-admin");
+    await u.type(within(dialog).getByLabelText("Initial password"), "-now-long-enough");
     await u.click(within(dialog).getByRole("button", { name: "Add user" }));
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent("already been added");
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("already taken");
   });
 });

@@ -2,14 +2,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 import { errorMessage, isSessionError, useMe, ApiError } from "../api";
 import { useSession, useSessionState } from "./context";
+import { ChangePasswordScreen } from "./ChangePasswordScreen";
 import { SignInScreen } from "./SignInScreen";
 import { Splash, StatusScreen } from "./StatusScreen";
 
 /**
- * Renders the app only for a signed-in, allowlisted user:
- * splash while Firebase restores the session, the sign-in screen when signed
- * out, then `/v1/me` before anything else. A 403 `not_allowlisted` from the API
- * signs the user out (see `Session.end`) and the sign-in screen says why.
+ * Renders the app only for a signed-in user: the sign-in screen when signed
+ * out; otherwise the splash while `GET /v1/me` checks the stored token, then
+ * the forced Change password page if the password must change, then the app.
+ * A 401 from any request signs the user out (see `Session.end`).
  */
 export function AuthGate({ children }: { children: ReactNode }) {
   const state = useSessionState();
@@ -20,25 +21,25 @@ export function AuthGate({ children }: { children: ReactNode }) {
     if (state.status === "signed_out") queryClient.clear();
   }, [state.status, queryClient]);
 
-  switch (state.status) {
-    case "restoring":
-      return <Splash />;
-    case "signed_out":
-      return <SignInScreen notice={state.notice} />;
-    case "signed_in":
-      return <Allowlisted key={state.user.uid}>{children}</Allowlisted>;
-  }
+  if (state.status === "signed_out") return <SignInScreen notice={state.notice} />;
+  return <CheckedSession mustChange={state.mustChange}>{children}</CheckedSession>;
 }
 
-function Allowlisted({ children }: { children: ReactNode }) {
+function CheckedSession({ mustChange, children }: { mustChange: boolean; children: ReactNode }) {
   const me = useMe();
-  if (me.isSuccess) return <>{children}</>;
+  const queryClient = useQueryClient();
+  if (me.isSuccess) {
+    if (mustChange || me.data.must_change_password) {
+      return <ChangePasswordScreen onChanged={() => void queryClient.invalidateQueries()} />;
+    }
+    return <>{children}</>;
+  }
   // A session error is already signing us out; keep the splash up until it does.
   if (me.isPending || (me.error instanceof ApiError && isSessionError(me.error))) return <Splash />;
   return <MeFailed error={me.error} retry={() => void me.refetch()} />;
 }
 
-/** `/v1/me` failed for a reason other than access (network, server error). */
+/** `/v1/me` failed for a reason other than the session (network, server error). */
 function MeFailed({ error, retry }: { error: unknown; retry: () => void }) {
   const session = useSession();
   const [signingOut, setSigningOut] = useState(false);

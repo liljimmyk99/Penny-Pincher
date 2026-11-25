@@ -80,7 +80,7 @@ export function useAdminUsers() {
   });
 }
 
-/** Adds a user to the database. Nothing is created or changed in Firebase. */
+/** Adds a user with a username and initial password. */
 export function useAddUser() {
   const api = useApi();
   const queryClient = useQueryClient();

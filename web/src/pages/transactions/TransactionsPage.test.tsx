@@ -168,7 +168,7 @@ function renderPage(path = `/transactions?month=${MONTH}`, setup?: (state: State
   const backend = fakeBackend(setup);
   const client = createApiClient({
     baseUrl: "http://api.test",
-    getToken: async () => "tok",
+    getToken: () => "tok",
     fetch: backend.fetch as unknown as typeof fetch,
   });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });

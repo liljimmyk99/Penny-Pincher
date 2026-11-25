@@ -66,6 +66,5 @@ function adminStatus(): Schemas["AdminStatus"] {
       next_weekly_at: at,
       next_monthly_at: at,
     },
-    auth_provider: { status: "ok", checked_at: at },
   };
 }

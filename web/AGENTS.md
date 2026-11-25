@@ -16,7 +16,6 @@ Read the root `AGENTS.md` first. This file adds rules specific to the React web 
   - **Token storage:** the session token (never financial data) is kept in `localStorage` under one key so a 30-day session survives restarts. It is cleared on sign-out, on `unauthenticated` / `session_expired`, and when the password is changed elsewhere. The CSP below is what limits what can read it.
   - The session store (`createSession`) is the API client's `onSessionError`. A user flagged `must_change_password` can only reach the Change password screen and Sign out.
   - Never log or put the password, the token or the username in a URL, query string or error report.
-  - *(Until the implementation lands, the Firebase SDK and `src/auth/firebase.ts` remain in the code.)*
 - **Routing: React Router** (`react-router`). Routes live in `src/App.tsx` (`AppRoutes`) inside `AppShell` (`src/shell`); the sidebar order is `NAV_ITEMS` in `src/shell/navigation.ts`. Each screen renders a `Page` (`src/pages/Page.tsx`), which sets the tab title and gives the `h1` that takes focus after navigation. Tests render `AppRoutes` in a `MemoryRouter`.
 - **No UI component library.** Build our own small components on the design tokens below. Radix UI primitives (unstyled) may be used for behavior that is hard to get right accessibly: dialogs, alert dialogs, popovers, menus, toggles and tooltips. All styling stays ours.
 - **No charting library.** The approved charts (root §6.11) are hand-built React components, the same way the design canvas draws them:
@@ -247,7 +246,6 @@ Reached from the account menu; hidden from members. **v1 builds app status, back
   - Reads `GET /v1/admin/status` and `GET /v1/admin/backups`; the list polls every 2s while any backup is `running`. "Back up now" posts to `/v1/admin/backups`, toasts "Backup started", and toasts "Backup finished" (or "Backup failed") when that backup leaves `running`.
   - Download fetches the encrypted archive through the API client (so the bearer token is sent) and saves it as a blob; it is offered only for succeeded backups.
   - Tabs ("Status & backups", "Users") are local state in `AdminPage`. `UsersSection` reads `GET /v1/admin/users`; `AddUserDialog` posts `POST /v1/admin/users` and `ResetPasswordDialog` posts `POST /v1/admin/users/{id}/password` (hooks `useAdminUsers`, `useAddUser`, `useResetUserPassword`). A blank field is caught client-side, other failures show `fieldErrors` inline or the `errorMessage` (e.g. `user_exists`) in an alert.
-  - *(As built today the dialog still takes a Firebase uid and the header still links to the Firebase console; that code is replaced by the implementation issue for #182.)*
 
 ### Import (Excel)
 Root §6.14; API `imports` routes. One page with four stages and a step indicator (Get template, Upload, Review, Import).

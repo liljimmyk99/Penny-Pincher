@@ -156,7 +156,7 @@ function renderPage(templates: Tpl[] = [standardMonth()]) {
   const backend = fakeBackend(templates);
   const client = createApiClient({
     baseUrl: "http://api.test",
-    getToken: async () => "tok",
+    getToken: () => "tok",
     fetch: backend.fetch as unknown as typeof fetch,
   });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });

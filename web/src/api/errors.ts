@@ -66,12 +66,12 @@ export function isErrorBody(body: unknown): body is ErrorBody {
   );
 }
 
-/** True for errors that mean the session is unusable (sign the user out). */
+/** True for errors the session store handles: sign out, or route to Change password. */
 export function isSessionError(err: ApiError): boolean {
   return (
     err.code === "unauthenticated" ||
     err.code === "session_expired" ||
-    err.code === "not_allowlisted"
+    err.code === "password_change_required"
   );
 }
 
@@ -87,7 +87,9 @@ const MESSAGES: Partial<Record<ApiErrorCode, string>> = {
   unexpected_response: GENERIC,
   unauthenticated: "Your session has expired. Please sign in again.",
   session_expired: "Your session has expired. Please sign in again.",
-  not_allowlisted: "This account isn't set up for Penny Pincher. Ask an admin to add you.",
+  invalid_credentials: "Wrong username or password. Check both and try again.",
+  weak_password: "That password is too weak. Use at least 12 characters.",
+  password_change_required: "You need to choose a new password before you can continue.",
   admin_required: "Only admins can do that.",
   not_found: "That item no longer exists. It may have been deleted.",
   not_implemented: "This isn't available yet.",

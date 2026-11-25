@@ -12,7 +12,7 @@ export function StatusScreen({ children }: { children: ReactNode }) {
   );
 }
 
-/** Shown while Firebase restores a saved session and while `/v1/me` loads. */
+/** Shown while `GET /v1/me` checks the stored session token. */
 export function Splash() {
   return (
     <StatusScreen>

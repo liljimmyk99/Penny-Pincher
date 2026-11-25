@@ -1,11 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { ApiError } from "../api";
 import { fakeAuth, type FakeAuth } from "../test/fakeAuth";
-import { createSession } from "./session";
+import { createSession, type SessionNotice } from "./session";
 import { SessionProvider } from "./SessionProvider";
 import { SignInScreen } from "./SignInScreen";
-import { AuthError } from "./types";
-import type { SessionNotice } from "./session";
 
 function renderScreen(auth: FakeAuth = fakeAuth(null), notice: SessionNotice | null = null) {
   const session = createSession(auth);
@@ -17,29 +16,30 @@ function renderScreen(auth: FakeAuth = fakeAuth(null), notice: SessionNotice | n
   return { auth, session, user: userEvent.setup() };
 }
 
+async function submit(user: ReturnType<typeof userEvent.setup>, name = "sam", pw = "correct horse") {
+  await user.type(screen.getByLabelText("Username"), name);
+  await user.type(screen.getByLabelText("Password"), pw);
+  await user.click(screen.getByRole("button", { name: "Sign in" }));
+}
+
 describe("SignInScreen", () => {
-  it("offers Google and email sign-in, and no sign-up", () => {
+  it("asks for a username and password, with no Google, reset link or sign-up", () => {
     renderScreen();
     expect(screen.getByRole("heading", { level: 1, name: "Sign in" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Email")).toHaveAttribute("type", "email");
+    expect(screen.getByLabelText("Username")).toHaveAttribute("type", "text");
     expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
-    expect(screen.getByText(/accounts are created by an admin/i)).toBeInTheDocument();
+    expect(screen.getByText(/ask them/i)).toHaveTextContent(/created and passwords are reset by an admin/i);
+    expect(screen.queryByRole("button", { name: /google/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/forgot password\?/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /sign up|create account/i })).not.toBeInTheDocument();
   });
 
-  it("signs in with Google", async () => {
+  it("signs in with the trimmed username", async () => {
     const { auth, user } = renderScreen();
-    await user.click(screen.getByRole("button", { name: "Continue with Google" }));
-    expect(auth.signInWithGoogle).toHaveBeenCalledTimes(1);
-  });
-
-  it("signs in with email and password", async () => {
-    const { auth, user } = renderScreen();
-    await user.type(screen.getByLabelText("Email"), "  user@example.com ");
+    await user.type(screen.getByLabelText("Username"), "  sam ");
     await user.type(screen.getByLabelText("Password"), "correct horse");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
-    expect(auth.signInWithEmail).toHaveBeenCalledWith("user@example.com", "correct horse");
+    expect(auth.signIn).toHaveBeenCalledWith("sam", "correct horse");
   });
 
   it("shows and hides the password", async () => {
@@ -55,88 +55,48 @@ describe("SignInScreen", () => {
     expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
   });
 
-  it("shows an inline alert and marks the password invalid for wrong credentials", async () => {
+  it("shows one inline error for wrong credentials and marks the password invalid", async () => {
     const auth = fakeAuth(null);
-    auth.signInWithEmail.mockRejectedValueOnce(new AuthError("invalid_credentials"));
+    auth.signIn.mockRejectedValueOnce(new ApiError(401, "invalid_credentials", "no"));
     const { user } = renderScreen(auth);
-
-    expect(screen.getByLabelText("Password")).toHaveAttribute("aria-invalid", "false");
-    await user.type(screen.getByLabelText("Email"), "user@example.com");
-    await user.type(screen.getByLabelText("Password"), "wrong");
-    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    await submit(user, "sam", "wrong");
 
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/email and password don't match/i);
+    expect(alert).toHaveTextContent("Wrong username or password. Check both and try again.");
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
     const password = screen.getByLabelText("Password");
-    expect(password).toHaveAttribute("aria-invalid", "true");
-    expect(password).toHaveAccessibleDescription(/don't match/i);
+    expect(password).toBeInvalid();
+    expect(password).toHaveAccessibleDescription(/wrong username or password/i);
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
   });
 
-  it("shows other failures without marking the password", async () => {
+  it("explains a rate limit", async () => {
     const auth = fakeAuth(null);
-    auth.signInWithGoogle.mockRejectedValueOnce(new AuthError("popup_blocked"));
+    auth.signIn.mockRejectedValueOnce(new ApiError(429, "rate_limited", "slow down"));
     const { user } = renderScreen(auth);
-
-    await user.click(screen.getByRole("button", { name: "Continue with Google" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(/allow pop-ups/i);
-    expect(screen.getByLabelText("Password")).toHaveAttribute("aria-invalid", "false");
+    await submit(user);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Too many attempts. Try again in a minute.");
+    expect(screen.getByLabelText("Password")).not.toBeInvalid();
   });
 
-  it("stays quiet when the Google popup is closed", async () => {
+  it("explains a network failure", async () => {
     const auth = fakeAuth(null);
-    auth.signInWithGoogle.mockRejectedValueOnce(new AuthError("cancelled"));
+    auth.signIn.mockRejectedValueOnce(ApiError.network(new TypeError("offline")));
     const { user } = renderScreen(auth);
-
-    await user.click(screen.getByRole("button", { name: "Continue with Google" }));
-
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
+    await submit(user);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/can't reach the server/i);
   });
 
-  it("resets a forgotten password, then confirms by email", async () => {
-    const { auth, user } = renderScreen();
-    await user.type(screen.getByLabelText("Email"), "user@example.com");
-    await user.click(screen.getByRole("button", { name: "Forgot password?" }));
-
-    const heading = screen.getByRole("heading", { level: 1, name: "Reset your password" });
-    expect(heading).toHaveFocus();
-    // The email typed on the sign-in form carries over.
-    expect(screen.getByLabelText("Email")).toHaveValue("user@example.com");
-
-    await user.click(screen.getByRole("button", { name: "Send reset link" }));
-
-    expect(auth.sendPasswordReset).toHaveBeenCalledWith("user@example.com");
-    expect(await screen.findByRole("heading", { level: 1, name: "Reset link sent" })).toHaveFocus();
-    expect(screen.getByRole("status")).toHaveTextContent(/check your email/i);
-
-    await user.click(screen.getByRole("button", { name: "Back to sign in" }));
-    expect(screen.getByRole("heading", { level: 1, name: "Sign in" })).toHaveFocus();
-  });
-
-  it("keeps the reset form open when sending fails", async () => {
+  it("disables the button while signing in", async () => {
     const auth = fakeAuth(null);
-    auth.sendPasswordReset.mockRejectedValueOnce(new AuthError("invalid_email"));
+    auth.signIn.mockImplementationOnce(() => new Promise(() => {}));
     const { user } = renderScreen(auth);
-
-    await user.click(screen.getByRole("button", { name: "Forgot password?" }));
-    await user.type(screen.getByLabelText("Email"), "user@example.com");
-    await user.click(screen.getByRole("button", { name: "Send reset link" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(/valid email/i);
-    expect(screen.getByRole("heading", { level: 1, name: "Reset your password" })).toBeInTheDocument();
+    await submit(user);
+    expect(await screen.findByRole("button", { name: "Signing in…" })).toBeDisabled();
   });
 
-  it("explains a refused account, naming the email", () => {
-    renderScreen(fakeAuth(null), { kind: "no_access", email: "someone@example.com" });
-    const alert = screen.getByRole("alert");
-    expect(alert).toHaveTextContent(/no access/i);
-    expect(alert).toHaveTextContent("someone@example.com");
-    expect(alert).toHaveTextContent(/ask an admin/i);
-  });
-
-  it("explains an expired session", () => {
+  it("says the session expired", () => {
     renderScreen(fakeAuth(null), { kind: "expired" });
-    expect(screen.getByRole("alert")).toHaveTextContent(/session has expired/i);
+    expect(screen.getByRole("alert")).toHaveTextContent("Your session has expired. Please sign in again.");
   });
 });

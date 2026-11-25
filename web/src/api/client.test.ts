@@ -12,9 +12,16 @@ function json(status: number, body: unknown): Response {
 
 const errorBody = (code: string, message = "msg") => ({ error: { code, message } });
 
-const me = { id: "1", email: "user@example.com", display_name: "Test User", role: "member" };
+const me = {
+  id: "1",
+  username: "sam",
+  email: null,
+  display_name: "Test User",
+  role: "member",
+  must_change_password: false,
+};
 
-function setup(responses: Array<Response | Error>, getToken: TokenGetter = async () => "tok-1") {
+function setup(responses: Array<Response | Error>, getToken: TokenGetter = () => "tok-1") {
   const seen: Request[] = [];
   const fetchMock = vi.fn(async (req: Request) => {
     seen.push(req);
@@ -49,41 +56,13 @@ describe("createApiClient", () => {
   });
 
   it("sends no Authorization header when signed out", async () => {
-    const { api, seen } = setup([json(200, { status: "ok", version: "0", uptime_seconds: 1 })], async () => null);
+    const { api, seen } = setup([json(200, { status: "ok", version: "0", uptime_seconds: 1 })], () => null);
     await unwrap(api.GET("/healthz"));
     expect(seen[0].headers.has("Authorization")).toBe(false);
   });
 
-  it("retries a 401 once with a force-refreshed token", async () => {
-    const tokens = ["stale", "fresh"];
-    const { api, seen, getToken, onSessionError } = setup(
-      [json(401, errorBody("unauthenticated")), json(200, me)],
-      async () => tokens.shift() ?? null,
-    );
-
-    await expect(unwrap(api.GET("/v1/me"))).resolves.toEqual(me);
-
-    expect(getToken).toHaveBeenNthCalledWith(1, { forceRefresh: false });
-    expect(getToken).toHaveBeenNthCalledWith(2, { forceRefresh: true });
-    expect(seen.map((r) => r.headers.get("Authorization"))).toEqual(["Bearer stale", "Bearer fresh"]);
-    expect(onSessionError).not.toHaveBeenCalled();
-  });
-
-  it("replays the request body on retry", async () => {
-    const { api, seen } = setup([
-      json(401, errorBody("unauthenticated")),
-      json(201, { id: "9", name: "Pets" }),
-    ]);
-
-    await unwrap(api.POST("/v1/categories", { body: { name: "Pets", is_saving: false } }));
-
-    expect(seen).toHaveLength(2);
-    expect(await seen[1].json()).toEqual({ name: "Pets", is_saving: false });
-  });
-
-  it("reports a 401 that survives the refresh as a session error", async () => {
-    const { api, onSessionError } = setup([
-      json(401, errorBody("unauthenticated")),
+  it("does not refresh or retry a 401: it reports it as a session error", async () => {
+    const { api, seen, getToken, onSessionError } = setup([
       json(401, errorBody("unauthenticated", "token expired")),
     ]);
 
@@ -91,26 +70,27 @@ describe("createApiClient", () => {
 
     expect(err).toBeInstanceOf(ApiError);
     expect(err).toMatchObject({ status: 401, code: "unauthenticated", message: "token expired" });
+    expect(seen).toHaveLength(1);
+    expect(getToken).toHaveBeenCalledTimes(1);
     expect(onSessionError).toHaveBeenCalledTimes(1);
     expect(onSessionError.mock.calls[0][0]).toMatchObject({ code: "unauthenticated" });
   });
 
-  it("signs out on session_expired without retrying, since a refresh keeps the sign-in time", async () => {
-    const { api, seen, getToken, onSessionError } = setup([json(401, errorBody("session_expired"))]);
+  it("reports session_expired as a session error", async () => {
+    const { api, seen, onSessionError } = setup([json(401, errorBody("session_expired"))]);
 
     await expect(unwrap(api.GET("/v1/me"))).rejects.toMatchObject({ status: 401, code: "session_expired" });
 
     expect(seen).toHaveLength(1);
-    expect(getToken).toHaveBeenCalledTimes(1);
-    expect(getToken).toHaveBeenCalledWith({ forceRefresh: false });
     expect(onSessionError).toHaveBeenCalledTimes(1);
     expect(onSessionError.mock.calls[0][0]).toMatchObject({ code: "session_expired" });
   });
 
-  it("reports not_allowlisted as a session error", async () => {
-    const { api, onSessionError } = setup([json(403, errorBody("not_allowlisted"))]);
-    await expect(unwrap(api.GET("/v1/me"))).rejects.toMatchObject({ code: "not_allowlisted" });
+  it("reports password_change_required so the app can route to Change password", async () => {
+    const { api, onSessionError } = setup([json(403, errorBody("password_change_required"))]);
+    await expect(unwrap(api.GET("/v1/categories"))).rejects.toMatchObject({ code: "password_change_required" });
     expect(onSessionError).toHaveBeenCalledTimes(1);
+    expect(onSessionError.mock.calls[0][0]).toMatchObject({ code: "password_change_required" });
   });
 
   it("leaves admin_required to the caller", async () => {

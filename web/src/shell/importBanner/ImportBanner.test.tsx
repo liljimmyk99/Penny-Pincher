@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { ApiProvider, createApiClient, followImport } from "../../api";
-import { fakeAuth, testUser } from "../../test/fakeAuth";
+import { fakeAuth } from "../../test/fakeAuth";
 import { ImportBanner } from "./ImportBanner";
 
 const enc = new TextEncoder();
@@ -27,7 +27,7 @@ const record = (status: string) => ({ ...summary, status, entries_imported: 1000
 
 function makeApi(handler: (path: string, calls: string[]) => Response) {
   const calls: string[] = [];
-  const auth = fakeAuth(testUser);
+  const auth = fakeAuth("test-token");
   const fetchMock = vi.fn(async (input: Request | string) => {
     const url = new URL(typeof input === "string" ? input : input.url);
     calls.push(url.pathname + url.search);

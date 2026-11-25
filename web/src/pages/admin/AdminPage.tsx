@@ -7,8 +7,7 @@ import {
   useStartBackup,
   type Schemas,
 } from "../../api";
-import { firebaseConfigFromEnv } from "../../auth/config";
-import { AlertIcon, DownloadIcon, LinkIcon } from "../../components/icons";
+import { AlertIcon, DownloadIcon } from "../../components/icons";
 import { Toast } from "../../components/Toast";
 import { Page } from "../Page";
 import { UsersSection } from "./UsersSection";
@@ -21,17 +20,8 @@ const KIND_LABEL: Record<Schemas["Backup"]["kind"], string> = {
   manual: "Manual",
 };
 
-/** Where account tasks live in v1 (web/AGENTS.md "Admin panel"). */
-function firebaseConsoleUrl(): string {
-  const project = firebaseConfigFromEnv()?.projectId;
-  return project
-    ? `https://console.firebase.google.com/project/${encodeURIComponent(project)}/authentication/users`
-    : "https://console.firebase.google.com/";
-}
-
 /**
- * Admin dashboard: app status, backups and the Users tab (root §6.12). Firebase
- * accounts are still created in the Firebase console, linked from the header.
+ * Admin dashboard: app status, backups and the Users tab (root §6.12).
  */
 export function AdminPage() {
   const [tab, setTab] = useState<"status" | "users">("status");
@@ -39,13 +29,6 @@ export function AdminPage() {
     <Page
       title="Admin dashboard"
       eyebrow="Admin"
-      actions={
-        <a className="btn btn--ghost btn--sm" href={firebaseConsoleUrl()} target="_blank" rel="noreferrer">
-          <LinkIcon width={16} height={16} />
-          Firebase console
-          <span className="visually-hidden"> (opens in a new tab)</span>
-        </a>
-      }
     >
       <div role="tablist" aria-label="Admin sections" className="admin__tabs">
         {(
@@ -94,7 +77,6 @@ function StatusTiles() {
     );
   }
   const s = status.data;
-  const authOk = s.auth_provider.status === "ok";
   const last = s.backups.last_run;
   const nextRun = [s.backups.next_weekly_at, s.backups.next_monthly_at].sort()[0];
 
@@ -118,9 +100,6 @@ function StatusTiles() {
         <Line label="Last run" value={last ? formatDateTime(last.finished_at ?? last.started_at) : "—"} />
         <Line label="Next run" value={formatDateTime(nextRun)} />
         <Line label="Schedule" value={s.backups.schedule} />
-      </Tile>
-      <Tile title="Sign-in" tone={authOk ? "ok" : "bad"} value={authOk ? "Firebase connected" : "Firebase unreachable"}>
-        <Line label="Checked" value={formatDateTime(s.auth_provider.checked_at)} />
       </Tile>
     </section>
   );

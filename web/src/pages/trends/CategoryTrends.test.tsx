@@ -21,7 +21,7 @@ function renderTab() {
   };
   const fetchMock = vi.fn(async (req: Request) =>
     new URL(req.url).pathname === "/v1/trends/by-category" ? Response.json(data) : Response.json({}, { status: 404 }));
-  const client = createApiClient({ baseUrl: "http://api.test", getToken: async () => "tok", fetch: fetchMock as unknown as typeof fetch });
+  const client = createApiClient({ baseUrl: "http://api.test", getToken: () => "tok", fetch: fetchMock as unknown as typeof fetch });
   render(
     <ApiProvider client={client} queryClient={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <MemoryRouter initialEntries={["/trends?tab=category"]}><TrendsPage /></MemoryRouter>
