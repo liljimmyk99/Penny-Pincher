@@ -132,14 +132,14 @@ jobs:
       - uses: docker/setup-buildx-action@v4
       # Same build as the docker job (shared cache), loaded locally so Trivy can scan it.
       - name: Build backend image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: backend
           load: true
           tags: penny-pincher-backend:ci
           cache-from: type=gha,scope=backend
       - name: Build web image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: web
           load: true
@@ -178,7 +178,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: docker/setup-buildx-action@v4
       # Build only; nothing is pushed. The images need no build arguments or secrets.
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.image }}
           push: false
