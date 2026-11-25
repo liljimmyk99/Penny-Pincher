@@ -7,21 +7,21 @@ Read the root `AGENTS.md` first. This file adds rules specific to the native mac
 - SwiftUI, **Swift 6** language mode (complete strict concurrency checking), async/await
 - Talks only to the backend API described in `/api`. Keep the networking layer in one place and model types to match the spec.
   - **Client: `swift-openapi-generator`'s build plugin**, run on every build from `Services/API/openapi.yaml` (a symlink to `/api/openapi.yaml`) and `openapi-generator-config.yaml`. Nothing generated is committed. Tuist keeps non-Swift files out of a target's sources, so those two files join the target as resources, which is how the plugin finds them.
-  - `Services/API/APIClient.swift` wraps the generated `Client` with `AuthMiddleware` (bearer token, one retry after a refresh, session errors) and `ErrorMiddleware` (every 4xx/5xx becomes an `APIError` with the server's `code`, `message` and `details`), and maps responses to app types in `Models/`. View models depend on the `CategoriesAPI`, `EntriesAPI`, `TemplatesAPI`, `SummariesAPI` and `TrendsAPI` protocols (`LedgerAPI` is all of them), never on generated types.
-- Auth is Firebase Authentication via its Apple-platform SDK, behind `AuthService`. `Services/Auth/FirebaseAuthService.swift` is the only file that imports `FirebaseAuth`, `FirebaseCore` or `GoogleSignIn`.
-  - Google sign-in uses the `GoogleSignIn` SDK for the Google ID token, then signs in to Firebase with it.
-  - `SessionService` mirrors the web session: restoring, signed out (with a "no access" or "expired" notice), loading the account from `/v1/me`, signed in.
+  - `Services/API/APIClient.swift` wraps the generated `Client` with `AuthMiddleware` (bearer token from the session, no refresh and no retry, session errors; a `403 password_change_required` moves the session to the change-password state) and `ErrorMiddleware` (every 4xx/5xx becomes an `APIError` with the server's `code`, `message` and `details`), and maps responses to app types in `Models/`. View models depend on the `CategoriesAPI`, `EntriesAPI`, `TemplatesAPI`, `SummariesAPI` and `TrendsAPI` protocols (`LedgerAPI` is all of them), never on generated types.
+- Auth is the app's own username and password sign-in (root `AGENTS.md` §10, #182), behind `AuthService`. There is no third-party auth SDK. `Services/Auth/APIAuthService.swift` calls the generated client's `auth/login`, `auth/logout` and `auth/password`, and `Services/Auth/SessionTokenStore.swift` is the only file that reads or writes the session token (the Keychain).
+  - `SessionService` mirrors the web session: restoring, signed out (with an "expired" notice), loading the account from `/v1/me`, **password change required**, signed in.
+  - *(Until the implementation lands, `FirebaseAuthService` and the Firebase and `GoogleSignIn` packages remain in the code.)*
 - **Minimum macOS 26** (deployment target `26.0`; root `AGENTS.md` §10). Use current SwiftUI, Swift Charts and Observation APIs directly. Add an `#available` check only for an API newer than macOS 26.
 - **Project: Tuist.** `Project.swift` in this folder defines the app and test targets, packages, build settings, Info.plist keys and entitlements. Run `tuist generate` to create the Xcode project; the generated `.xcodeproj`/`.xcworkspace` are gitignored. The Tuist version is pinned in `.mise.toml` (`mise install`).
   - Packages use Xcode's own package integration (`packages:` in `Project.swift`). Tuist keeps the resolved versions in `.package.resolved`, which is committed.
-- **Config:** `Config/App.xcconfig` (committed defaults) includes the gitignored `Config/Local.xcconfig`, which holds the server address, the Firebase Apple app's values, the Google client id and your `DEVELOPMENT_TEAM`. Copy `Config/Local.example.xcconfig` to start. The values reach the app through Info.plist keys, and `Models/AppConfig.swift` checks them at launch: the server must be `https` (plain `http` only for `localhost`), and the Auth emulator is allowed only for a `demo-` project. A bad config shows a setup screen.
+- **Config:** `Config/App.xcconfig` (committed defaults) includes the gitignored `Config/Local.xcconfig`, which holds the server address and your `DEVELOPMENT_TEAM`. Copy `Config/Local.example.xcconfig` to start. The values reach the app through Info.plist keys, and `Models/AppConfig.swift` checks them at launch: the server must be `https` (plain `http` only for `localhost`; a tailnet name such as `*.ts.net` is `https`). A bad config shows a setup screen. The Firebase, Google and emulator values are removed with #182.
 
 ## Rules
 
 - **Money** is integer cents (`Int`). Format for display in one shared helper; never use `Double` for amounts.
 - **Dates** are `YYYY-MM-DD` calendar dates; do not let time zones shift them.
 - **Online-only in v1:** no local persistence of financial data. When offline or a request fails, show an error and block add/edit. (A cached read-only mode is planned later; do not build it now.) UI preferences (appearance, sidebar state) may be stored in `UserDefaults`/`@AppStorage`.
-- **Secrets:** auth tokens live only in the Keychain. The Firebase and Google SDKs put them there (the data-protection Keychain, so the app is signed with a team and a keychain access group); app code never stores or caches one. Never log amounts, merchants, notes, or tokens.
+- **Secrets:** the session token lives only in the Keychain (the data-protection Keychain, so the app is signed with a team and a keychain access group), written and read in `SessionTokenStore` only. Never keep a password after the sign-in or change-password call returns, and never put one in a view model's state beyond the field being edited. Never log amounts, merchants, notes, passwords or tokens.
 - Follow the **Architecture** section below: logic lives in view models, networking in `Services/API`, and every user-facing string in the string catalog.
 - Never edit the generated Xcode project, in Xcode or by hand: `tuist generate` overwrites it. New source files go in the target's folder (the manifest globs it); every other project change goes in `Project.swift`, then regenerate.
 
@@ -91,7 +91,9 @@ The canvas shows the web app. The Mac app matches its **behavior, content, data 
 
 Behavior for each screen is defined in `/web/AGENTS.md`. Native equivalents:
 
-- **Sign in:** a dedicated window or sheet shown before the main window. It offers Sign in with Google, email and password, and "Forgot password?" which sends a reset email. Show an inline error for wrong credentials and a progress indicator while restoring a session. No sign-up; explain that an admin creates accounts.
+- **Sign in:** replaces the main window's content until someone is signed in. Username and password (with a show/hide control) and Sign in; no Google and no "Forgot password?". Show one inline error for wrong credentials ("Wrong username or password. Check both and try again.") and a progress indicator while restoring a session. No sign-up; explain that an admin creates accounts and resets forgotten passwords. The web screen is the reference for copy and states.
+- **Change password:** shown instead of the app when the user must choose a new password (temporary password set or reset by an admin): Temporary password, New password, Repeat new password, a live checklist (at least 12 characters, different from the current one, both match) and **Sign out**. The same form opens as a sheet from the account menu's **Change password** item, with **Cancel** in place of Sign out. Changing the password signs out other devices and replaces the stored token.
+- **Admin:** the admin panel is web-only (root §6.12); the Mac app has no Users tab.
 - **Summary:**
   - Four figures: net income, spent, saved & invested, left over.
   - Clicking an income source opens a **sheet or popover** with that month's entries and an "All sources combined" total.
@@ -151,17 +153,17 @@ tuist generate                        # creates and opens PennyPincher.xcworkspa
     -destination 'platform=macOS' -skipPackagePluginValidation -allowProvisioningUpdates
   ```
 
-  Unit tests don't need signing (add `CODE_SIGNING_ALLOWED=NO`). Running the app does: Firebase needs the keychain access group, so set `DEVELOPMENT_TEAM`.
-- **Signing in locally without a Firebase project:** use the e2e Auth emulator (`npm run stack:up` in `/e2e`, port 19099) and run the API on this Mac against it:
+  Unit tests don't need signing (add `CODE_SIGNING_ALLOWED=NO`). Running the app does: the Keychain needs the keychain access group, so set `DEVELOPMENT_TEAM`.
+- **Signing in locally** (after #182): run the API on this Mac and create a test user with the CLI (it prompts for a password, so use a throwaway one):
 
   ```
   cd backend && go build -o /tmp/pp-api ./cmd/api
-  PORT=8080 DB_PATH=/tmp/pp-dev.db FIREBASE_PROJECT_ID=demo-penny-pincher \
-    FIREBASE_AUTH_EMULATOR_HOST=localhost:19099 /tmp/pp-api
+  PORT=8080 DB_PATH=/tmp/pp-dev.db /tmp/pp-api user add --username dev --role admin
+  PORT=8080 DB_PATH=/tmp/pp-dev.db /tmp/pp-api
   ```
 
-  Then use the emulator block at the bottom of `Local.example.xcconfig`. `npm run seed` in `/e2e` creates the emulator account in `e2e/AGENTS.md`; allowlist it on your API with `/tmp/pp-api user add --uid <its uid> --email <its email> --role admin` (same environment variables). Google sign-in is hidden with the emulator.
-- `EmulatorSignInTests` signs in for real against that setup. Its suite is disabled unless `TEST_RUNNER_PP_EMULATOR_HOST`, `TEST_RUNNER_PP_SERVER_URL`, `TEST_RUNNER_PP_TEST_EMAIL` and `TEST_RUNNER_PP_TEST_PASSWORD` are set on the `xcodebuild test` command.
+  The committed default for `PP_SERVER_URL` is already `http://localhost:8080`; then sign in as that user. To check as another user, add a second one and sign out and in.
+- `SignInIntegrationTests` signs in for real against that setup. Its suite is disabled unless `TEST_RUNNER_PP_SERVER_URL`, `TEST_RUNNER_PP_TEST_USERNAME` and `TEST_RUNNER_PP_TEST_PASSWORD` are set on the `xcodebuild test` command. *(Today's equivalent, `EmulatorSignInTests`, is replaced with #182.)*
 
 ## Quality
 
