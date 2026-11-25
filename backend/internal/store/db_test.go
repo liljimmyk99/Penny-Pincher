@@ -36,14 +36,14 @@ func TestMigrateIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	var n int
-	if err := db.QueryRow(`SELECT count(*) FROM schema_migrations`).Scan(&n); err != nil || n != 2 {
+	if err := db.QueryRow(`SELECT count(*) FROM schema_migrations`).Scan(&n); err != nil || n != 3 {
 		t.Fatalf("applied = %d, %v", n, err)
 	}
 }
 
 func TestNewUserTriggerSeedsProtectedRows(t *testing.T) {
 	db := NewTestDB(t)
-	res, err := db.Exec(`INSERT INTO users (firebase_uid) VALUES ('uid-1')`)
+	res, err := db.Exec(`INSERT INTO users (username, password_hash) VALUES ('user-1', 'x')`)
 	if err != nil {
 		t.Fatal(err)
 	}

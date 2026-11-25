@@ -303,10 +303,11 @@ func TestMigrate0002OnExistingSchema(t *testing.T) {
 	if err := migrate(ctx, db, fstest.MapFS{"0001_init.sql": {Data: first}}); err != nil {
 		t.Fatal(err)
 	}
-	uid, err := AddUser(ctx, db, NewUser{FirebaseUID: "uid-old", Role: RoleMember})
+	res, err := db.Exec(`INSERT INTO users (firebase_uid, role) VALUES ('uid-old', 'member')`) // the 0001 schema
 	if err != nil {
 		t.Fatal(err)
 	}
+	uid, _ := res.LastInsertId()
 	if _, err := db.Exec(`INSERT INTO income_entries (user_id, income_source_id, received_on, gross_cents, gross_taxable_cents, net_cents)
 		VALUES (?, (SELECT id FROM income_sources WHERE user_id = ?), '2020-01-01', 5, 5, 5)`, uid, uid); err != nil {
 		t.Fatal(err)

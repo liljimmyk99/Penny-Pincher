@@ -63,9 +63,8 @@ func New(w io.Writer, level string) *slog.Logger {
 // token, a query string or any financial data.
 const (
 	// EventAuthFailure is a refused request: a missing, invalid or revoked
-	// token, an expired session, an account not on the allowlist, or a
-	// member on an admin route. Attributes: reason, status, ip, method, path,
-	// and uid (Firebase) and user_id when known.
+	// token, an expired session, a failed sign-in, or a member on an admin
+	// route. Attributes: reason, status, ip, method, path, and user_id when known.
 	EventAuthFailure = "auth_failure"
 	// EventAdminAction is something an admin did: start or download a
 	// backup. Attributes: action, user_id, backup_id.
@@ -75,10 +74,15 @@ const (
 // Reasons for EventAuthFailure.
 const (
 	ReasonMissingToken   = "missing_token"
-	ReasonInvalidToken   = "invalid_token" // bad, expired, revoked, or the account is disabled or deleted
+	ReasonInvalidToken   = "invalid_token" // unknown or revoked session token
 	ReasonSessionExpired = "session_expired"
-	ReasonNotAllowlisted = "not_allowlisted"
 	ReasonAdminRequired  = "admin_required"
+	// ReasonInvalidCredentials is a failed sign-in or a wrong current
+	// password. Never logged with the username or password.
+	ReasonInvalidCredentials = "invalid_credentials"
+	// ReasonPasswordChangeRequired is a request refused because the user must
+	// choose a new password first.
+	ReasonPasswordChangeRequired = "password_change_required"
 )
 
 // Actions for EventAdminAction.
@@ -86,4 +90,5 @@ const (
 	ActionBackupStarted    = "backup_started"
 	ActionBackupDownloaded = "backup_downloaded"
 	ActionUserAdded        = "user_added"
+	ActionPasswordReset    = "password_reset"
 )

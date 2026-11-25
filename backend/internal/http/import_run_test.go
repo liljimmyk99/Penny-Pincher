@@ -78,7 +78,7 @@ func (a *testAPI) waitStatus(token, id string, want api.ImportStatus) api.Import
 
 func (a *testAPI) memberID() int64 {
 	var id int64
-	if err := a.db.QueryRow(`SELECT id FROM users WHERE firebase_uid = 'uid-member'`).Scan(&id); err != nil {
+	if err := a.db.QueryRow(`SELECT id FROM users WHERE username = 'member'`).Scan(&id); err != nil {
 		a.t.Fatal(err)
 	}
 	return id

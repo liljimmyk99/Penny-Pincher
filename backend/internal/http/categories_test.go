@@ -214,7 +214,7 @@ func TestDeleteCategoryHTTP(t *testing.T) {
 	a := newTestAPI(t)
 	food, other := a.category(tokMember, "Food"), a.category(tokMember, "Other")
 	var uid int64
-	a.db.QueryRow(`SELECT id FROM users WHERE firebase_uid = 'uid-member'`).Scan(&uid)
+	a.db.QueryRow(`SELECT id FROM users WHERE username = 'member'`).Scan(&uid)
 	res, _ := a.db.Exec(`INSERT INTO merchants (user_id, name) VALUES (?, 'Shop')`, uid)
 	merchant, _ := res.LastInsertId()
 	res, err := a.db.Exec(`INSERT INTO expenses (user_id, category_id, merchant_id, occurred_on, amount_cents) VALUES (?, ?, ?, '2026-03-01', 1234)`, uid, food.Id, merchant)
@@ -262,5 +262,5 @@ func TestCategoriesTenancyHTTP(t *testing.T) {
 func TestCategoriesNeedAuth(t *testing.T) {
 	a := newTestAPI(t)
 	wantError(t, a.call("GET", "/v1/categories", "", ""), http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated)
-	wantError(t, a.call("POST", "/v1/categories", tokStray, `{"name":"X"}`), http.StatusForbidden, api.ErrorErrorCodeNotAllowlisted)
+	wantError(t, a.call("POST", "/v1/categories", tokStray, `{"name":"X"}`), http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated)
 }

@@ -15,7 +15,7 @@ type Pinger interface {
 // GetHealth implements GET /healthz.
 func (s *Server) GetHealth(ctx context.Context, _ api.GetHealthRequestObject) (api.GetHealthResponseObject, error) {
 	h := api.Health{
-		Status:        api.HealthStatusOk,
+		Status:        api.Ok,
 		Version:       s.version,
 		UptimeSeconds: int(s.now().Sub(s.start).Seconds()),
 	}
@@ -23,7 +23,7 @@ func (s *Server) GetHealth(ctx context.Context, _ api.GetHealthRequestObject) (a
 		ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
 		if err := s.db.PingContext(ctx); err != nil {
-			h.Status = api.HealthStatusDegraded
+			h.Status = api.Degraded
 			return api.GetHealth503JSONResponse(h), nil
 		}
 	}

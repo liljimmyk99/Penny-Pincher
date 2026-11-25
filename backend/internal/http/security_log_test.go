@@ -62,7 +62,7 @@ func TestBackupStartAndDownloadAreLoggedAsAdminActions(t *testing.T) {
 	logs := captureLogs(t)
 	a := newBackupAPI(t, nil)
 	var adminID string
-	if err := a.db.QueryRow(`SELECT id FROM users WHERE firebase_uid = 'uid-admin'`).Scan(&adminID); err != nil {
+	if err := a.db.QueryRow(`SELECT id FROM users WHERE username = 'admin'`).Scan(&adminID); err != nil {
 		t.Fatal(err)
 	}
 	// Some financial data in the database, which must not reach the log.

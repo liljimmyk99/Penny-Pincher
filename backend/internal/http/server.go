@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/liljimmyk99/penny-pincher/backend/internal/api"
+	"github.com/liljimmyk99/penny-pincher/backend/internal/auth"
 	"github.com/liljimmyk99/penny-pincher/backend/internal/importrun"
 	"github.com/liljimmyk99/penny-pincher/backend/internal/store"
 )
@@ -36,7 +37,9 @@ type Server struct {
 	imports       store.Imports
 	runner        *importrun.Runner
 	backups       Backups
-	authCheck     AuthCheck
+	sessions      store.Sessions
+	hasher        *auth.Hasher
+	lim           *limiters
 	now           func() time.Time
 	start         time.Time
 }
@@ -51,8 +54,8 @@ type Deps struct {
 	Now  func() time.Time
 	// Backups serves the admin backup routes; nil when backups are not configured.
 	Backups Backups
-	// AuthCheck probes the sign-in provider for the admin status; nil reports ok.
-	AuthCheck AuthCheck
+	// Hasher hashes and checks passwords; nil uses auth.NewDefaultHasher.
+	Hasher *auth.Hasher
 	// Authn (auth.Middleware) wraps every route; it must not be nil.
 	Authn func(http.Handler) http.Handler
 	// Limits are the rate limits; nil turns them off. Body caps and write
@@ -70,6 +73,10 @@ func NewRouter(d Deps) http.Handler {
 	if d.ImportRunner == nil {
 		d.ImportRunner = importrun.New(context.Background(), d.Data, importrun.Options{})
 	}
+	if d.Hasher == nil {
+		d.Hasher = auth.NewDefaultHasher()
+	}
+	lim := newLimiters(d.Limits, d.Now)
 	s := &Server{
 		version:       d.Version,
 		db:            d.DB,
@@ -88,7 +95,9 @@ func NewRouter(d Deps) http.Handler {
 		imports:       store.Imports{DB: d.Data},
 		runner:        d.ImportRunner,
 		backups:       d.Backups,
-		authCheck:     d.AuthCheck,
+		sessions:      store.Sessions{DB: d.Data, Now: d.Now},
+		hasher:        d.Hasher,
+		lim:           lim,
 		now:           d.Now,
 		start:         d.Now(),
 	}
@@ -109,10 +118,9 @@ func NewRouter(d Deps) http.Handler {
 			writeError(w, http.StatusInternalServerError, api.ErrorErrorCodeInternal, "Something went wrong.")
 		},
 	})
-	lim := newLimiters(d.Limits, d.Now)
-	return lim.edge(d.Authn(lim.perUser(api.HandlerWithOptions(strict, api.StdHTTPServerOptions{
+	return lim.edge(withRequest(d.Authn(lim.perUser(api.HandlerWithOptions(strict, api.StdHTTPServerOptions{
 		ErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, err error) {
 			writeError(w, http.StatusBadRequest, api.ErrorErrorCodeInvalidRequest, "The request is malformed.")
 		},
-	}))))
+	})))))
 }

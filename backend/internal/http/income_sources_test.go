@@ -51,7 +51,7 @@ func (a *testAPI) createIncomeSource(token, name string) api.IncomeSource {
 func (a *testAPI) addIncomeEntry(sourceID string) {
 	a.t.Helper()
 	if _, err := a.db.Exec(`INSERT INTO income_entries (user_id, income_source_id, received_on, gross_cents, gross_taxable_cents, net_cents)
-		SELECT id, ?, '2026-02-01', 5000, 5000, 4000 FROM users WHERE firebase_uid = 'uid-member'`, sourceID); err != nil {
+		SELECT id, ?, '2026-02-01', 5000, 5000, 4000 FROM users WHERE username = 'member'`, sourceID); err != nil {
 		a.t.Fatal(err)
 	}
 }
@@ -184,7 +184,7 @@ func TestDeleteIncomeSourceHTTP(t *testing.T) {
 	job, gig := a.createIncomeSource(tokMember, "Job"), a.createIncomeSource(tokMember, "Gig")
 	other := a.incomeSource(tokMember, "Other")
 	if _, err := a.db.Exec(`INSERT INTO template_income_items (template_id, user_id, income_source_id, day_of_month, gross_cents, gross_taxable_cents, net_cents)
-		SELECT t.id, t.user_id, ?, 1, 100, 100, 80 FROM templates t JOIN users u ON u.id = t.user_id WHERE u.firebase_uid = 'uid-member'`, gig.Id); err != nil {
+		SELECT t.id, t.user_id, ?, 1, 100, 100, 80 FROM templates t JOIN users u ON u.id = t.user_id WHERE u.username = 'member'`, gig.Id); err != nil {
 		t.Fatal(err)
 	}
 
@@ -204,7 +204,7 @@ func TestDeleteIncomeSourceHTTP(t *testing.T) {
 		t.Fatalf("status = %d (%s)", rec.Code, rec.Body)
 	}
 	var src string
-	a.db.QueryRow(`SELECT i.income_source_id FROM template_income_items i JOIN users u ON u.id = i.user_id WHERE u.firebase_uid = 'uid-member'`).Scan(&src)
+	a.db.QueryRow(`SELECT i.income_source_id FROM template_income_items i JOIN users u ON u.id = i.user_id WHERE u.username = 'member'`).Scan(&src)
 	if src != other.Id {
 		t.Fatalf("template item source = %s, want Other (%s)", src, other.Id)
 	}
@@ -236,5 +236,5 @@ func TestIncomeSourcesTenancyHTTP(t *testing.T) {
 func TestIncomeSourcesNeedAuth(t *testing.T) {
 	a := newTestAPI(t)
 	wantError(t, a.call("GET", "/v1/income-sources", "", ""), http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated)
-	wantError(t, a.call("POST", "/v1/income-sources", tokStray, `{"name":"X"}`), http.StatusForbidden, api.ErrorErrorCodeNotAllowlisted)
+	wantError(t, a.call("POST", "/v1/income-sources", tokStray, `{"name":"X"}`), http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated)
 }

@@ -21,24 +21,6 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
-// Defines values for AdminStatusAuthProviderStatus.
-const (
-	AdminStatusAuthProviderStatusOk          AdminStatusAuthProviderStatus = "ok"
-	AdminStatusAuthProviderStatusUnreachable AdminStatusAuthProviderStatus = "unreachable"
-)
-
-// Valid indicates whether the value is a known member of the AdminStatusAuthProviderStatus enum.
-func (e AdminStatusAuthProviderStatus) Valid() bool {
-	switch e {
-	case AdminStatusAuthProviderStatusOk:
-		return true
-	case AdminStatusAuthProviderStatusUnreachable:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for AdminUserRole.
 const (
 	AdminUserRoleAdmin  AdminUserRole = "admin"
@@ -119,29 +101,31 @@ func (e CustomTrendGroupBy) Valid() bool {
 
 // Defines values for ErrorErrorCode.
 const (
-	ErrorErrorCodeAdminRequired     ErrorErrorCode = "admin_required"
-	ErrorErrorCodeBackupInProgress  ErrorErrorCode = "backup_in_progress"
-	ErrorErrorCodeBackupNotReady    ErrorErrorCode = "backup_not_ready"
-	ErrorErrorCodeFileTooLarge      ErrorErrorCode = "file_too_large"
-	ErrorErrorCodeHasLinkedRefunds  ErrorErrorCode = "has_linked_refunds"
-	ErrorErrorCodeImportInProgress  ErrorErrorCode = "import_in_progress"
-	ErrorErrorCodeImportWrongStatus ErrorErrorCode = "import_wrong_status"
-	ErrorErrorCodeInternal          ErrorErrorCode = "internal"
-	ErrorErrorCodeInvalidImportFile ErrorErrorCode = "invalid_import_file"
-	ErrorErrorCodeInvalidRefundLink ErrorErrorCode = "invalid_refund_link"
-	ErrorErrorCodeInvalidRequest    ErrorErrorCode = "invalid_request"
-	ErrorErrorCodeMonthNotEmpty     ErrorErrorCode = "month_not_empty"
-	ErrorErrorCodeNameTaken         ErrorErrorCode = "name_taken"
-	ErrorErrorCodeNotAllowlisted    ErrorErrorCode = "not_allowlisted"
-	ErrorErrorCodeNotFound          ErrorErrorCode = "not_found"
-	ErrorErrorCodeNotImplemented    ErrorErrorCode = "not_implemented"
-	ErrorErrorCodeProtectedResource ErrorErrorCode = "protected_resource"
-	ErrorErrorCodeRateLimited       ErrorErrorCode = "rate_limited"
-	ErrorErrorCodeRequestTooLarge   ErrorErrorCode = "request_too_large"
-	ErrorErrorCodeSessionExpired    ErrorErrorCode = "session_expired"
-	ErrorErrorCodeSourceHasEntries  ErrorErrorCode = "source_has_entries"
-	ErrorErrorCodeUnauthenticated   ErrorErrorCode = "unauthenticated"
-	ErrorErrorCodeUserExists        ErrorErrorCode = "user_exists"
+	ErrorErrorCodeAdminRequired          ErrorErrorCode = "admin_required"
+	ErrorErrorCodeBackupInProgress       ErrorErrorCode = "backup_in_progress"
+	ErrorErrorCodeBackupNotReady         ErrorErrorCode = "backup_not_ready"
+	ErrorErrorCodeFileTooLarge           ErrorErrorCode = "file_too_large"
+	ErrorErrorCodeHasLinkedRefunds       ErrorErrorCode = "has_linked_refunds"
+	ErrorErrorCodeImportInProgress       ErrorErrorCode = "import_in_progress"
+	ErrorErrorCodeImportWrongStatus      ErrorErrorCode = "import_wrong_status"
+	ErrorErrorCodeInternal               ErrorErrorCode = "internal"
+	ErrorErrorCodeInvalidCredentials     ErrorErrorCode = "invalid_credentials"
+	ErrorErrorCodeInvalidImportFile      ErrorErrorCode = "invalid_import_file"
+	ErrorErrorCodeInvalidRefundLink      ErrorErrorCode = "invalid_refund_link"
+	ErrorErrorCodeInvalidRequest         ErrorErrorCode = "invalid_request"
+	ErrorErrorCodeMonthNotEmpty          ErrorErrorCode = "month_not_empty"
+	ErrorErrorCodeNameTaken              ErrorErrorCode = "name_taken"
+	ErrorErrorCodeNotFound               ErrorErrorCode = "not_found"
+	ErrorErrorCodeNotImplemented         ErrorErrorCode = "not_implemented"
+	ErrorErrorCodePasswordChangeRequired ErrorErrorCode = "password_change_required"
+	ErrorErrorCodeProtectedResource      ErrorErrorCode = "protected_resource"
+	ErrorErrorCodeRateLimited            ErrorErrorCode = "rate_limited"
+	ErrorErrorCodeRequestTooLarge        ErrorErrorCode = "request_too_large"
+	ErrorErrorCodeSessionExpired         ErrorErrorCode = "session_expired"
+	ErrorErrorCodeSourceHasEntries       ErrorErrorCode = "source_has_entries"
+	ErrorErrorCodeUnauthenticated        ErrorErrorCode = "unauthenticated"
+	ErrorErrorCodeUserExists             ErrorErrorCode = "user_exists"
+	ErrorErrorCodeWeakPassword           ErrorErrorCode = "weak_password"
 )
 
 // Valid indicates whether the value is a known member of the ErrorErrorCode enum.
@@ -163,6 +147,8 @@ func (e ErrorErrorCode) Valid() bool {
 		return true
 	case ErrorErrorCodeInternal:
 		return true
+	case ErrorErrorCodeInvalidCredentials:
+		return true
 	case ErrorErrorCodeInvalidImportFile:
 		return true
 	case ErrorErrorCodeInvalidRefundLink:
@@ -173,11 +159,11 @@ func (e ErrorErrorCode) Valid() bool {
 		return true
 	case ErrorErrorCodeNameTaken:
 		return true
-	case ErrorErrorCodeNotAllowlisted:
-		return true
 	case ErrorErrorCodeNotFound:
 		return true
 	case ErrorErrorCodeNotImplemented:
+		return true
+	case ErrorErrorCodePasswordChangeRequired:
 		return true
 	case ErrorErrorCodeProtectedResource:
 		return true
@@ -192,6 +178,8 @@ func (e ErrorErrorCode) Valid() bool {
 	case ErrorErrorCodeUnauthenticated:
 		return true
 	case ErrorErrorCodeUserExists:
+		return true
+	case ErrorErrorCodeWeakPassword:
 		return true
 	default:
 		return false
@@ -218,16 +206,16 @@ func (e ExpenseType) Valid() bool {
 
 // Defines values for HealthStatus.
 const (
-	HealthStatusDegraded HealthStatus = "degraded"
-	HealthStatusOk       HealthStatus = "ok"
+	Degraded HealthStatus = "degraded"
+	Ok       HealthStatus = "ok"
 )
 
 // Valid indicates whether the value is a known member of the HealthStatus enum.
 func (e HealthStatus) Valid() bool {
 	switch e {
-	case HealthStatusDegraded:
+	case Degraded:
 		return true
-	case HealthStatusOk:
+	case Ok:
 		return true
 	default:
 		return false
@@ -443,10 +431,6 @@ func (e GetCustomTrendParamsGroupBy) Valid() bool {
 
 // AdminStatus defines model for AdminStatus.
 type AdminStatus struct {
-	AuthProvider struct {
-		CheckedAt time.Time                     `json:"checked_at"`
-		Status    AdminStatusAuthProviderStatus `json:"status"`
-	} `json:"auth_provider"`
 	Backups struct {
 		LastRun       nullable.Nullable[Backup] `json:"last_run"`
 		NextMonthlyAt time.Time                 `json:"next_monthly_at"`
@@ -472,21 +456,19 @@ type AdminStatus struct {
 	Version       string     `json:"version"`
 }
 
-// AdminStatusAuthProviderStatus defines model for AdminStatus.AuthProvider.Status.
-type AdminStatusAuthProviderStatus string
-
 // AdminUser defines model for AdminUser.
 type AdminUser struct {
 	CreatedAt   *Timestamp                `json:"created_at,omitempty"`
 	DisplayName nullable.Nullable[string] `json:"display_name"`
 	Email       nullable.Nullable[string] `json:"email"`
-	FirebaseUid string                    `json:"firebase_uid"`
 
 	// Id Opaque identifier.
 	//
 	// Examples: 42
-	Id   Id            `json:"id"`
-	Role AdminUserRole `json:"role"`
+	Id                 Id            `json:"id"`
+	MustChangePassword bool          `json:"must_change_password"`
+	Role               AdminUserRole `json:"role"`
+	Username           string        `json:"username"`
 }
 
 // AdminUserRole defines model for AdminUser.Role.
@@ -605,6 +587,12 @@ type CategoryUpdate struct {
 
 // Cents Integer cents. `$12.34` is `1234`.
 type Cents = int64
+
+// ChangePasswordRequest defines model for ChangePasswordRequest.
+type ChangePasswordRequest struct {
+	CurrentPassword *string `json:"current_password,omitempty"`
+	NewPassword     *string `json:"new_password,omitempty"`
+}
 
 // Color Examples: #2F80ED
 type Color = string
@@ -1054,16 +1042,34 @@ type IncomeTotals struct {
 	NetCents          NonNegativeCents `json:"net_cents"`
 }
 
+// LoginRequest defines model for LoginRequest.
+type LoginRequest struct {
+	Password *string `json:"password,omitempty"`
+	Username string  `json:"username"`
+}
+
+// LoginResult defines model for LoginResult.
+type LoginResult struct {
+	ExpiresAt          *Timestamp `json:"expires_at,omitempty"`
+	MustChangePassword bool       `json:"must_change_password"`
+
+	// Token Opaque session token. Send it as the bearer token. Never parse it.
+	Token string `json:"token"`
+	User  Me     `json:"user"`
+}
+
 // Me defines model for Me.
 type Me struct {
-	DisplayName nullable.Nullable[string] `json:"display_name,omitempty"`
-	Email       nullable.Nullable[string] `json:"email,omitempty"`
+	DisplayName nullable.Nullable[string] `json:"display_name"`
+	Email       nullable.Nullable[string] `json:"email"`
 
 	// Id Opaque identifier.
 	//
 	// Examples: 42
-	Id   Id     `json:"id"`
-	Role MeRole `json:"role"`
+	Id                 Id     `json:"id"`
+	MustChangePassword bool   `json:"must_change_password"`
+	Role               MeRole `json:"role"`
+	Username           string `json:"username"`
 }
 
 // MeRole defines model for Me.Role.
@@ -1177,9 +1183,15 @@ type NewAdminUser struct {
 	DisplayName nullable.Nullable[string] `json:"display_name,omitempty"`
 	Email       nullable.Nullable[string] `json:"email,omitempty"`
 
-	// FirebaseUid The uid of the account already created in the Firebase console.
-	FirebaseUid string            `json:"firebase_uid"`
-	Role        *NewAdminUserRole `json:"role,omitempty"`
+	// MustChangePassword When true the person must choose their own password at first sign-in.
+	MustChangePassword *bool `json:"must_change_password,omitempty"`
+
+	// Password The initial password. Never returned by any route.
+	Password *string           `json:"password,omitempty"`
+	Role     *NewAdminUserRole `json:"role,omitempty"`
+
+	// Username Unique, compared case-insensitively.
+	Username string `json:"username"`
 }
 
 // NewAdminUserRole defines model for NewAdminUser.Role.
@@ -1197,6 +1209,12 @@ type Note = string
 // ReorderRequest defines model for ReorderRequest.
 type ReorderRequest struct {
 	Ids []Id `json:"ids"`
+}
+
+// ResetPasswordRequest defines model for ResetPasswordRequest.
+type ResetPasswordRequest struct {
+	MustChangePassword *bool   `json:"must_change_password,omitempty"`
+	Password           *string `json:"password,omitempty"`
 }
 
 // SavedTrend Exactly one of `merchant_id`, `category_id`, `match_text` is set, matching `match_type`.
@@ -1705,6 +1723,15 @@ type GetCustomTrendParamsGroupBy string
 // AddUserJSONRequestBody defines body for AddUser for application/json ContentType.
 type AddUserJSONRequestBody = NewAdminUser
 
+// ResetUserPasswordJSONRequestBody defines body for ResetUserPassword for application/json ContentType.
+type ResetUserPasswordJSONRequestBody = ResetPasswordRequest
+
+// LoginJSONRequestBody defines body for Login for application/json ContentType.
+type LoginJSONRequestBody = LoginRequest
+
+// ChangePasswordJSONRequestBody defines body for ChangePassword for application/json ContentType.
+type ChangePasswordJSONRequestBody = ChangePasswordRequest
+
 // CreateCategoryJSONRequestBody defines body for CreateCategory for application/json ContentType.
 type CreateCategoryJSONRequestBody = CategoryCreate
 
@@ -1791,9 +1818,21 @@ type ServerInterface interface {
 	// ListUsers List the app's users
 	// (GET /v1/admin/users)
 	ListUsers(w http.ResponseWriter, r *http.Request)
-	// AddUser Add a user to the database
+	// AddUser Add a user
 	// (POST /v1/admin/users)
 	AddUser(w http.ResponseWriter, r *http.Request)
+	// ResetUserPassword Reset a user's password
+	// (POST /v1/admin/users/{id}/password)
+	ResetUserPassword(w http.ResponseWriter, r *http.Request, id Id)
+	// Login Sign in with a username and password
+	// (POST /v1/auth/login)
+	Login(w http.ResponseWriter, r *http.Request)
+	// Logout Sign out this device
+	// (POST /v1/auth/logout)
+	Logout(w http.ResponseWriter, r *http.Request)
+	// ChangePassword Change your own password
+	// (POST /v1/auth/password)
+	ChangePassword(w http.ResponseWriter, r *http.Request)
 	// ListCategories List categories
 	// (GET /v1/categories)
 	ListCategories(w http.ResponseWriter, r *http.Request)
@@ -2089,6 +2128,74 @@ func (siw *ServerInterfaceWrapper) AddUser(w http.ResponseWriter, r *http.Reques
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AddUser(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ResetUserPassword operation middleware
+func (siw *ServerInterfaceWrapper) ResetUserPassword(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResetUserPassword(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Login operation middleware
+func (siw *ServerInterfaceWrapper) Login(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Login(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Logout operation middleware
+func (siw *ServerInterfaceWrapper) Logout(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Logout(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangePassword operation middleware
+func (siw *ServerInterfaceWrapper) ChangePassword(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangePassword(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4018,6 +4125,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	}
 
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/healthz", wrapper.GetHealth)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/auth/login", wrapper.Login)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/auth/logout", wrapper.Logout)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/auth/password", wrapper.ChangePassword)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/me", wrapper.GetMe)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/categories", wrapper.ListCategories)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/categories", wrapper.CreateCategory)
@@ -4074,6 +4184,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/admin/backups/{id}/download", wrapper.DownloadBackup)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/admin/users", wrapper.ListUsers)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/admin/users", wrapper.AddUser)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/admin/users/{id}/password", wrapper.ResetUserPassword)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/imports/template", wrapper.DownloadImportTemplate)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/imports", wrapper.ListImports)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/imports", wrapper.UploadImport)
@@ -4542,6 +4653,225 @@ func (response AddUser409JSONResponse) VisitAddUserResponse(w http.ResponseWrite
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResetUserPasswordRequestObject struct {
+	Id   Id `json:"id"`
+	Body *ResetUserPasswordJSONRequestBody
+}
+
+type ResetUserPasswordResponseObject interface {
+	VisitResetUserPasswordResponse(w http.ResponseWriter) error
+}
+
+type ResetUserPassword204Response struct {
+}
+
+func (response ResetUserPassword204Response) VisitResetUserPasswordResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type ResetUserPassword400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ResetUserPassword400JSONResponse) VisitResetUserPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResetUserPassword401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ResetUserPassword401JSONResponse) VisitResetUserPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResetUserPassword403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ResetUserPassword403JSONResponse) VisitResetUserPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResetUserPassword404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ResetUserPassword404JSONResponse) VisitResetUserPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LoginRequestObject struct {
+	Body *LoginJSONRequestBody
+}
+
+type LoginResponseObject interface {
+	VisitLoginResponse(w http.ResponseWriter) error
+}
+
+type Login200JSONResponse LoginResult
+
+func (response Login200JSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Login400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response Login400JSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Login401JSONResponse Error
+
+func (response Login401JSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Login429JSONResponse struct{ TooManyRequestsJSONResponse }
+
+func (response Login429JSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LogoutRequestObject struct {
+}
+
+type LogoutResponseObject interface {
+	VisitLogoutResponse(w http.ResponseWriter) error
+}
+
+type Logout204Response struct {
+}
+
+func (response Logout204Response) VisitLogoutResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type Logout401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response Logout401JSONResponse) VisitLogoutResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ChangePasswordRequestObject struct {
+	Body *ChangePasswordJSONRequestBody
+}
+
+type ChangePasswordResponseObject interface {
+	VisitChangePasswordResponse(w http.ResponseWriter) error
+}
+
+type ChangePassword200JSONResponse LoginResult
+
+func (response ChangePassword200JSONResponse) VisitChangePasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ChangePassword400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ChangePassword400JSONResponse) VisitChangePasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ChangePassword401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ChangePassword401JSONResponse) VisitChangePasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -8920,9 +9250,21 @@ type StrictServerInterface interface {
 	// ListUsers List the app's users
 	// (GET /v1/admin/users)
 	ListUsers(ctx context.Context, request ListUsersRequestObject) (ListUsersResponseObject, error)
-	// AddUser Add a user to the database
+	// AddUser Add a user
 	// (POST /v1/admin/users)
 	AddUser(ctx context.Context, request AddUserRequestObject) (AddUserResponseObject, error)
+	// ResetUserPassword Reset a user's password
+	// (POST /v1/admin/users/{id}/password)
+	ResetUserPassword(ctx context.Context, request ResetUserPasswordRequestObject) (ResetUserPasswordResponseObject, error)
+	// Login Sign in with a username and password
+	// (POST /v1/auth/login)
+	Login(ctx context.Context, request LoginRequestObject) (LoginResponseObject, error)
+	// Logout Sign out this device
+	// (POST /v1/auth/logout)
+	Logout(ctx context.Context, request LogoutRequestObject) (LogoutResponseObject, error)
+	// ChangePassword Change your own password
+	// (POST /v1/auth/password)
+	ChangePassword(ctx context.Context, request ChangePasswordRequestObject) (ChangePasswordResponseObject, error)
 	// ListCategories List categories
 	// (GET /v1/categories)
 	ListCategories(ctx context.Context, request ListCategoriesRequestObject) (ListCategoriesResponseObject, error)
@@ -9317,6 +9659,125 @@ func (sh *strictHandler) AddUser(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(AddUserResponseObject); ok {
 		if err := validResponse.VisitAddUserResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ResetUserPassword operation middleware
+func (sh *strictHandler) ResetUserPassword(w http.ResponseWriter, r *http.Request, id Id) {
+	var request ResetUserPasswordRequestObject
+
+	request.Id = id
+
+	var body ResetUserPasswordJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ResetUserPassword(ctx, request.(ResetUserPasswordRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ResetUserPassword")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ResetUserPasswordResponseObject); ok {
+		if err := validResponse.VisitResetUserPasswordResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// Login operation middleware
+func (sh *strictHandler) Login(w http.ResponseWriter, r *http.Request) {
+	var request LoginRequestObject
+
+	var body LoginJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.Login(ctx, request.(LoginRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Login")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(LoginResponseObject); ok {
+		if err := validResponse.VisitLoginResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// Logout operation middleware
+func (sh *strictHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	var request LogoutRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.Logout(ctx, request.(LogoutRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Logout")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(LogoutResponseObject); ok {
+		if err := validResponse.VisitLogoutResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ChangePassword operation middleware
+func (sh *strictHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	var request ChangePasswordRequestObject
+
+	var body ChangePasswordJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ChangePassword(ctx, request.(ChangePasswordRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ChangePassword")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ChangePasswordResponseObject); ok {
+		if err := validResponse.VisitChangePasswordResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

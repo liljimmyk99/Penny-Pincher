@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -39,6 +40,17 @@ func logAdminAction(ctx context.Context, action, backupID string) {
 	)
 }
 
+// logAdminPasswordReset logs that an admin reset a password: ids only.
+func logAdminPasswordReset(ctx context.Context, targetID int64) {
+	id, _ := auth.FromContext(ctx)
+	slog.Info("admin action",
+		"event", logging.EventAdminAction,
+		"action", logging.ActionPasswordReset,
+		"user_id", id.ID,
+		"target_user_id", targetID,
+	)
+}
+
 // logAdminUserAdded logs that an admin added a user: ids only, never the new
 // user's uid or email.
 func logAdminUserAdded(ctx context.Context, newUserID int64) {
@@ -50,9 +62,6 @@ func logAdminUserAdded(ctx context.Context, newUserID int64) {
 		"target_user_id", newUserID,
 	)
 }
-
-// AuthCheck reports whether the sign-in provider is reachable.
-type AuthCheck func(ctx context.Context) error
 
 func toAPIBackup(r backup.Run) api.Backup {
 	b := api.Backup{
@@ -100,15 +109,6 @@ func (s *Server) GetAdminStatus(ctx context.Context, _ api.GetAdminStatusRequest
 	}
 	st.Backups.LastRun = nullableOf(last)
 
-	st.AuthProvider.CheckedAt = now
-	st.AuthProvider.Status = api.AdminStatusAuthProviderStatusOk
-	if s.authCheck != nil {
-		cctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-		defer cancel()
-		if err := s.authCheck(cctx); err != nil {
-			st.AuthProvider.Status = api.AdminStatusAuthProviderStatusUnreachable
-		}
-	}
 	return api.GetAdminStatus200JSONResponse(st), nil
 }
 
@@ -173,11 +173,12 @@ func (s *Server) DownloadBackup(ctx context.Context, req api.DownloadBackupReque
 
 func toAPIUser(u store.UserRow) api.AdminUser {
 	out := api.AdminUser{
-		Id:          formatID(u.ID),
-		FirebaseUid: u.FirebaseUID,
-		Email:       nullableOf(u.Email),
-		DisplayName: nullableOf(u.DisplayName),
-		Role:        api.AdminUserRole(u.Role),
+		Id:                 formatID(u.ID),
+		Username:           u.Username,
+		MustChangePassword: u.MustChangePassword,
+		Email:              nullableOf(u.Email),
+		DisplayName:        nullableOf(u.DisplayName),
+		Role:               api.AdminUserRole(u.Role),
 	}
 	if t, err := time.Parse(time.RFC3339Nano, u.CreatedAt); err == nil {
 		out.CreatedAt = &t
@@ -203,12 +204,23 @@ func addUserInvalid(field, issue string) api.AddUserResponseObject {
 		validationError(&store.ValidationError{Field: field, Issue: issue}))}
 }
 
-// AddUser implements POST /v1/admin/users. It writes the app's database only
-// (the allowlist plus the new user's defaults); Firebase is never called.
+func addUserWeak(issue string) api.AddUserResponseObject {
+	return api.AddUser400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse(weakPasswordError("password", issue))}
+}
+
+// maxUsername bounds the username; the spec allows 1 to 64 characters.
+const maxUsername = 64
+
+// AddUser implements POST /v1/admin/users: the account, its initial password
+// (stored only as an argon2id hash) and its seeded defaults.
 func (s *Server) AddUser(ctx context.Context, req api.AddUserRequestObject) (api.AddUserResponseObject, error) {
 	in := store.NewUser{
-		FirebaseUID: strings.TrimSpace(req.Body.FirebaseUid),
-		Role:        store.RoleMember,
+		Username:           strings.TrimSpace(req.Body.Username),
+		Role:               store.RoleMember,
+		MustChangePassword: true,
+	}
+	if req.Body.MustChangePassword != nil {
+		in.MustChangePassword = *req.Body.MustChangePassword
 	}
 	if e := ptrOf(req.Body.Email); e != nil {
 		in.Email = strings.TrimSpace(*e)
@@ -219,25 +231,37 @@ func (s *Server) AddUser(ctx context.Context, req api.AddUserRequestObject) (api
 	if req.Body.Role != nil {
 		in.Role = string(*req.Body.Role)
 	}
+	password := ""
+	if req.Body.Password != nil {
+		password = *req.Body.Password
+	}
 	switch {
-	case in.FirebaseUID == "":
-		return addUserInvalid("firebase_uid", "is required"), nil
-	case len(in.FirebaseUID) > 128:
-		return addUserInvalid("firebase_uid", "must be at most 128 characters"), nil
+	case in.Username == "":
+		return addUserInvalid("username", "is required"), nil
+	case len(in.Username) > maxUsername:
+		return addUserInvalid("username", "must be at most 64 characters"), nil
 	case in.Role != store.RoleAdmin && in.Role != store.RoleMember:
 		return addUserInvalid("role", "must be admin or member"), nil
 	case len(in.DisplayName) > 100:
 		return addUserInvalid("display_name", "must be at most 100 characters"), nil
+	}
+	if issue := auth.CheckPasswordRules(password); issue != "" {
+		return addUserWeak(issue), nil
 	}
 	if in.Email != "" {
 		if a, err := mail.ParseAddress(in.Email); err != nil || a.Address != in.Email || len(in.Email) > 254 {
 			return addUserInvalid("email", "must be an email address"), nil
 		}
 	}
+	hash, err := s.hasher.Hash(password)
+	if err != nil {
+		return nil, err
+	}
+	in.PasswordHash = hash
 	id, err := store.AddUser(ctx, s.admin.DB, in)
 	if errors.Is(err, store.ErrUserExists) {
 		return api.AddUser409JSONResponse{ConflictJSONResponse: api.ConflictJSONResponse(
-			newError(api.ErrorErrorCodeUserExists, "A user with this Firebase uid has already been added."))}, nil
+			newError(api.ErrorErrorCodeUserExists, "That username is already taken."))}, nil
 	}
 	if err != nil {
 		return nil, err
@@ -248,4 +272,42 @@ func (s *Server) AddUser(ctx context.Context, req api.AddUserRequestObject) (api
 	}
 	logAdminUserAdded(ctx, id)
 	return api.AddUser201JSONResponse(toAPIUser(row)), nil
+}
+
+// ResetUserPassword implements POST /v1/admin/users/{id}/password. It signs
+// the user out everywhere. The new password is never logged or returned.
+func (s *Server) ResetUserPassword(ctx context.Context, req api.ResetUserPasswordRequestObject) (api.ResetUserPasswordResponseObject, error) {
+	notFound := api.ResetUserPassword404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse(
+		newError(api.ErrorErrorCodeNotFound, "User not found."))}
+	uid, ok := parseID(req.Id)
+	if !ok {
+		return notFound, nil
+	}
+	password := ""
+	if req.Body != nil && req.Body.Password != nil {
+		password = *req.Body.Password
+	}
+	if issue := auth.CheckPasswordRules(password); issue != "" {
+		return api.ResetUserPassword400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse(weakPasswordError("password", issue))}, nil
+	}
+	must := true
+	if req.Body.MustChangePassword != nil {
+		must = *req.Body.MustChangePassword
+	}
+	if _, err := store.GetUserRow(ctx, s.admin.DB, uid); errors.Is(err, sql.ErrNoRows) {
+		return notFound, nil
+	} else if err != nil {
+		return nil, err
+	}
+	hash, err := s.hasher.Hash(password)
+	if err != nil {
+		return nil, err
+	}
+	if err := store.SetPassword(ctx, s.admin.DB, uid, hash, must); errors.Is(err, store.ErrNoUser) {
+		return notFound, nil
+	} else if err != nil {
+		return nil, err
+	}
+	logAdminPasswordReset(ctx, uid)
+	return api.ResetUserPassword204Response{}, nil
 }

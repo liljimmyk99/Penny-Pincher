@@ -21,10 +21,10 @@ func newCatFixture(t *testing.T) *catFixture {
 	db := NewTestDB(t)
 	f := &catFixture{t: t, db: db, c: Categories{DB: db}}
 	var err error
-	if f.a, err = AddUser(context.Background(), db, NewUser{FirebaseUID: "uid-a", Role: RoleMember}); err != nil {
+	if f.a, err = AddUser(context.Background(), db, NewUser{Username: "uid-a", PasswordHash: "h", Role: RoleMember}); err != nil {
 		t.Fatal(err)
 	}
-	if f.b, err = AddUser(context.Background(), db, NewUser{FirebaseUID: "uid-b", Role: RoleMember}); err != nil {
+	if f.b, err = AddUser(context.Background(), db, NewUser{Username: "uid-b", PasswordHash: "h", Role: RoleMember}); err != nil {
 		t.Fatal(err)
 	}
 	return f

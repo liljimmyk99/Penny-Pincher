@@ -9,7 +9,7 @@ import (
 func TestAddUserSeedsDefaults(t *testing.T) {
 	db := NewTestDB(t)
 	ctx := context.Background()
-	id, err := AddUser(ctx, db, NewUser{FirebaseUID: "uid-admin", Email: "admin@example.com", Role: RoleAdmin})
+	id, err := AddUser(ctx, db, NewUser{Username: "uid-admin", PasswordHash: "h", Email: "admin@example.com", Role: RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,11 +67,11 @@ func TestAddUserSeedsDefaults(t *testing.T) {
 func TestAddUserIsolatedAndRejectsDuplicates(t *testing.T) {
 	db := NewTestDB(t)
 	ctx := context.Background()
-	a, err := AddUser(ctx, db, NewUser{FirebaseUID: "uid-a", Role: RoleMember})
+	a, err := AddUser(ctx, db, NewUser{Username: "uid-a", PasswordHash: "h", Role: RoleMember})
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := AddUser(ctx, db, NewUser{FirebaseUID: "uid-b", Role: RoleMember})
+	b, err := AddUser(ctx, db, NewUser{Username: "uid-b", PasswordHash: "h", Role: RoleMember})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestAddUserIsolatedAndRejectsDuplicates(t *testing.T) {
 			t.Errorf("user %d has %d categories, want 8", id, n)
 		}
 	}
-	if _, err := AddUser(ctx, db, NewUser{FirebaseUID: "uid-a", Role: RoleAdmin}); !errors.Is(err, ErrUserExists) {
+	if _, err := AddUser(ctx, db, NewUser{Username: "uid-a", PasswordHash: "h", Role: RoleAdmin}); !errors.Is(err, ErrUserExists) {
 		t.Fatalf("duplicate err = %v", err)
 	}
 }
@@ -90,15 +90,15 @@ func TestAddUserIsolatedAndRejectsDuplicates(t *testing.T) {
 func TestAddUserValidationAndRollback(t *testing.T) {
 	db := NewTestDB(t)
 	ctx := context.Background()
-	if _, err := AddUser(ctx, db, NewUser{FirebaseUID: "", Role: RoleAdmin}); err == nil {
+	if _, err := AddUser(ctx, db, NewUser{Username: "", PasswordHash: "h", Role: RoleAdmin}); err == nil {
 		t.Error("empty uid accepted")
 	}
-	if _, err := AddUser(ctx, db, NewUser{FirebaseUID: "x", Role: "owner"}); err == nil {
+	if _, err := AddUser(ctx, db, NewUser{Username: "x", PasswordHash: "h", Role: "owner"}); err == nil {
 		t.Error("bad role accepted")
 	}
 	// A seeding failure must leave no user behind.
 	if _, err := db.Exec(`DROP TABLE templates`); err == nil {
-		if _, err := AddUser(ctx, db, NewUser{FirebaseUID: "uid-r", Role: RoleMember}); err == nil {
+		if _, err := AddUser(ctx, db, NewUser{Username: "uid-r", PasswordHash: "h", Role: RoleMember}); err == nil {
 			t.Fatal("expected seeding failure")
 		}
 		var n int

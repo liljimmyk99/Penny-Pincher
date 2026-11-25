@@ -15,30 +15,34 @@ import (
 	"github.com/liljimmyk99/penny-pincher/backend/internal/logging"
 )
 
-// ErrUnknownUser means the Firebase uid has no row in the users table.
-var ErrUnknownUser = errors.New("user not in allowlist")
+// Errors a SessionLookup returns.
+var (
+	// ErrUnknownSession: no such token (never issued, signed out, or revoked).
+	ErrUnknownSession = errors.New("unknown session")
+	// ErrSessionExpired: the session is older than MaxSessionAge.
+	ErrSessionExpired = errors.New("session expired")
+)
 
-// UserLookup finds the local user for a Firebase uid (the allowlist).
-// It returns ErrUnknownUser when there is none.
-type UserLookup interface {
-	FindByFirebaseUID(ctx context.Context, uid string) (Identity, error)
+// SessionLookup finds the identity for a bearer token. It returns
+// ErrUnknownSession or ErrSessionExpired.
+type SessionLookup interface {
+	Lookup(ctx context.Context, token string) (Identity, error)
 }
 
-// MaxSessionAge is how long a sign-in lasts: a token whose auth_time is older
-// gets 401 session_expired, and the user must sign in again (AGENTS.md
-// section 10).
+// MaxSessionAge is how long a sign-in lasts, counted from the session's
+// creation (AGENTS.md section 10).
 const MaxSessionAge = 30 * 24 * time.Hour
 
-// Middleware authenticates every request except GET /healthz: it verifies the
-// bearer token, including the revocation check (401 unauthenticated), refuses
-// a sign-in older than maxAge (401 session_expired), requires the uid to exist
-// in the users table (403 not_allowlisted), puts the Identity on the context,
-// and requires the admin role under /v1/admin/ (403 admin_required). Every
-// refusal is logged as a security event (logging.EventAuthFailure).
-func Middleware(v Verifier, users UserLookup, maxAge time.Duration, now func() time.Time) func(http.Handler) http.Handler {
+// Middleware authenticates every request except GET /healthz and POST
+// /v1/auth/login: it looks up the bearer token (401 unauthenticated, or 401
+// session_expired), puts the Identity on the context, requires the admin role
+// under /v1/admin/ (403 admin_required), and while the user must choose a new
+// password allows only changing it, signing out and GET /v1/me (403
+// password_change_required). Every refusal is logged as a security event.
+func Middleware(sessions SessionLookup) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/healthz" {
+			if r.URL.Path == "/healthz" || (r.Method == http.MethodPost && r.URL.Path == "/v1/auth/login") {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -48,38 +52,28 @@ func Middleware(v Verifier, users UserLookup, maxAge time.Duration, now func() t
 				writeErr(w, http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated, "Missing, expired or invalid token.")
 				return
 			}
-			claims, err := v.Verify(r.Context(), tok)
-			if errors.Is(err, ErrInvalidToken) {
-				// The uid of a token that failed verification can't be trusted,
-				// so none is logged.
+			id, err := sessions.Lookup(r.Context(), tok)
+			switch {
+			case errors.Is(err, ErrUnknownSession):
 				logFailure(r, logging.ReasonInvalidToken, http.StatusUnauthorized)
 				writeErr(w, http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated, "Missing, expired or invalid token.")
 				return
-			}
-			if err != nil {
-				slog.Error("token check failed", "err_type", fmt.Sprintf("%T", errors.Unwrap(err)))
-				writeErr(w, http.StatusInternalServerError, api.ErrorErrorCodeInternal, "Something went wrong.")
-				return
-			}
-			// A missing auth_time (zero) counts as expired.
-			if now().Sub(claims.AuthTime) > maxAge {
-				logFailure(r, logging.ReasonSessionExpired, http.StatusUnauthorized, "uid", claims.UID)
+			case errors.Is(err, ErrSessionExpired):
+				logFailure(r, logging.ReasonSessionExpired, http.StatusUnauthorized)
 				writeErr(w, http.StatusUnauthorized, api.ErrorErrorCodeSessionExpired, "Your session has expired. Please sign in again.")
 				return
-			}
-			id, err := users.FindByFirebaseUID(r.Context(), claims.UID)
-			if errors.Is(err, ErrUnknownUser) {
-				logFailure(r, logging.ReasonNotAllowlisted, http.StatusForbidden, "uid", claims.UID)
-				writeErr(w, http.StatusForbidden, api.ErrorErrorCodeNotAllowlisted, "This account does not have access.")
+			case err != nil:
+				slog.Error("session lookup failed", "err_type", fmt.Sprintf("%T", err))
+				writeErr(w, http.StatusInternalServerError, api.ErrorErrorCodeInternal, "Something went wrong.")
 				return
 			}
-			if err != nil {
-				slog.Error("user lookup failed", "err_type", fmt.Sprintf("%T", err))
-				writeErr(w, http.StatusInternalServerError, api.ErrorErrorCodeInternal, "Something went wrong.")
+			if id.MustChangePassword && !allowedWhileChangingPassword(r) {
+				logFailure(r, logging.ReasonPasswordChangeRequired, http.StatusForbidden, "user_id", id.ID)
+				writeErr(w, http.StatusForbidden, api.ErrorErrorCodePasswordChangeRequired, "Choose a new password before continuing.")
 				return
 			}
 			if strings.HasPrefix(r.URL.Path, "/v1/admin/") && id.Role != RoleAdmin {
-				logFailure(r, logging.ReasonAdminRequired, http.StatusForbidden, "uid", claims.UID, "user_id", id.ID)
+				logFailure(r, logging.ReasonAdminRequired, http.StatusForbidden, "user_id", id.ID)
 				writeErr(w, http.StatusForbidden, api.ErrorErrorCodeAdminRequired, "Admins only.")
 				return
 			}
@@ -88,9 +82,23 @@ func Middleware(v Verifier, users UserLookup, maxAge time.Duration, now func() t
 	}
 }
 
-// logFailure writes one security-event line for a refused request. It logs
+func allowedWhileChangingPassword(r *http.Request) bool {
+	switch {
+	case r.Method == http.MethodPost && (r.URL.Path == "/v1/auth/password" || r.URL.Path == "/v1/auth/logout"):
+		return true
+	case r.Method == http.MethodGet && r.URL.Path == "/v1/me":
+		return true
+	}
+	return false
+}
+
+// LogFailure writes one security-event line for a refused request. It logs
 // the path without its query string (which can carry note text) and never the
-// token.
+// token, username or password.
+func LogFailure(r *http.Request, reason string, status int, attrs ...any) {
+	logFailure(r, reason, status, attrs...)
+}
+
 func logFailure(r *http.Request, reason string, status int, attrs ...any) {
 	base := []any{
 		"event", logging.EventAuthFailure,

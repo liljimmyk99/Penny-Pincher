@@ -69,14 +69,53 @@ func migrate(ctx context.Context, db *sql.DB, fsys fs.FS) error {
 	return nil
 }
 
+// rebuildMarker on a migration's first line asks for the table-rebuild recipe
+// from the SQLite docs: foreign keys off (so DROP TABLE does not cascade),
+// legacy_alter_table on (so RENAME does not rewrite triggers), and a
+// foreign_key_check before commit. These pragmas are no-ops inside a
+// transaction, so they are set on a dedicated connection first.
+const rebuildMarker = "-- migrate: rebuild"
+
 func applyOne(ctx context.Context, db *sql.DB, version, body string) error {
-	tx, err := db.BeginTx(ctx, nil)
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	rebuild := strings.HasPrefix(body, rebuildMarker)
+	if rebuild {
+		if _, err := conn.ExecContext(ctx, `PRAGMA foreign_keys = OFF`); err != nil {
+			return err
+		}
+		if _, err := conn.ExecContext(ctx, `PRAGMA legacy_alter_table = ON`); err != nil {
+			return err
+		}
+		defer func() {
+			// Restore the per-connection settings the DSN gave this pooled connection.
+			conn.ExecContext(context.Background(), `PRAGMA legacy_alter_table = OFF`)
+			conn.ExecContext(context.Background(), `PRAGMA foreign_keys = ON`)
+		}()
+	}
+
+	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 	if _, err := tx.ExecContext(ctx, body); err != nil {
 		return err
+	}
+	if rebuild {
+		rows, err := tx.QueryContext(ctx, `PRAGMA foreign_key_check`)
+		if err != nil {
+			return err
+		}
+		bad := rows.Next()
+		rows.Close()
+		if bad {
+			return fmt.Errorf("foreign key check failed after rebuild")
+		}
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migrations (version) VALUES (?)`, version); err != nil {
 		return err
