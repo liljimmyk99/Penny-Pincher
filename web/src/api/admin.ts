@@ -89,3 +89,14 @@ export function useAddUser() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: adminUsersQueryKey }),
   });
 }
+
+/** Sets a user's password and signs them out everywhere (204, no body). */
+export function useResetUserPassword() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, { id: string; body: Schemas["ResetPasswordRequest"] }>({
+    mutationFn: ({ id, body }) =>
+      unwrap(api.POST("/v1/admin/users/{id}/password", { params: { path: { id } }, body })),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: adminUsersQueryKey }),
+  });
+}

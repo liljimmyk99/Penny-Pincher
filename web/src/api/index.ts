@@ -19,6 +19,7 @@ export {
   adminStatusQueryKey,
   adminUsersQueryKey,
   useAddUser,
+  useResetUserPassword,
   useAdminUsers,
   backupsQueryKey,
   useAdminStatus,

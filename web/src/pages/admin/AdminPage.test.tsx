@@ -116,7 +116,11 @@ describe("Users tab", () => {
     created_at: stamp,
   });
 
-  function renderUsers(post: (body: unknown) => Response) {
+  function renderUsers(
+    post: (body: unknown) => Response,
+    reset: (body: unknown) => Response = () => new Response(null, { status: 204 }),
+  ) {
+    const resets: { path: string; body: unknown }[] = [];
     let items = [user("1", "root", "admin")];
     const bodies: unknown[] = [];
     const fetch = (async (req: Request) => {
@@ -130,6 +134,11 @@ describe("Users tab", () => {
         if (res.ok) items = [...items, user("2", body.username)];
         return res;
       }
+      if (/^\/v1\/admin\/users\/[^/]+\/password$/.test(pathname) && req.method === "POST") {
+        const body = await req.json();
+        resets.push({ path: pathname, body });
+        return reset(body);
+      }
       if (pathname === "/v1/admin/users") return Response.json({ items });
       return Response.json({ error: { code: "not_found", message: "no" } }, { status: 404 });
     }) as unknown as typeof globalThis.fetch;
@@ -139,7 +148,7 @@ describe("Users tab", () => {
         <AdminPage />
       </ApiProvider>,
     );
-    return { bodies, user: userEvent.setup() };
+    return { bodies, resets, user: userEvent.setup() };
   }
 
   it("lists users and adds one with an initial password", async () => {
@@ -152,9 +161,15 @@ describe("Users tab", () => {
     const dialog = await screen.findByRole("dialog", { name: "Add user" });
     await u.type(within(dialog).getByLabelText("Username"), " newbie ");
     await u.type(within(dialog).getByLabelText("Initial password"), "a-long-initial-password");
-    expect(within(dialog).getByRole("checkbox")).toBeChecked();
+    expect(within(dialog).getByRole("checkbox", { name: "Ask them to choose their own password" })).toBeChecked();
     await u.click(within(dialog).getByRole("button", { name: "Add user" }));
 
+    const details = await screen.findByRole("dialog", { name: "Sign-in details" });
+    expect(within(details).getByText("a-long-initial-password")).toBeInTheDocument();
+    expect(within(details).getByText("They choose a new password")).toBeInTheDocument();
+    await u.click(within(details).getByRole("button", { name: "Done" }));
+
+    expect(screen.queryByText("a-long-initial-password")).not.toBeInTheDocument();
     expect(await screen.findByText("newbie")).toBeInTheDocument();
     expect(screen.getByText("User added")).toBeInTheDocument();
     expect(screen.getByText("Must change at sign-in")).toBeInTheDocument();
@@ -178,7 +193,7 @@ describe("Users tab", () => {
     await u.click(await screen.findByRole("button", { name: "Add user" }));
     const dialog = await screen.findByRole("dialog", { name: "Add user" });
     await u.click(within(dialog).getByRole("button", { name: "Add user" }));
-    expect(within(dialog).getByText("Enter a username.")).toBeInTheDocument();
+    expect(within(dialog).getByText(/Use 3–32 letters/, { selector: "p.admin-users__error" })).toBeInTheDocument();
     await u.type(within(dialog).getByLabelText("Username"), "root");
     await u.type(within(dialog).getByLabelText("Initial password"), "short");
     await u.click(within(dialog).getByRole("button", { name: "Add user" }));
@@ -187,6 +202,70 @@ describe("Users tab", () => {
 
     await u.type(within(dialog).getByLabelText("Initial password"), "-now-long-enough");
     await u.click(within(dialog).getByRole("button", { name: "Add user" }));
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent("already taken");
+    expect(await within(dialog).findByText("That username is already taken.")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Username")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("generates a password of at least 12 characters", async () => {
+    const { user: u } = renderUsers(() => Response.json({}, { status: 201 }));
+    await u.click(screen.getByRole("tab", { name: "Users" }));
+    await u.click(await screen.findByRole("button", { name: "Add user" }));
+    const dialog = await screen.findByRole("dialog", { name: "Add user" });
+    await u.click(within(dialog).getByRole("button", { name: "Generate" }));
+    expect((within(dialog).getByLabelText("Initial password") as HTMLInputElement).value.length).toBeGreaterThanOrEqual(12);
+  });
+
+  it("shows a weak_password error on the password field", async () => {
+    const { user: u } = renderUsers(() =>
+      Response.json(
+        { error: { code: "weak_password", message: "Too weak.", details: [{ field: "password", issue: "Too weak." }] } },
+        { status: 400 },
+      ),
+    );
+    await u.click(screen.getByRole("tab", { name: "Users" }));
+    await u.click(await screen.findByRole("button", { name: "Add user" }));
+    const dialog = await screen.findByRole("dialog", { name: "Add user" });
+    await u.type(within(dialog).getByLabelText("Username"), "newbie");
+    await u.type(within(dialog).getByLabelText("Initial password"), "a-long-initial-password");
+    await u.click(within(dialog).getByRole("button", { name: "Add user" }));
+    expect(await within(dialog).findByText("Too weak.")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Initial password")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("copies the sign-in details", async () => {
+    const { user: u } = renderUsers((body) => Response.json(body, { status: 201 }));
+    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+    await u.click(screen.getByRole("tab", { name: "Users" }));
+    await u.click(await screen.findByRole("button", { name: "Add user" }));
+    const dialog = await screen.findByRole("dialog", { name: "Add user" });
+    await u.type(within(dialog).getByLabelText("Username"), "newbie");
+    await u.type(within(dialog).getByLabelText("Initial password"), "a-long-initial-password");
+    await u.click(within(dialog).getByRole("button", { name: "Add user" }));
+    const details = await screen.findByRole("dialog", { name: "Sign-in details" });
+    await u.click(within(details).getByRole("button", { name: "Copy sign-in details" }));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Password: a-long-initial-password"));
+  });
+
+  it("resets a password and shows the details once", async () => {
+    const { resets, user: u } = renderUsers(() => Response.json({}, { status: 201 }));
+    await u.click(screen.getByRole("tab", { name: "Users" }));
+    await u.click(await screen.findByRole("button", { name: "Reset password for root" }));
+    const dialog = await screen.findByRole("dialog", { name: /Set a new password for root/ });
+    expect(within(dialog).getByText(/signed out on every device/)).toBeInTheDocument();
+    await u.type(within(dialog).getByLabelText("New password"), "short");
+    await u.click(within(dialog).getByRole("button", { name: "Reset password" }));
+    expect(within(dialog).getByText("Use at least 12 characters.")).toBeInTheDocument();
+    expect(resets).toHaveLength(0);
+
+    await u.type(within(dialog).getByLabelText("New password"), "-now-long-enough");
+    await u.click(within(dialog).getByRole("button", { name: "Reset password" }));
+    const details = await screen.findByRole("dialog", { name: "Sign-in details" });
+    expect(within(details).getByText("Password reset. root was signed out everywhere.")).toBeInTheDocument();
+    expect(within(details).getByText("short-now-long-enough")).toBeInTheDocument();
+    expect(resets).toEqual([
+      { path: "/v1/admin/users/1/password", body: { password: "short-now-long-enough", must_change_password: true } },
+    ]);
+    await u.click(within(details).getByRole("button", { name: "Done" }));
+    expect(screen.queryByText("short-now-long-enough")).not.toBeInTheDocument();
   });
 });

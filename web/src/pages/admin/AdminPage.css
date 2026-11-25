@@ -174,3 +174,43 @@
   font-size: 13px;
   color: var(--color-danger-text);
 }
+
+.admin-users__mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.admin-users__pw {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.admin-users__pw .field {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-users__pill {
+  background: var(--color-unconfirmed-pill);
+  color: var(--color-unconfirmed-text);
+}
+
+.admin-users__details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-2) var(--space-4);
+  margin: var(--space-4) 0;
+}
+
+.admin-users__details dt {
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+
+.admin-users__details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-users__warn {
+  margin: 0;
+}
