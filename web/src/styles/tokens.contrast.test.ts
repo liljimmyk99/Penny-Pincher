@@ -85,6 +85,8 @@ const TEXT: [string, string][] = [
   ["success-alert-text", "success-alert-bg"],
   ["info-alert-text", "info-alert-bg"],
   ["selected-foreground", "selected"],
+  ["saving-text", "selected"], // the saving badge (#170)
+  ["income", "success-alert-bg"], // the income badge (#170)
   ["toast-foreground", "toast"],
   ["link", "card"],
   ["link", "background"],

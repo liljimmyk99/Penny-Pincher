@@ -1,4 +1,3 @@
-import * as Tooltip from "@radix-ui/react-tooltip";
 import { useState, type ReactNode } from "react";
 import {
   errorMessage,
@@ -10,6 +9,7 @@ import {
   useIncomeSourceStats,
   type Schemas,
 } from "../../api";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { AlertIcon, InfoIcon } from "../../components/icons";
 import { formatCents } from "../../lib/money";
 import { formatTaxRate } from "../../lib/taxRate";
@@ -54,13 +54,13 @@ export function CategoriesPage({ year = new Date().getFullYear() }: { year?: num
 
   return (
     <Page title="Categories & sources" eyebrow={`Manage · totals for ${year}`}>
-      <Tooltip.Provider delayDuration={200}>
+      <TooltipProvider delayDuration={200}>
         <p id="reorder-help" className="visually-hidden">
           Use the arrow keys, Home or End to move this row. The order is used everywhere.
         </p>
         <CategoriesSection year={year} onDelete={(row) => askDelete({ kind: "category", row })} />
         <SourcesSection year={year} onDelete={(row) => askDelete({ kind: "source", row })} />
-      </Tooltip.Provider>
+      </TooltipProvider>
       <DeleteDialog
         open={target !== null}
         {...(target ? deleteCopy(target) : { title: "", body: "" })}

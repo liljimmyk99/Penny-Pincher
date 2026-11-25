@@ -32,6 +32,16 @@ Read the root `AGENTS.md` first. This file adds rules specific to the React web 
     - **Dates** use `<Input type="date">` with `YYYY-MM-DD` strings from `lib/dates.ts`; never convert through `Date`.
     - Until preflight is added (#180), `src/index.css` has a small base-layer reset for these controls only (`[data-slot=…]`), and the old element rules in `styles/controls.css` skip `[data-slot]` elements so they don't override the components' utilities.
     - Sign in is the first screen on them; the other screens move in #175–#178 (password fields in #201).
+  - **Content primitives (#170):** `card`, `badge`, `alert`, `table`, `tabs`, `toggle`, `toggle-group`, `progress`, `skeleton` and `tooltip` in `src/components/ui/`, adapted app-wide (each edit has a comment). Domain colours come from tokens only, never hex.
+    - **Card:** card fill, 1px `border` token, 14px radius, no shadow; `CardTitle` is the 18px/600 section title. **`StatTile`** (`src/components/StatTile.tsx`) is the summary tile on it: label, 26px/700 figure in tabular numerals, optional sub-text, `tone` `default | income | saving | refund | muted`.
+    - **Badge:** 6px radius, 12px/600. Variants `default`, `secondary`, `outline`, `destructive`, and ours: `refund`, `unconfirmed` ("Not confirmed", template copies), `saving`, `income`.
+    - **Alert:** variants `default`, `destructive` (inline errors, danger-alert tokens), `success` (confirmations), `info` (banners). `destructive` is `role="alert"`, the rest `role="status"`; a `role` prop overrides.
+    - **Table:** a real `<table>` inside a box that scrolls sideways. `TableHead`/`TableCell` take `numeric` (right-aligned, tabular numerals); `TableRow` takes `variant` `refund` or `unconfirmed` for the tinted rows.
+    - **Tabs:** triggers at least 44px. Tabs whose state is in the URL are controlled (`value` from the search params, set in `onValueChange`). Month navigation stays links (`MonthSwitcher`), not tabs.
+    - **Toggle / ToggleGroup:** 44px (`sm` 36px in dense rows); on is the `selected` tokens. A one-of-N choice (Bars / Donut, Amount / Count) is `ToggleGroup type="single"` with an `aria-label` (`radiogroup` / `radio`, `aria-checked`); a filter chip is a `Toggle` (`aria-pressed`).
+    - **Progress:** `role="progressbar"` with the percent as `aria-valuenow`; give it an `aria-label` and a text alternative through `getValueLabel` (`aria-valuetext`). The import banner uses it.
+    - **Skeleton** is `aria-hidden`; **`LoadingSection`** (`src/components/LoadingSection.tsx`) wraps skeletons in an `aria-busy` section named "Loading <what>" with the same words as hidden text.
+    - **Tooltip:** sidebar fill, 13px, at most 260px, above the old dialogs. One `TooltipProvider` per screen; the trigger keeps its own name and the tooltip describes it. Categories & sources uses it.
 - **No charting library**, and shadcn's `chart` component (Recharts) is not used. The approved charts (root §6.11) are hand-built React components, the same way the design canvas draws them:
   - ranked, paired, diverging and sparkline bars are elements sized as a percentage of the largest value (HTML or SVG)
   - the donut is a CSS `conic-gradient` ring (or SVG arcs)
@@ -312,7 +322,7 @@ Root §6.14; API `imports` routes. One page with four stages and a step indicato
 
 - Dialogs are real modal dialogs: focus trapped, Esc closes, `aria-modal`, labelled by their heading. Destructive ones use `role="alertdialog"` and a danger button that names the outcome (e.g. "Delete and move to Other").
 - Toasts confirm background actions (invite sent, backup finished, refund linked). Use `role="status"` and make them dismissible.
-- Segmented toggles and chips expose `aria-pressed`. Radio-style pickers use `role="radiogroup"`/`role="radio"`.
+- Filter chips and on/off toggles expose `aria-pressed` (`Toggle`). One-of-N choices, segmented toggles included, are `role="radiogroup"`/`role="radio"` (`ToggleGroup type="single"`, #170); screens still on hand-built segmented buttons move in #175–#178.
 - Charts get a text alternative (an `aria-label` per bar or a data table nearby).
 
 ## Quality

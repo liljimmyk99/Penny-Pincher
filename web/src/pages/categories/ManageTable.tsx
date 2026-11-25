@@ -1,7 +1,7 @@
-import * as Tooltip from "@radix-ui/react-tooltip";
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type ReactNode } from "react";
 import { errorMessage } from "../../api";
 import { AlertIcon, GripIcon, InfoIcon, LockIcon, PencilIcon, TrashIcon } from "../../components/icons";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { moveAmongUnlocked } from "./reorder";
 
 export interface ManageRow {
@@ -282,8 +282,8 @@ export function ManageTable<T extends ManageRow>({
                         <PencilIcon />
                       </button>
                       {blocked ? (
-                        <Tooltip.Root>
-                          <Tooltip.Trigger asChild>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
                             <button
                               type="button"
                               className="icon-btn icon-btn--info"
@@ -291,13 +291,11 @@ export function ManageTable<T extends ManageRow>({
                             >
                               <InfoIcon />
                             </button>
-                          </Tooltip.Trigger>
-                          <Tooltip.Portal>
-                            <Tooltip.Content className="tooltip" side="top" sideOffset={6}>
-                              {blocked}
-                            </Tooltip.Content>
-                          </Tooltip.Portal>
-                        </Tooltip.Root>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" sideOffset={6}>
+                            {blocked}
+                          </TooltipContent>
+                        </Tooltip>
                       ) : (
                         <button
                           type="button"
