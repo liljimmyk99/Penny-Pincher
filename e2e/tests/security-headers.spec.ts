@@ -2,23 +2,22 @@
  * #105 · Browser security headers from the public proxy (deploy/Caddyfile), and
  * a Content-Security-Policy the whole app runs under without a single violation.
  */
-import { randomUUID } from "node:crypto";
-import type { APIResponse, Frame, Page } from "@playwright/test";
+import type { APIResponse, Page } from "@playwright/test";
 import { request } from "@playwright/test";
-import { expect, signIn, test } from "../support/fixtures";
+import { expect, signIn, submitSignIn, test } from "../support/fixtures";
 import { monthOf, todayIn } from "../support/dates";
-import { allowlist, Api, BASE_URL, createAccount, uidOf } from "../support/stack";
+import { Api, BASE_URL, createAccount } from "../support/stack";
 
 const today = () => todayIn(undefined);
 
-// Runs as its own Playwright project on full Chromium (see playwright.config.ts).
+// Runs as its own Playwright project (see playwright.config.ts).
 
 const SAME_ON_EVERY_RESPONSE: Record<string, string> = {
   "x-frame-options": "DENY",
   "x-content-type-options": "nosniff",
   "referrer-policy": "strict-origin-when-cross-origin",
   "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
-  "cross-origin-opener-policy": "same-origin-allow-popups",
+  "cross-origin-opener-policy": "same-origin",
 };
 
 function parseCsp(header: string | undefined): Record<string, string[]> {
@@ -41,31 +40,26 @@ function expectSecurityHeaders(res: APIResponse) {
 
   const csp = parseCsp(headers["content-security-policy"]);
   expect(csp["default-src"]).toEqual(["'self'"]);
-  // Only our own files and Google's popup loader: no inline script, no eval.
-  expect(csp["script-src"]).toEqual(["'self'", "https://apis.google.com"]);
+  // Only our own files: no inline script, no eval, and no third-party script.
+  expect(csp["script-src"]).toEqual(["'self'"]);
   expect(csp["object-src"]).toEqual(["'none'"]);
   expect(csp["base-uri"]).toEqual(["'self'"]);
   expect(csp["form-action"]).toEqual(["'self'"]);
   expect(csp["frame-ancestors"]).toEqual(["'none'"]);
-  expect(csp["connect-src"]).toEqual(expect.arrayContaining(["'self'", "https://identitytoolkit.googleapis.com", "https://securetoken.googleapis.com"]));
-  expect(csp["frame-src"]).toContain("https://demo-penny-pincher.firebaseapp.com");
-  expect(csp["style-src"]).toEqual(expect.arrayContaining(["'self'", "https://fonts.googleapis.com"]));
-  expect(csp["font-src"]).toEqual(expect.arrayContaining(["https://fonts.gstatic.com"]));
+  // Sign-in is our own API now (#182): nothing to connect to or frame but ourselves.
+  expect(csp["connect-src"]).toEqual(["'self'"]);
+  expect(csp["frame-src"], "no frame-src, so default-src 'self' applies").toBeUndefined();
+  expect(csp["style-src"]).toEqual(["'self'", "https://fonts.googleapis.com"]);
+  expect(csp["font-src"]).toEqual(["'self'", "https://fonts.gstatic.com"]);
+  expect(headers["content-security-policy"], "no Google sign-in or Firebase origin is left").not.toMatch(/firebase|apis\.google\.com|accounts\.google\.com|identitytoolkit|securetoken/);
   expect(headers["content-security-policy"], "nothing in the policy lets an injected script run").not.toMatch(/unsafe-eval|\*/);
   expect(csp["script-src"].join(" ")).not.toMatch(/unsafe-inline|data:/);
 }
 
 /** Every CSP violation the page reports, kept across navigations and reloads. */
-// Google's iframe loader sometimes (it is sampled) sends a usage beacon to
-// apis.google.com/js/gen_204. The policy blocks it on purpose: it is telemetry,
-// not part of sign-in, and sign-in works without it. Nothing else is ignored.
-const IGNORED_VIOLATION = /https:\/\/apis\.google\.com\/js\/gen_204\b/;
-
 async function watchCsp(page: Page): Promise<string[]> {
   const violations: string[] = [];
-  const record = (v: string) => {
-    if (!IGNORED_VIOLATION.test(v)) violations.push(v);
-  };
+  const record = (v: string) => violations.push(v);
   await page.exposeFunction("__e2eCspViolation", record);
   await page.addInitScript(() => {
     document.addEventListener("securitypolicyviolation", (e) => {
@@ -118,10 +112,9 @@ test("every response carries the security headers; API responses are never cache
 test.describe("under the Content-Security-Policy", () => {
   test.use({ colorScheme: "dark" });
 
-  test("email sign-in, the theme, fonts and every screen work with no CSP violations", async ({ page }) => {
+  test("sign-in, the theme, fonts and every screen work with no CSP violations", async ({ page }) => {
     const violations = await watchCsp(page);
-    const admin = await createAccount("csp-admin");
-    allowlist(admin, "admin"); // so the admin panel is on the tour too
+    const admin = createAccount("csp-admin", { role: "admin" }); // so the admin panel is on the tour too
     const api = await Api.as(admin);
     try {
       const food = await api.createExpense({ date: today(), amount_cents: 2500, category: "Food", merchant: "Policy Grocer" });
@@ -133,6 +126,9 @@ test.describe("under the Content-Security-Policy", () => {
       // theme-init.js ran before the app: dark, from the system preference.
       await page.goto("/summary");
       await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+      // A failed attempt first, so the sign-in error is on the tour too.
+      await submitSignIn(page, admin.username, "not-the-password");
+      await expect(page.getByRole("alert")).toContainText("Wrong username or password");
       await signIn(page, admin, "/summary");
       await expect(page.getByRole("heading", { level: 1, name: "Summary" })).toBeVisible();
 
@@ -191,57 +187,5 @@ test.describe("under the Content-Security-Policy", () => {
     } finally {
       await api.dispose();
     }
-  });
-});
-
-test.describe("under the Content-Security-Policy, Google", () => {
-  test.use({ colorScheme: "dark" });
-
-  test("Google sign-in through the popup works with no CSP violations", async ({ page }) => {
-    const violations = await watchCsp(page);
-    await page.goto("/summary");
-
-    // The emulator stands in for Google's account chooser in the popup. The SDK
-    // still loads Google's iframe loader (script-src) and opens the auth iframe
-    // (frame-src), so this exercises the same policy as real Google sign-in.
-    const email = `google-${randomUUID().slice(0, 8)}@example.test`;
-    const signInWithGoogle = async (pick: (popup: Page) => Promise<void>) => {
-      const popupOpened = page.waitForEvent("popup");
-      await page.getByRole("button", { name: "Continue with Google" }).click();
-      const popup = await popupOpened;
-      // A person takes long enough to pick an account; the test has to wait for
-      // what that time covers. The emulator's chooser binds its buttons once its
-      // scripts have loaded, and the popup hands its result to the SDK's hidden
-      // auth iframe in this page, whose first script starts listening (and
-      // buffers the result until the SDK is wired up).
-      await popup.waitForLoadState("load");
-      let authFrame: Frame | undefined;
-      await expect
-        .poll(() => (authFrame = page.frames().find((f) => f.url().includes("/emulator/auth/iframe"))))
-        .toBeTruthy();
-      await authFrame!.waitForLoadState("domcontentloaded");
-      const closed = popup.waitForEvent("close");
-      await pick(popup);
-      await closed;
-    };
-
-    // A new Google account: Firebase signs it in, but it isn't allowlisted, so
-    // the API answers 403 and the app signs it out again.
-    await signInWithGoogle(async (popup) => {
-      await popup.locator("#add-account-button").click();
-      await popup.locator("#email-input").fill(email);
-      await popup.locator("#display-name-input").fill("Google Test User");
-      await popup.locator("#sign-in").click();
-    });
-    await expect(page.getByRole("alert")).toContainText("No access.");
-    await expect(page.getByRole("alert")).toContainText(email);
-
-    // Once an admin adds it, signing in with the same Google account gets in.
-    allowlist({ uid: await uidOf(email), email });
-    await signInWithGoogle((popup) => popup.locator("#accounts-list").getByText(email).click());
-    await expect(page.getByRole("heading", { level: 1, name: "Summary" })).toBeVisible();
-
-    await page.evaluate(() => 0);
-    expect(violations, "CSP violations").toEqual([]);
   });
 });

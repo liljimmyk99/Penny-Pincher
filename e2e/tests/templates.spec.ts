@@ -8,7 +8,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { expect, signIn, test } from "../support/fixtures";
 import { zoneOffUtcDate } from "../support/dates";
-import { allowlist, Api, createAccount, type Expense, type IncomeEntry } from "../support/stack";
+import { Api, createAccount, type Expense, type IncomeEntry } from "../support/stack";
 
 /* ---- The fixture ------------------------------------------------------- */
 
@@ -525,8 +525,7 @@ test("AT-22 a second user sees none of your templates, and applying there never 
   await tpl.apply(api, "2027-03", templateId);
   const mine = (await monthEntries(api, "2027-03")).all.map((e) => e.id).sort();
 
-  const other = await createAccount("second");
-  allowlist(other);
+  const other = createAccount("second");
   const otherApi = await Api.as(other);
   try {
     expect((await tpl.list(otherApi)).map((t) => t.name)).not.toContain("Test Month");

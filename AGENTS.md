@@ -223,7 +223,7 @@ Rules:
   - **Types: `openapi-typescript`**, generated from `api/openapi.yaml` into `web/src/api/schema.gen.ts` (committed; `npm run gen:api`, and `npm run check:api` fails if it is out of date). **Client: `openapi-fetch`** (tiny, typed by those generated paths).
   - **Server state: TanStack Query**, in memory only (nothing persisted). Queries and mutations use `networkMode: "always"` so offline requests fail visibly instead of pausing.
 
-- **Web auth: Firebase JS SDK** (decided 2026-11-05) *Superseded by username and password sign-in (#182); the code stays until the implementation lands.*
+- **Web auth: Firebase JS SDK** (decided 2026-11-05) *Superseded by username and password sign-in (#182); the Firebase code was removed in #189.*
   - The `firebase` package (modular v13), used only through `web/src/auth/firebase.ts`. Session persistence is Firebase's default (IndexedDB); it holds auth tokens only, no financial data.
   - Google sign-in uses a popup with the account chooser. The web config (API key, project id) is public and passed to the web build as `FIREBASE_WEB_API_KEY` / `FIREBASE_PROJECT_ID` in `.env`.
 
@@ -238,9 +238,9 @@ Rules:
 
 - **End-to-end tests** (decided 2026-11-05)
   - **Playwright** (`@playwright/test`, Chromium) in its own `/e2e` package, with `@axe-core/playwright` for the dark-mode colour-contrast check. It drives `e2e/compose.yml`: the real API and web images and Caddyfile.
-  - *Superseded (#182): once Firebase is removed, tests sign in with real passwords against the API and the emulator is deleted.*
-  - **Sign-in uses the Firebase Auth emulator**, not the real project. It is enabled by `FIREBASE_AUTH_EMULATOR_HOST` (API) and `VITE_FIREBASE_AUTH_EMULATOR_URL` (web build). **Both are honored only for a `demo-` project id**, and the API refuses to start otherwise, so a production deployment can't accept emulator tokens by mistake.
-  - Each test creates its own allowlisted user with the real `api user add` CLI. It runs in CI as the `e2e` job. `e2e/AGENTS.md` maps each gate item to its test and lists what stays manual.
+  - **Sign-in is real (#192):** each test creates its own user with the real `api user add` CLI and a generated test password, and signs in through the real sign-in screen. There is no emulator or test-only auth setting. (Until #182 this used the Firebase Auth emulator, now deleted.)
+  - The one test-only helper is a `dbtool` service (pinned Node image, `tools` profile, never started by `up`) that ages a session in the database to test the 30-day expiry.
+  - It runs in CI as the `e2e` job. `e2e/AGENTS.md` maps each gate item to its test and lists what stays manual.
 
 - **Backups: tooling, destination and admin integration** (decided 2026-11-06)
   - **Snapshot: SQLite `VACUUM INTO`** run by the API process, which gives a consistent copy of a live WAL database with no extra binaries (pure Go, no CGO). **Encryption: `age`** (Go library, `filippo.io/age`). The API writes one `.sqlite.age` file per snapshot. `restic` and Litestream were rejected: restic needs an extra binary and makes "download one encrypted archive" clumsy, and Litestream is continuous replication, not weekly/monthly snapshots.
@@ -261,7 +261,7 @@ Rules:
   - **At rest: a LUKS2 volume on the Linux server**, holding Docker's `data-root` (so the `api-data` volume, container layers, logs and Caddy's TLS keys) and the app checkout with `.env` and `secrets/`. It is **unlocked by hand over SSH after each reboot** (an unlock script); it is not in `fstab`/`crypttab`, and Docker stays disabled at boot so nothing starts before it is unlocked. The app is down after a reboot until then; automatic reboots after updates are off. Swap is off or encrypted.
   - **Rejected:** SQLCipher (needs CGO, which reverses the `modernc.org/sqlite` decision, and its key would sit in `.env` on the same server); provider-managed volume encryption alone (the provider holds the key); encrypting columns in the app (breaks the SQL aggregations).
   - **Backup temp files:** the API's `/tmp` is a `tmpfs`, so the plaintext `VACUUM INTO` copy lives only in memory before `age` encrypts it.
-  - **In transit:** Caddy terminates TLS and sends `Strict-Transport-Security: max-age=31536000` (not for `localhost`, and without `includeSubDomains`). Caddy talks to `api` and `web` over plain HTTP on Docker's internal network; their ports are never published. The API refuses `BACKUP_S3_INSECURE=1` unless the project is a `demo-` one, the same rule as the auth emulator.
+  - **In transit:** Caddy terminates TLS and sends `Strict-Transport-Security: max-age=31536000` (not for `localhost`, and without `includeSubDomains`). Caddy talks to `api` and `web` over plain HTTP on Docker's internal network; their ports are never published. The API refuses `BACKUP_S3_INSECURE=1` unless `APP_TEST_MODE=1`, which only the e2e stack sets.
   - **Limits:** this protects data on a powered-off server or a detached disk or snapshot. It does not protect a running server from someone with root, or a VPS from its provider reading memory.
 
 - **Request limits and rate limiting** (decided 2026-11-07, #106; details in `docs/security.md`)
