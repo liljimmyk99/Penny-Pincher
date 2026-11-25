@@ -17,8 +17,13 @@ Read the root `AGENTS.md` first. This file adds rules specific to the React web 
   - The session store (`createSession`) is the API client's `onSessionError`. A user flagged `must_change_password` can only reach the Change password screen and Sign out.
   - Never log or put the password, the token or the username in a URL, query string or error report.
 - **Routing: React Router** (`react-router`). Routes live in `src/App.tsx` (`AppRoutes`) inside `AppShell` (`src/shell`); the sidebar order is `NAV_ITEMS` in `src/shell/navigation.ts`. Each screen renders a `Page` (`src/pages/Page.tsx`), which sets the tab title and gives the `h1` that takes focus after navigation. Tests render `AppRoutes` in a `MemoryRouter`.
-- **No UI component library.** Build our own small components on the design tokens below. Radix UI primitives (unstyled) may be used for behavior that is hard to get right accessibly: dialogs, alert dialogs, popovers, menus, toggles and tooltips. All styling stays ours.
-- **No charting library.** The approved charts (root §6.11) are hand-built React components, the same way the design canvas draws them:
+- **UI components: shadcn/ui** (root §10, #165), `new-york` style, Zinc base, on **Tailwind CSS v4** (`@tailwindcss/vite`) and the design tokens below.
+  - Components are added with the shadcn CLI into `src/components/ui/` and owned by us. They are built on Radix primitives and `class-variance-authority`; `cn()` (`clsx` + `tailwind-merge`) lives in `src/lib/utils.ts`.
+  - **Never edit a generated primitive for a one-off look.** Wrap it in an app component outside `ui/`, or add a variant to its `cva` definition. Edits inside `ui/` are only for app-wide rules (the 44px default size, CSP fixes), with a short comment saying why.
+  - **Sizes:** Button, Input and Select are 44px tall by default (shadcn's 36px is not the default). A smaller size only where a dense table needs it and the target stays reachable.
+  - Icons: `lucide-react`. Toasts: Sonner. The merchant combobox: cmdk (`Command`) in a `Popover`.
+  - Until the migration's cleanup (#180), older hand-built components still exist; new and changed UI uses the shadcn ones.
+- **No charting library**, and shadcn's `chart` component (Recharts) is not used. The approved charts (root §6.11) are hand-built React components, the same way the design canvas draws them:
   - ranked, paired, diverging and sparkline bars are elements sized as a percentage of the largest value (HTML or SVG)
   - the donut is a CSS `conic-gradient` ring (or SVG arcs)
   - one component per chart type (e.g. `RankedBars`, `PairedBars`, `DivergingBars`, `Donut`), shared by every screen
@@ -35,58 +40,67 @@ Read the root `AGENTS.md` first. This file adds rules specific to the React web 
 - **Content-Security-Policy** (set by the proxy in `deploy/Caddyfile`; `docs/security.md`): no inline `<script>`, no inline `<style>` elements, no `eval`.
   - Code that must run before first paint goes in a file in `public/` (as `theme-init.js` does).
   - Style with CSS files or React's `style` prop, which the CSP allows.
-  - A dependency that injects `<style>` elements needs a stand-in like `src/lib/cspStyleSingleton.ts`.
+  - A dependency that injects `<style>` elements needs a stand-in like `src/lib/cspStyleSingleton.ts`, or its own CSS file imported instead. The shadcn dependencies (Sonner, cmdk, Radix) are reviewed in #168.
   - Loading anything from a new origin (scripts, fonts, frames, API calls) means updating the policy in the same change.
 
 ## Design reference
 
-The approved screens live in the **Penny-Pincher Screens** design canvas (private, owner access only):
+The current look is the **Penny-Pincher Design V2** canvas (private, owner access only), every screen restyled on shadcn/ui; its **shadcn/ui · Components & tokens** board holds the tokens below:
+https://claude.ai/code/artifact/f6712391-3aa6-46d4-89ab-fcfece34f4a1
+
+V2 is a visual restyle of v1, not a component spec. The original **Penny-Pincher Screens** canvas stays the reference for screens and flows the V2 canvas doesn't change:
 https://claude.ai/code/artifact/420ff31e-17a4-4f1d-b07d-9d958efeab9c
 
-Every screen exists in light and dark. Sample numbers and names on the canvas are mock data; never copy them into code, seeds or tests. When this file and the canvas disagree, this file wins; flag the difference.
+Every screen exists in light and dark. Sample numbers and names on the canvas are mock data; never copy them into code, seeds or tests. When this file and either canvas disagree, this file wins, on behavior above all; flag the difference.
 
 The Excel import screens (root §6.14: Import, Import · Dark, Progress banner and Progress banner · Dark) are on the same canvas, to the right of the Empty boards.
 
 ## Design system
 
-Define these as tokens (CSS custom properties or the UI library's theme) in one place. Do not scatter hex values through components.
+Define these as tokens in one place (`src/styles/tokens.css`, exposed to Tailwind with `@theme`). Do not scatter hex values through components. #167 moves the values into shadcn's variable names and re-checks every pair for contrast.
 
-**Type:** Manrope (400–800) from Google Fonts, system sans-serif fallback. Tabular numerals for every money column.
-- Page title 32px/800 · section title 18px/800 · body 14px · tile value 26px/800
-- Eyebrow labels: 12px/800, uppercase, 0.06em letter-spacing
+**Type:** Geist (400–700) from Google Fonts (already allowed by the CSP), system sans-serif fallback. Tabular numerals for every money column.
+- Page title 32px/600 · section title 18px/600 · body 14px · labels 13px/500 · tile value 26px/700
 
-**Shape and spacing:** cards radius 14px with a 1px border; buttons and inputs radius 10px, 44px tall; chips and pills fully rounded. Page padding 32px top, ~40px sides; 24px between sections, 16px between tiles. Touch targets at least 44px.
+**Shape and spacing:** base radius 10px (md 8px for buttons and inputs, xl 14px for cards), cards with a 1px border; controls 44px tall; badges radius 6px; focus ring 3px of primary at 35%. Page padding 32px top, ~40px sides; 24px between sections, 16px between tiles. Touch targets at least 44px.
 
-**Colors (light / dark):**
+**shadcn tokens (light / dark):**
 
 | Token | Light | Dark | Used for |
 |---|---|---|---|
-| background | `#F2F4F7` | `#0D1524` | page |
-| surface | `#FFFFFF` | `#141D2E` | cards, menus, dialogs |
-| border | `#E3E7ED` | `#233047` | card borders, dividers |
-| text | `#111827` | `#E8EDF5` | primary text |
-| text-muted | `#4B5563` | `#A3AEC0` | labels, secondary text |
-| sidebar | `#0E1A2B` | `#070C16` | left navigation |
-| primary (blue) | `#1F5FD6` | `#2F6BE0` | primary buttons, selection, focus |
+| background / card / popover | `#FFFFFF` | `#18181B` | page, cards, menus, dialogs |
+| foreground | `#09090B` | `#FAFAFA` | primary text |
+| muted / secondary / accent | `#F4F4F5` | `#27272A` | quiet fills, tab lists, hovered rows |
+| muted-foreground | `#52525B` | `#A1A1AA` | labels, secondary text |
+| border | `#E4E4E7` | `#27272A` | card borders, dividers |
+| input | `#D4D4D8` | `#3F3F46` | field and outline-button borders |
+| primary / ring | `#2563EB`, hover `#1D4ED8` | `#2563EB`, hover `#1D4ED8` | primary buttons, selection, focus |
+| destructive | `#B91C1C` | `#DC2626` | destructive buttons |
+| sidebar | `#18181B`, accent `#27272A` | `#18181B`, accent `#27272A` | left navigation |
+
+**Domain tokens (ours, light / dark):**
+
+| Token | Light | Dark | Used for |
+|---|---|---|---|
 | brand (orange) | `#F97316` | `#F97316` | logo, trend bars, unconfirmed dot |
-| income (green) | `#15803D` | `#5BD68A` | net income figures |
+| income / success (green) | `#15803D` | `#5BD68A` | net income figures, the green Save button |
 | saving (blue) | `#1E40AF` text, `#1F5FD6` bars | `#A9C4FF` text, `#3D78EA` bars | Saving everywhere |
 | spent (slate) | `#475569` | `#8C9AB0` | spent bars, ordinary category bars |
 | refund | row `#F0FDF4`, text `#166534`, pill `#DCFCE7` | row `#0F2A1C`, text `#6EE7A0`, pill `#12391F` | refund rows, amounts and tags |
 | unconfirmed | tint `#FFF7ED`, pill `#FFEDD5`, text `#9A3412` | tint `#2B1D12`, pill `#4A2A10`, text `#FDBA74` | template copies not yet confirmed |
-| danger | `#B91C1C` | `#DC2626` | destructive buttons |
 | danger alert | bg `#FEF2F2`, border `#FECACA`, text `#991B1B`, invalid field `#DC2626` | bg `#3A1518`, border `#7F1D1D`, text `#FCA5A5`, invalid field `#F87171` | inline error alerts, invalid inputs |
-| success alert | bg `#F0FDF4`, border `#BBF7D0`, text `#166534` | bg `#0F2A1C`, border `#1E4D33`, text `#86EFAC` | confirmations (e.g. reset email sent) |
+| success alert | bg `#F0FDF4`, border `#BBF7D0`, text `#166534` | bg `#0F2A1C`, border `#1E4D33`, text `#86EFAC` | confirmations |
 | toast | bg `#111827`, text `#FFFFFF` | bg `#E8EDF5`, text `#0D1524` | toasts (refund linked, backup finished) |
 | link | `#1D4ED8`, hover `#1E3A8A` | `#8AB4FF`, hover `#B9D0FF` | links and text buttons |
-| field | bg `#FFFFFF`, border `#D5DBE3` | bg `#0F1726`, border `#2E3B54` | text inputs, ghost-button borders |
+
+The domain values are carried over from v1; #167 re-checks them against the Zinc neutrals and updates this table if any change.
 
 - Orange, blue and green are the action/accent colors; white is an accent only, never a primary color.
 - Text must meet 4.5:1 contrast (3:1 for large text). Colors that must be told apart also differ in lightness, not hue alone.
 
 **Change indicators (month over month, year over year):** colour by meaning, not direction. Orange = worse (spent more), blue = better (spent less). For **Saving the colours flip**: saving more is blue (good), saving less is orange. Always show an ▲/▼ arrow and a +/− sign too, so colour is never the only signal.
 
-**Icons:** simple 2px-stroke line icons (24px grid, shown at 18px). No emoji.
+**Icons:** `lucide-react` line icons (2px stroke, 24px grid, shown at 18px). No emoji.
 
 **Theme:** Light, Dark and System, chosen in the account menu. Default to System.
 
