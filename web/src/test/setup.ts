@@ -2,8 +2,11 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach } from "vitest";
 import { cleanup } from "@testing-library/react";
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
+  // Sonner keeps toasts in a module-wide store and replays them to the next Toaster.
+  // Imported lazily: cspSafeStyles.test.tsx must stub the CSSOM before Sonner loads.
+  (await import("sonner")).toast.dismiss();
   window.localStorage.clear();
   delete document.documentElement.dataset.theme;
   document.documentElement.classList.remove("dark");

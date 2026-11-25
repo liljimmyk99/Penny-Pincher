@@ -11,7 +11,7 @@ import {
   Upload,
   type LucideIcon,
 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +29,7 @@ import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui
 import { cn } from "@/lib/utils";
 import { useMe } from "../api";
 import { useSession } from "../auth";
-import { Toast } from "../components/Toast";
+import { toast } from "../lib/toast";
 import { useTheme } from "../theme/context";
 import { isThemePreference, type ThemePreference } from "../theme/theme";
 import { ChangePasswordDialog } from "./ChangePasswordDialog";
@@ -81,8 +81,6 @@ export function AccountMenu({ collapsed }: { collapsed: boolean }) {
   const admin = isAdmin(me);
   const apple = isApplePlatform();
   const [changing, setChanging] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
-  const dismissToast = useCallback(() => setToast(null), []);
 
   return (
     <>
@@ -219,11 +217,10 @@ export function AccountMenu({ collapsed }: { collapsed: boolean }) {
           onClose={() => setChanging(false)}
           onChanged={() => {
             setChanging(false);
-            setToast("Password changed");
+            toast("Password changed");
           }}
         />
       )}
-      <Toast message={toast} onDismiss={dismissToast} />
     </>
   );
 }

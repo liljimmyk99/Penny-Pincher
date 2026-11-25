@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { ApiProvider, createApiClient, type Schemas } from "../../api";
 import { AdminPage } from "./AdminPage";
 import { formatBytes, formatUptime } from "./format";
+import { Toaster } from "../../components/ui/sonner";
 
 const stamp = "2026-11-01T10:00:00Z";
 
@@ -54,6 +55,7 @@ function renderPage(items: Schemas["Backup"][], overrides: { status?: Schemas["A
   render(
     <ApiProvider client={api} queryClient={queryClient}>
       <AdminPage />
+      <Toaster />
     </ApiProvider>,
   );
   return { calls, user: userEvent.setup() };
@@ -146,6 +148,7 @@ describe("Users tab", () => {
     render(
       <ApiProvider client={api} queryClient={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <AdminPage />
+        <Toaster />
       </ApiProvider>,
     );
     return { bodies, resets, user: userEvent.setup() };

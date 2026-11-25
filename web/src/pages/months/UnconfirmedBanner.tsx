@@ -9,6 +9,7 @@ import {
 } from "../../api";
 import { AlertIcon, CheckIcon, UndoIcon } from "../../components/icons";
 import { monthName } from "../../lib/dates";
+import { toast } from "../../lib/toast";
 import { plural, undoableApply, unconfirmedCount } from "./preview";
 import "./months.css";
 
@@ -22,13 +23,10 @@ import "./months.css";
 export function UnconfirmedBanner({
   month,
   showReview = false,
-  onDone,
 }: {
   month: string;
   /** Link to the month's Transactions (for Summary; Transactions is the review itself). */
   showReview?: boolean;
-  /** Confirms a finished action, e.g. as a toast. */
-  onDone: (message: string) => void;
 }) {
   const expenses = useMonthExpenses(month);
   const income = useMonthIncome(month);
@@ -48,7 +46,7 @@ export function UnconfirmedBanner({
     setError(null);
     try {
       const r = await undoApply.mutateAsync(undoable.id);
-      onDone(`Undone · removed ${plural(r.removed_expense_count + r.removed_income_entry_count, "copied item", "copied items")}`);
+      toast(`Undone · removed ${plural(r.removed_expense_count + r.removed_income_entry_count, "copied item", "copied items")}`);
     } catch (err) {
       setError(errorMessage(err));
     }
@@ -58,7 +56,7 @@ export function UnconfirmedBanner({
     setError(null);
     try {
       const r = await confirmAll.mutateAsync(month);
-      onDone(`Confirmed ${plural(r.confirmed_expense_count + r.confirmed_income_entry_count, "item", "items")} in ${monthName(month)}`);
+      toast(`Confirmed ${plural(r.confirmed_expense_count + r.confirmed_income_entry_count, "item", "items")} in ${monthName(month)}`);
     } catch (err) {
       setError(errorMessage(err));
     }

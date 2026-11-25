@@ -1,7 +1,7 @@
 import { useId, useState } from "react";
 import { errorMessage, useExportData, type ExportFormat } from "../../api";
 import { AlertIcon, DownloadIcon } from "../../components/icons";
-import { Toast } from "../../components/Toast";
+import { toast } from "../../lib/toast";
 import { Page } from "../Page";
 
 const FORMATS: { value: ExportFormat; label: string; hint: string }[] = [
@@ -16,12 +16,10 @@ export function ExportPage() {
   const [format, setFormat] = useState<ExportFormat>("xlsx");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [done, setDone] = useState<string | null>(null);
   const badRange = from !== "" && to !== "" && from > to;
 
   function download() {
-    setDone(null);
-    exporter.mutate({ format, from, to }, { onSuccess: (name) => setDone(`Downloaded ${name}`) });
+    exporter.mutate({ format, from, to }, { onSuccess: (name) => toast(`Downloaded ${name}`) });
   }
 
   return (
@@ -84,7 +82,6 @@ export function ExportPage() {
           {exporter.isPending ? "Preparing…" : "Download"}
         </button>
       </form>
-      <Toast message={done} onDismiss={() => setDone(null)} />
     </Page>
   );
 }

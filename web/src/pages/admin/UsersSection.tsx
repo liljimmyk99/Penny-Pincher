@@ -1,7 +1,7 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { errorMessage, useAdminUsers, type Schemas } from "../../api";
 import { AlertIcon, PlusIcon } from "../../components/icons";
-import { Toast } from "../../components/Toast";
+import { toast } from "../../lib/toast";
 import { AddUserDialog } from "./AddUserDialog";
 import { formatDateTime } from "./format";
 import { ResetPasswordDialog } from "./ResetPasswordDialog";
@@ -13,8 +13,6 @@ export function UsersSection() {
   const users = useAdminUsers();
   const [adding, setAdding] = useState(false);
   const [resetting, setResetting] = useState<Schemas["AdminUser"] | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-  const dismissToast = useCallback(() => setToast(null), []);
 
   return (
     <section className="card admin-backups" aria-labelledby="users-h">
@@ -92,12 +90,11 @@ export function UsersSection() {
           onClose={() => setAdding(false)}
           onAdded={() => {
             setAdding(false);
-            setToast("User added");
+            toast("User added");
           }}
         />
       )}
       {resetting && <ResetPasswordDialog user={resetting} onClose={() => setResetting(null)} />}
-      <Toast message={toast} onDismiss={dismissToast} />
     </section>
   );
 }

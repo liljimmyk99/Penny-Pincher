@@ -2,6 +2,7 @@ import { Menu } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router";
 import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import { Toaster } from "@/components/ui/sonner";
 import { useMe } from "../api";
 import { Brand } from "../components/Brand";
 import { SETTINGS_PATH } from "./navigation";
@@ -46,6 +47,7 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
+      <Toaster />
     </SidebarProvider>
   );
 }
