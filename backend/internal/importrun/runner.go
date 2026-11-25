@@ -18,6 +18,23 @@ import (
 // DefaultBatchSize is how many rows each transaction writes.
 const DefaultBatchSize = 200
 
+// After each batch the runner pauses for a share of the time that batch held
+// the write lock, so other writers get a turn. SQLite has one writer, and its
+// busy handler only polls (backing off to 100ms between tries): a runner that
+// takes the lock again at once starves every other write (a session touch, a
+// cancel, an expense) into SQLITE_BUSY after busy_timeout. Half the batch time
+// leaves a gap a poll hits with high odds, at about 1.5× the import's time.
+const (
+	yieldShare = 2 // pause = batch time / yieldShare
+	yieldMin   = 2 * time.Millisecond
+	yieldMax   = 250 * time.Millisecond
+)
+
+// yieldAfter is the pause after a batch that held the write lock for held.
+func yieldAfter(held time.Duration) time.Duration {
+	return min(max(held/yieldShare, yieldMin), yieldMax)
+}
+
 const (
 	reasonUnknownName = "A category or income source in the file no longer exists. Nothing from this file was kept."
 	reasonWriteFailed = "The import could not be completed. Nothing from this file was kept."
@@ -295,7 +312,9 @@ func (rn *Runner) exec(run *Run, rows []store.ResolvedImportRow) {
 		}
 		end := min(i+rn.opts.BatchSize, len(rows))
 		batch := rows[i:end]
+		began := time.Now()
 		err := rn.imports.WriteBatch(rn.ctx, run.userID, run.id, batch)
+		held := time.Since(began)
 		if rn.ctx.Err() != nil || errors.Is(err, store.ErrImportWrongStatus) {
 			return // shutting down (recovery fails it), or someone else ended it
 		}
@@ -307,6 +326,9 @@ func (rn *Runner) exec(run *Run, rows []store.ResolvedImportRow) {
 		if rn.opts.AfterBatch != nil {
 			rn.opts.AfterBatch(run.id)
 		}
+		if end < len(rows) {
+			rn.yield(run, yieldAfter(held))
+		}
 	}
 	if cancelled() || rn.ctx.Err() != nil {
 		return
@@ -314,6 +336,18 @@ func (rn *Runner) exec(run *Run, rows []store.ResolvedImportRow) {
 	if _, err := rn.imports.Complete(rn.ctx, run.userID, run.id); err != nil &&
 		!errors.Is(err, store.ErrImportWrongStatus) && rn.ctx.Err() == nil {
 		fail()
+	}
+}
+
+// yield waits d before the next batch, or less if the run is cancelled or the
+// process is stopping (the loop then sees it at once).
+func (rn *Runner) yield(run *Run, d time.Duration) {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-t.C:
+	case <-run.cancelCh:
+	case <-rn.ctx.Done():
 	}
 }
 
