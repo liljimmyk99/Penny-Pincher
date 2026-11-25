@@ -18,7 +18,7 @@
 
 /*
  * Until preflight is added (#180), a small reset for the shadcn/ui controls only
- * (#169, #170, #172), so they don't show the browser's own button and field chrome. It is in
+ * (#169, #170, #172, #175), so they don't show the browser's own button and field chrome. It is in
  * the base layer, so every utility on the component still wins, and it matches
  * nothing the old styles use.
  */
@@ -33,7 +33,8 @@
       [data-slot="toggle-group-item"],
       [data-slot="tabs-trigger"],
       [data-slot="sidebar-menu-button"],
-      [data-slot="dropdown-menu-trigger"]
+      [data-slot="dropdown-menu-trigger"],
+      [data-slot="popover-trigger"]
     ) {
     margin: 0;
     border: 0 solid;

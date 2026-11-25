@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { AlertCircle, Check, Plus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import {
   errorMessage,
@@ -9,12 +10,20 @@ import {
   useEntryMutations,
   type Schemas,
 } from "../../api";
-import { AlertIcon, CheckIcon, PlusIcon, TrashIcon } from "../../components/icons";
 import { defaultDateFor } from "../../lib/dates";
 import { formatCents } from "../../lib/money";
 import { isApplePlatform } from "../../shell/platform";
 import { MerchantCombobox } from "../../components/MerchantCombobox";
+import { MoneyInput } from "../../components/MoneyInput";
+import { Alert, AlertDescription } from "../../components/ui/alert";
+import { Button } from "../../components/ui/button";
+import { Card, CardDescription } from "../../components/ui/card";
+import { Input, inputVariants } from "../../components/ui/input";
+import { Kbd } from "../../components/ui/kbd";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { RefundLink } from "./RefundLink";
+import { SavedStatus } from "./SavedStatus";
 import {
   batchErrors,
   emptyRow,
@@ -212,252 +221,261 @@ export function ExpenseBatch({ month }: { month: string }) {
   }
 
   const mod = isApplePlatform() ? "⌘" : "Ctrl";
+  const cellInput = inputVariants({ variant: "cell" });
 
   return (
-    <section className="card entry-card" aria-labelledby="expenses-h">
-      <div className="entry-card__head">
+    <Card role="region" aria-labelledby="expenses-h" className="min-w-0 gap-0 py-0">
+      <div className="flex flex-wrap items-start justify-between gap-3 px-5 pt-5 pb-3">
         <div>
-          <h2 id="expenses-h">Expenses</h2>
-          <p className="entry-card__desc">Log one as it happens, or a whole stack at once. Nothing saves until you press Save.</p>
+          <h2 id="expenses-h" className="m-0 text-lg leading-tight font-semibold">
+            Expenses
+          </h2>
+          <CardDescription className="mt-1">
+            Log one as it happens, or a whole stack at once. Nothing saves until you press Save.
+          </CardDescription>
         </div>
-        <p className="entry-card__keys" id="expense-keys">
+        <p id="expense-keys" className="m-0 flex flex-wrap gap-3 text-xs font-medium text-muted-foreground">
           <span>
-            <kbd>Enter</kbd> next row
+            <Kbd>Enter</Kbd> next row
           </span>
           <span>
-            <kbd>{mod} Enter</kbd> save all
+            <Kbd>{mod} Enter</Kbd> save all
           </span>
         </p>
       </div>
 
       {categories.isError && (
-        <p role="alert" className="alert alert--danger entry-card__alert">
-          <AlertIcon width={18} height={18} />
-          <span>
-            Couldn’t load categories. {errorMessage(categories.error)}{" "}
-            <button type="button" className="text-btn" onClick={() => void categories.refetch()}>
-              Try again
-            </button>
-          </span>
-        </p>
+        <Alert variant="destructive" className="mx-5 mb-3 w-auto">
+          <AlertCircle />
+          <AlertDescription>
+            <p>
+              Couldn’t load categories. {errorMessage(categories.error)}{" "}
+              <Button variant="link" className="h-auto p-0" onClick={() => void categories.refetch()}>
+                Try again
+              </Button>
+            </p>
+          </AlertDescription>
+        </Alert>
       )}
 
-      <div className="batch__scroll">
-        <table className="batch">
-          <caption className="visually-hidden">New expenses</caption>
-          <thead>
-            <tr>
-              <th scope="col" className="batch__date">Date</th>
-              <th scope="col" className="batch__merchant">Merchant</th>
-              <th scope="col" className="batch__category">Category</th>
-              <th scope="col" className="batch__amount num">Amount</th>
-              <th scope="col">Note</th>
-              <th scope="col" className="batch__remove">
-                <span className="visually-hidden">Remove</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, i) => {
-              const n = i + 1;
-              const rowLabel = `row ${n}`;
-              const e = errors.get(row.key) ?? {};
-              const refund = isRefund(row);
-              const errId = (f: RowField) => (e[f] ? `exp-${row.key}-${f}-err` : undefined);
-              const describedBy = (f: RowField) => [errId(f), "expense-keys"].filter(Boolean).join(" ");
-              const messages = (Object.entries(e) as [RowField, string | undefined][]).filter(([, m]) => m);
-              return (
-                <tr key={row.key} className={refund ? "batch__row batch__row--refund" : "batch__row"}>
-                  <td>
-                    <input
-                      ref={register(row, "date")}
-                      className="cell-input"
-                      type="date"
-                      aria-label={`Date, ${rowLabel}`}
-                      aria-invalid={e.date ? true : undefined}
-                      aria-describedby={describedBy("date")}
-                      value={row.date}
-                      required
-                      onChange={(ev) => update(row.key, { date: ev.target.value }, ["date"])}
-                      onKeyDown={(ev) => onRowKeyDown(ev, row)}
-                    />
-                  </td>
-                  <td>
-                    <MerchantCombobox
-                      id={`exp-${row.key}-merchant`}
-                      label={`Merchant, ${rowLabel}`}
-                      value={row.merchant}
-                      invalid={!!e.merchant}
-                      describedBy={describedBy("merchant")}
-                      inputRef={register(row, "merchant")}
-                      onChange={(merchant) =>
-                        update(row.key, { merchant, merchantId: null, refundedExpenseId: null }, ["merchant", "link"])
+      <Table className="min-w-[760px]">
+        <caption className="visually-hidden">New expenses</caption>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead scope="col" className="w-[150px] px-3">
+              Date
+            </TableHead>
+            <TableHead scope="col" className="w-[26%] px-3">
+              Merchant
+            </TableHead>
+            <TableHead scope="col" className="w-[170px] px-3">
+              Category
+            </TableHead>
+            <TableHead scope="col" numeric className="w-[130px] px-3">
+              Amount
+            </TableHead>
+            <TableHead scope="col" className="px-3">
+              Note
+            </TableHead>
+            <TableHead scope="col" className="w-[52px]">
+              <span className="visually-hidden">Remove</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row, i) => {
+            const n = i + 1;
+            const rowLabel = `row ${n}`;
+            const e = errors.get(row.key) ?? {};
+            const refund = isRefund(row);
+            const errId = (f: RowField) => (e[f] ? `exp-${row.key}-${f}-err` : undefined);
+            const describedBy = (f: RowField) => [errId(f), "expense-keys"].filter(Boolean).join(" ");
+            const messages = (Object.entries(e) as [RowField, string | undefined][]).filter(([, m]) => m);
+            const cell = "align-top whitespace-normal";
+            return (
+              <TableRow key={row.key} variant={refund ? "refund" : "default"} className="hover:bg-transparent">
+                <TableCell className={cell}>
+                  <Input
+                    ref={register(row, "date")}
+                    variant="cell"
+                    type="date"
+                    aria-label={`Date, ${rowLabel}`}
+                    aria-invalid={e.date ? true : undefined}
+                    aria-describedby={describedBy("date")}
+                    value={row.date}
+                    required
+                    onChange={(ev) => update(row.key, { date: ev.target.value }, ["date"])}
+                    onKeyDown={(ev) => onRowKeyDown(ev, row)}
+                  />
+                </TableCell>
+                <TableCell className={cell}>
+                  <MerchantCombobox
+                    id={`exp-${row.key}-merchant`}
+                    className={cellInput}
+                    label={`Merchant, ${rowLabel}`}
+                    value={row.merchant}
+                    invalid={!!e.merchant}
+                    describedBy={describedBy("merchant")}
+                    inputRef={register(row, "merchant")}
+                    onChange={(merchant) =>
+                      update(row.key, { merchant, merchantId: null, refundedExpenseId: null }, ["merchant", "link"])
+                    }
+                    onPick={(m) => void resolveMerchant(row, m)}
+                    onCommit={() => {
+                      if (!row.merchantId && row.merchant.trim()) void resolveMerchant(row, null);
+                    }}
+                    onKeyDown={(ev) => onRowKeyDown(ev, row)}
+                  />
+                  {refund && (
+                    <RefundLink
+                      id={`exp-${row.key}-link`}
+                      rowLabel={rowLabel}
+                      merchantId={row.merchantId}
+                      merchantName={row.merchant}
+                      value={row.refundedExpenseId}
+                      categoryName={categoryName}
+                      error={e.link}
+                      onChange={(original) =>
+                        update(
+                          row.key,
+                          {
+                            refundedExpenseId: original?.id ?? null,
+                            // A refund usually lands in the original's category.
+                            ...(original && !row.categoryTouched ? { categoryId: original.category_id } : {}),
+                          },
+                          ["link", ...(original ? (["category"] as RowField[]) : [])],
+                        )
                       }
-                      onPick={(m) => void resolveMerchant(row, m)}
-                      onCommit={() => {
-                        if (!row.merchantId && row.merchant.trim()) void resolveMerchant(row, null);
-                      }}
-                      onKeyDown={(ev) => onRowKeyDown(ev, row)}
                     />
-                    {refund && (
-                      <RefundLink
-                        id={`exp-${row.key}-link`}
-                        rowLabel={rowLabel}
-                        merchantId={row.merchantId}
-                        merchantName={row.merchant}
-                        value={row.refundedExpenseId}
-                        categoryName={categoryName}
-                        error={e.link}
-                        onChange={(original) =>
-                          update(
-                            row.key,
-                            {
-                              refundedExpenseId: original?.id ?? null,
-                              // A refund usually lands in the original's category.
-                              ...(original && !row.categoryTouched ? { categoryId: original.category_id } : {}),
-                            },
-                            ["link", ...(original ? (["category"] as RowField[]) : [])],
-                          )
-                        }
-                      />
-                    )}
-                  </td>
-                  <td>
-                    <select
+                  )}
+                </TableCell>
+                <TableCell className={cell}>
+                  <Select
+                    value={row.categoryId}
+                    onValueChange={(categoryId) => update(row.key, { categoryId, categoryTouched: true }, ["category"])}
+                  >
+                    <SelectTrigger
                       ref={register(row, "category")}
-                      className="cell-input"
+                      variant="cell"
                       aria-label={`Category, ${rowLabel}`}
                       aria-invalid={e.category ? true : undefined}
                       aria-describedby={describedBy("category")}
-                      value={row.categoryId}
-                      onChange={(ev) =>
-                        update(row.key, { categoryId: ev.target.value, categoryTouched: true }, ["category"])
-                      }
-                      onKeyDown={(ev) => onRowKeyDown(ev, row)}
+                      // Enter keeps its row meaning (next row, ⌘/Ctrl+Enter saves) instead of
+                      // opening the list; Space and the arrow keys still open it.
+                      onKeyDown={(ev) => {
+                        if (ev.key === "Enter") onRowKeyDown(ev, row);
+                      }}
                     >
-                      <option value="" disabled>
-                        {categories.isPending ? "Loading…" : "Choose…"}
-                      </option>
+                      <SelectValue placeholder={categories.isPending ? "Loading…" : "Choose…"} />
+                    </SelectTrigger>
+                    <SelectContent position="popper" align="start">
                       {categoryList.map((c) => (
-                        <option key={c.id} value={c.id}>
+                        <SelectItem key={c.id} value={c.id}>
                           {c.name}
-                        </option>
+                        </SelectItem>
                       ))}
-                    </select>
-                  </td>
-                  <td>
-                    <div className="cell-money">
-                      {refund && (
-                        <span className="cell-money__sign" aria-hidden="true">
-                          −
-                        </span>
-                      )}
-                      <input
-                        ref={register(row, "amount")}
-                        className="cell-input num"
-                        type="text"
-                        inputMode="decimal"
-                        aria-label={`${refund ? "Refund amount" : "Amount"}, ${rowLabel}`}
-                        aria-invalid={e.amount ? true : undefined}
-                        aria-describedby={describedBy("amount")}
-                        placeholder="0.00"
-                        value={row.amount}
-                        onChange={(ev) => update(row.key, { amount: ev.target.value }, ["amount"])}
-                        onKeyDown={(ev) => onRowKeyDown(ev, row)}
-                      />
-                    </div>
-                  </td>
-                  <td>
-                    <input
-                      ref={register(row, "note")}
-                      className="cell-input"
-                      type="text"
-                      aria-label={`Note, ${rowLabel}`}
-                      aria-invalid={e.note ? true : undefined}
-                      aria-describedby={describedBy("note")}
-                      maxLength={NOTE_MAX}
-                      placeholder="Optional"
-                      value={row.note}
-                      onChange={(ev) => update(row.key, { note: ev.target.value }, ["note"])}
-                      onKeyDown={(ev) => onRowKeyDown(ev, row)}
-                    />
-                    {messages.length > 0 && (
-                      <ul className="batch__errors">
-                        {messages.map(([f, m]) => (
-                          <li key={f} id={errId(f)}>
-                            {m}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </td>
-                  <td>
-                    {(rows.length > 1 || !isBlank(row)) && (
-                      <button
-                        type="button"
-                        className="icon-btn icon-btn--danger"
-                        aria-label={`Remove ${rowLabel}`}
-                        onClick={() => removeRow(row)}
-                      >
-                        <TrashIcon />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+                <TableCell className={cell}>
+                  <MoneyInput
+                    ref={register(row, "amount")}
+                    variant="cell"
+                    prefix={refund ? "−" : null}
+                    prefixClassName="text-sm font-bold text-refund-text"
+                    className={refund ? "[&_input]:text-refund-text" : undefined}
+                    aria-label={`${refund ? "Refund amount" : "Amount"}, ${rowLabel}`}
+                    aria-invalid={e.amount ? true : undefined}
+                    aria-describedby={describedBy("amount")}
+                    value={row.amount}
+                    onValueChange={(amount) => update(row.key, { amount }, ["amount"])}
+                    onKeyDown={(ev) => onRowKeyDown(ev, row)}
+                  />
+                </TableCell>
+                <TableCell className={cell}>
+                  <Input
+                    ref={register(row, "note")}
+                    variant="cell"
+                    type="text"
+                    aria-label={`Note, ${rowLabel}`}
+                    aria-invalid={e.note ? true : undefined}
+                    aria-describedby={describedBy("note")}
+                    maxLength={NOTE_MAX}
+                    placeholder="Optional"
+                    value={row.note}
+                    onChange={(ev) => update(row.key, { note: ev.target.value }, ["note"])}
+                    onKeyDown={(ev) => onRowKeyDown(ev, row)}
+                  />
+                  {messages.length > 0 && (
+                    <ul className="mt-1.5 mb-0 list-none px-2 text-xs font-semibold text-danger-alert-foreground">
+                      {messages.map(([f, m]) => (
+                        <li key={f} id={errId(f)}>
+                          {m}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </TableCell>
+                <TableCell className={cell}>
+                  {(rows.length > 1 || !isBlank(row)) && (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-muted-foreground hover:text-danger-alert-foreground"
+                      aria-label={`Remove ${rowLabel}`}
+                      onClick={() => removeRow(row)}
+                    >
+                      <Trash2 />
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
 
-      <div className="batch__add">
-        <button type="button" className="text-btn" onClick={() => addRow(false)}>
-          <PlusIcon />
+      <div className="flex flex-wrap gap-4 px-3.5 pt-2 pb-3">
+        <Button variant="link" className="px-1.5" onClick={() => addRow(false)}>
+          <Plus />
           Add row
-        </button>
-        <button type="button" className="text-btn" onClick={() => addRow(true)}>
-          <PlusIcon />
+        </Button>
+        <Button variant="link" className="px-1.5" onClick={() => addRow(true)}>
+          <Plus />
           Add refund
-        </button>
+        </Button>
       </div>
 
       {alert && (
-        <p role="alert" className="alert alert--danger entry-card__alert">
-          <AlertIcon width={18} height={18} />
-          {alert}
-        </p>
+        <Alert variant="destructive" className="mx-5 mb-3 w-auto">
+          <AlertCircle />
+          <AlertDescription>{alert}</AlertDescription>
+        </Alert>
       )}
 
-      <div className="entry-card__foot">
-        <p className="batch__total" aria-live="polite">
-          {plural(filled.length, "row", "rows")} ready · <strong>{formatCents(netCents)}</strong> net
+      <div className="flex flex-wrap items-center gap-3 rounded-b-xl border-0 border-t border-solid border-border bg-muted/50 px-5 py-3.5">
+        <p className="m-0 text-muted-foreground tabular-nums" aria-live="polite">
+          {plural(filled.length, "row", "rows")} ready ·{" "}
+          <strong className="text-foreground">{formatCents(netCents)}</strong> net
         </p>
-        <div role="status" className="entry-card__saved">
-          {saved && (
-            <>
-              <CheckIcon width={16} height={16} />
-              {saved}
-            </>
-          )}
-        </div>
-        <div className="entry-card__actions">
-          <button type="button" className="btn btn--ghost" disabled={filled.length === 0} onClick={discard}>
+        <SavedStatus text={saved} />
+        <div className="ml-auto flex gap-2.5">
+          <Button variant="outline" disabled={filled.length === 0} onClick={discard}>
             Discard
-          </button>
-          <button
-            type="button"
-            className="btn btn--primary"
+          </Button>
+          <Button
             disabled={createExpenses.isPending}
             aria-keyshortcuts={mod === "⌘" ? "Meta+Enter" : "Control+Enter"}
             onClick={() => void save()}
           >
-            <CheckIcon />
+            <Check />
             {createExpenses.isPending
               ? "Saving…"
               : `Save ${filled.length > 1 ? `${count.format(filled.length)} entries` : "entry"}`}
-          </button>
+          </Button>
         </div>
       </div>
-    </section>
+    </Card>
   );
 }
+

@@ -1,6 +1,11 @@
 import { useMerchantExpenses, type Schemas } from "../../api";
+import { Label } from "../../components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { formatShortDate } from "../../lib/dates";
 import { formatCents } from "../../lib/money";
+
+/** Radix Select can't use "" as an item value, so "Not linked" has its own. */
+const NOT_LINKED = "none";
 
 interface Props {
   id: string;
@@ -22,33 +27,50 @@ export function RefundLink({ id, rowLabel, merchantId, merchantName, value, cate
 
   if (!merchantId) {
     return (
-      <p className="refund-link refund-link--hint">
+      <p className="mt-1.5 mb-0 px-2 text-xs font-semibold text-muted-foreground">
         {merchantName.trim() ? "New merchant: nothing to link this refund to." : "Pick a merchant to link the original expense."}
       </p>
     );
   }
 
   const items = originals.data ?? [];
+  const errorId = error ? `${id}-err` : undefined;
   return (
-    <div className="refund-link">
-      <label htmlFor={id}>Refund for</label>
-      <select
-        id={id}
-        className="refund-link__select"
-        aria-label={`Refund for, ${rowLabel}`}
-        aria-invalid={error ? true : undefined}
-        value={value ?? ""}
+    <div className="mt-1.5 flex flex-wrap items-center gap-1.5 px-2 text-xs font-bold text-refund-text">
+      <Label htmlFor={id} className="text-xs font-bold text-refund-text">
+        Refund for
+      </Label>
+      <Select
+        value={value ?? NOT_LINKED}
         disabled={originals.isPending}
-        onChange={(e) => onChange(items.find((x) => x.id === e.target.value) ?? null)}
+        onValueChange={(v) => onChange(items.find((x) => x.id === v) ?? null)}
       >
-        <option value="">{originals.isPending ? "Loading…" : originals.isError ? "Couldn’t load expenses" : "Not linked"}</option>
-        {items.map((e) => (
-          <option key={e.id} value={e.id}>
-            {describe(e, categoryName)}
-          </option>
-        ))}
-      </select>
-      {error && <span className="refund-link__error">{error}</span>}
+        <SelectTrigger
+          id={id}
+          size="sm"
+          className="h-8 max-w-full min-w-0 text-xs font-semibold"
+          aria-label={`Refund for, ${rowLabel}`}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={errorId}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent position="popper" align="start">
+          <SelectItem value={NOT_LINKED}>
+            {originals.isPending ? "Loading…" : originals.isError ? "Couldn’t load expenses" : "Not linked"}
+          </SelectItem>
+          {items.map((e) => (
+            <SelectItem key={e.id} value={e.id}>
+              {describe(e, categoryName)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {error && (
+        <span id={errorId} className="text-danger-alert-foreground">
+          {error}
+        </span>
+      )}
     </div>
   );
 }

@@ -9,6 +9,9 @@ import { Select as SelectPrimitive } from "radix-ui"
  * App-wide rules (#169, web/AGENTS.md): the trigger is 44px tall (`sm` 36px for dense tables), the card fill in both themes,
  * a 3px focus ring of the ring colour at 35%, and the danger-alert line for
  * aria-invalid (also used by the old .field, so both look the same).
+ *
+ * The trigger's `cell` variant (#175) matches Input's: quiet inside a table row
+ * until hover or focus.
  */
 
 function Select({
@@ -32,17 +35,23 @@ function SelectValue({
 function SelectTrigger({
   className,
   size = "default",
+  variant = "default",
   children,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Trigger> & {
   size?: "sm" | "default"
+  variant?: "default" | "cell"
 }) {
   return (
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
       data-size={size}
+      data-variant={variant}
       className={cn(
-        "flex w-fit items-center justify-between gap-2 cursor-pointer rounded-md border border-solid border-input bg-card px-3 py-2 text-sm text-foreground whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/35 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-danger-alert-line aria-invalid:ring-danger-alert-line/20 data-[placeholder]:text-muted-foreground data-[size=default]:h-11 data-[size=sm]:h-9 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 hover:bg-accent [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground",
+        "flex w-fit items-center justify-between gap-2 cursor-pointer rounded-md border border-solid border-input bg-card px-3 py-2 text-sm text-foreground whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none",
+        " focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/35 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-danger-alert-line aria-invalid:ring-danger-alert-line/20 data-[placeholder]:text-muted-foreground data-[size=default]:h-11 data-[size=sm]:h-9 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 hover:bg-accent [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground",
+        variant === "cell" &&
+          "w-full border-transparent bg-transparent px-2 shadow-none hover:border-input hover:bg-transparent focus-visible:bg-card data-[size=default]:h-9.5",
         className
       )}
       {...props}
