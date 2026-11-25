@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -88,5 +89,33 @@ func TestRunUserAddSetPasswordRevoke(t *testing.T) {
 	}
 	if _, err := sess.Lookup(context.Background(), tok); err == nil {
 		t.Error("revoke left the session alive")
+	}
+}
+
+func TestConfirmPasswordAndPipedInput(t *testing.T) {
+	answers := func(a ...string) func(string) (string, error) {
+		return func(string) (string, error) {
+			if len(a) == 0 {
+				return "", errors.New("eof")
+			}
+			v := a[0]
+			a = a[1:]
+			return v, nil
+		}
+	}
+	if pw, err := confirmPassword(answers(cliPassword, cliPassword)); err != nil || pw != cliPassword {
+		t.Errorf("matching = %q, %v", pw, err)
+	}
+	if _, err := confirmPassword(answers(cliPassword, "different password!")); err == nil {
+		t.Error("mismatch accepted")
+	}
+	if _, err := confirmPassword(answers("short", "short")); err == nil {
+		t.Error("weak password accepted")
+	}
+	if _, err := confirmPassword(answers(cliPassword)); err == nil {
+		t.Error("missing repeat accepted")
+	}
+	if pw, err := readPassword(strings.NewReader(cliPassword)); err != nil || pw != cliPassword { // no trailing newline
+		t.Errorf("piped = %q, %v", pw, err)
 	}
 }
