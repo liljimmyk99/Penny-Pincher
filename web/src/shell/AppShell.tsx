@@ -1,35 +1,70 @@
+import { Menu } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router";
+import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { useMe } from "../api";
+import { Brand } from "../components/Brand";
 import { SETTINGS_PATH } from "./navigation";
 import { readSidebarCollapsed, writeSidebarCollapsed } from "./sidebarPreference";
 import { ImportBanner } from "./importBanner/ImportBanner";
-import { Sidebar } from "./Sidebar";
-import "./AppShell.css";
+import { AppSidebar } from "./Sidebar";
 
-/** The frame every signed-in screen lives in: sidebar plus fluid main content. */
+/**
+ * The frame every signed-in screen lives in: the sidebar (an icon rail when
+ * collapsed, a sheet below 768px) plus fluid main content.
+ */
 export function AppShell() {
   const userId = useMe().data?.id ?? "";
   const [collapsed, setCollapsed] = useState(() => readSidebarCollapsed(userId));
   const mainRef = useMainFocusOnNavigation();
   useSettingsShortcut();
 
-  const toggle = () => {
-    setCollapsed(!collapsed);
-    writeSidebarCollapsed(userId, !collapsed);
+  const onOpenChange = (open: boolean) => {
+    setCollapsed(!open);
+    writeSidebarCollapsed(userId, !open);
   };
 
   return (
-    <div className={collapsed ? "shell shell--collapsed" : "shell"}>
-      <a className="skip-link" href="#main">
+    <SidebarProvider open={!collapsed} onOpenChange={onOpenChange}>
+      <a
+        href="#main"
+        className="absolute top-2 left-2 z-[100] -translate-y-[200%] rounded-md bg-card px-4 py-2 font-bold text-link focus:translate-y-0"
+      >
         Skip to content
       </a>
-      <Sidebar collapsed={collapsed} onToggle={toggle} />
-      <main id="main" className="shell__main" tabIndex={-1} ref={mainRef}>
-        <ImportBanner />
-        <Outlet />
-      </main>
-    </div>
+      <AppSidebar />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <PhoneTopBar />
+        {/* min-w-0 lets wide cards scroll inside themselves, never the page. */}
+        <main
+          id="main"
+          tabIndex={-1}
+          ref={mainRef}
+          className="min-w-0 flex-1 px-[clamp(1rem,4vw,2.5rem)] pt-8 pb-12 focus:outline-none"
+        >
+          <ImportBanner />
+          <Outlet />
+        </main>
+      </div>
+    </SidebarProvider>
+  );
+}
+
+/** Below 768px: the brand and the button that opens the navigation sheet. */
+function PhoneTopBar() {
+  const { isMobile } = useSidebar();
+  if (!isMobile) return null;
+  return (
+    <header className="flex items-center gap-3 border-b border-sidebar-border bg-sidebar px-4 py-2 text-sidebar-foreground">
+      <SidebarTrigger
+        aria-label="Open navigation"
+        aria-haspopup="dialog"
+        className="text-sidebar-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground focus-visible:ring-sidebar-ring"
+      >
+        <Menu className="size-5" />
+      </SidebarTrigger>
+      <Brand size="sm" />
+    </header>
   );
 }
 

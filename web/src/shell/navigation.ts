@@ -1,31 +1,31 @@
-import type { ComponentType, SVGProps } from "react";
 import {
-  CalendarIcon,
-  ChartIcon,
-  CopyIcon,
-  DashboardIcon,
-  ListIcon,
-  PlusCircleIcon,
-  TagIcon,
-  UploadIcon,
-} from "../components/icons";
+  Calendar,
+  ChartColumn,
+  CirclePlus,
+  Copy,
+  LayoutDashboard,
+  List,
+  Tag,
+  Upload,
+  type LucideIcon,
+} from "lucide-react";
 
 export interface NavItem {
   path: string;
   label: string;
-  Icon: ComponentType<SVGProps<SVGSVGElement>>;
+  Icon: LucideIcon;
 }
 
 /** The sidebar, in the order web/AGENTS.md ("Layout and navigation") fixes. */
 export const NAV_ITEMS: readonly NavItem[] = [
-  { path: "/summary", label: "Summary", Icon: DashboardIcon },
-  { path: "/add", label: "Add entries", Icon: PlusCircleIcon },
-  { path: "/transactions", label: "Transactions", Icon: ListIcon },
-  { path: "/yearly", label: "Yearly", Icon: CalendarIcon },
-  { path: "/trends", label: "Trends", Icon: ChartIcon },
-  { path: "/templates", label: "Templates", Icon: CopyIcon },
-  { path: "/categories", label: "Categories & sources", Icon: TagIcon },
-  { path: "/import", label: "Import", Icon: UploadIcon },
+  { path: "/summary", label: "Summary", Icon: LayoutDashboard },
+  { path: "/add", label: "Add entries", Icon: CirclePlus },
+  { path: "/transactions", label: "Transactions", Icon: List },
+  { path: "/yearly", label: "Yearly", Icon: Calendar },
+  { path: "/trends", label: "Trends", Icon: ChartColumn },
+  { path: "/templates", label: "Templates", Icon: Copy },
+  { path: "/categories", label: "Categories & sources", Icon: Tag },
+  { path: "/import", label: "Import", Icon: Upload },
 ];
 
 /** Pages reached from the account menu rather than the sidebar. */

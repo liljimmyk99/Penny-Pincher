@@ -7,6 +7,7 @@ import { act, render, screen } from "@testing-library/react";
 import { Command } from "cmdk";
 import {
   AlertDialog,
+  Avatar,
   Checkbox,
   Dialog,
   DropdownMenu,
@@ -22,6 +23,7 @@ import {
   Tooltip,
 } from "radix-ui";
 import type { ReactElement } from "react";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
 
 /** jsdom has no constructed stylesheets; this records what would be adopted. */
@@ -223,6 +225,29 @@ const overlays: [string, () => ReactElement, string][] = [
           </Tooltip.Portal>
         </Tooltip.Root>
       </Tooltip.Provider>
+    ),
+    "",
+  ],
+  [
+    // #172: the phone navigation is shadcn's Sheet, a Radix Dialog, so it has the same scroll lock.
+    "Sheet (the sidebar on a phone)",
+    () => (
+      <Sheet open>
+        <SheetContent side="left">
+          <SheetTitle>Navigation</SheetTitle>
+          <SheetDescription>The app's screens and your account menu.</SheetDescription>
+        </SheetContent>
+      </Sheet>
+    ),
+    "overflow: hidden",
+  ],
+  [
+    // A new Radix primitive (#172), the account button's initial.
+    "Avatar",
+    () => (
+      <Avatar.Root>
+        <Avatar.Fallback>S</Avatar.Fallback>
+      </Avatar.Root>
     ),
     "",
   ],
