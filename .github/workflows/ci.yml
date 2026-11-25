@@ -95,7 +95,7 @@ jobs:
         run: npm run typecheck
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      # Builds and starts e2e/compose.yml (API, web, Caddy, Firebase Auth emulator), runs every spec, tears it down.
+      # Builds and starts e2e/compose.yml (API, web, Caddy), runs every spec, tears it down.
       - name: Playwright
         run: npm test
       - name: Stack logs on failure
@@ -177,8 +177,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: docker/setup-buildx-action@v4
-      # Build only; nothing is pushed. The web build gets no Firebase config here,
-      # which is fine because it is only baked into the bundle, not checked.
+      # Build only; nothing is pushed. The images need no build arguments or secrets.
       - uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.image }}
