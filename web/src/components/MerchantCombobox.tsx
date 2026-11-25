@@ -1,17 +1,12 @@
-import {
-  useLayoutEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type KeyboardEvent,
-  type Ref,
-} from "react";
-import { useMerchantSearch, type Schemas } from "../api";
+import { useLayoutEffect, useRef, useState, type KeyboardEvent, type Ref } from "react";
+import { Plus } from "lucide-react";
+import { exactMerchant, useMerchantSearch, type Schemas } from "../api";
 import { MERCHANT_MAX } from "../lib/limits";
-import "./MerchantCombobox.css";
+import { Command, CommandItem, CommandList } from "./ui/command";
+import { Popover, PopoverAnchor, PopoverContent } from "./ui/popover";
 
-/** Matches max-height in MerchantCombobox.css. */
-const LIST_MAX_HEIGHT = 260;
+/** The value of the "Create …" item; merchant items use the merchant's id. */
+const CREATE = "__create__";
 
 interface Props {
   id: string;
@@ -23,7 +18,7 @@ interface Props {
   onChange: (value: string) => void;
   /** A suggestion was chosen (click or Enter on the highlighted one). */
   onPick: (merchant: Schemas["Merchant"]) => void;
-  /** Focus left the field without picking; the name may still match a merchant. */
+  /** Focus left the field, or "Create …" was chosen; the name may still match a merchant. */
   onCommit: () => void;
   /** Keys the combobox didn't use (Enter for "next row" and so on). */
   onKeyDown?: (e: KeyboardEvent<HTMLInputElement>) => void;
@@ -36,7 +31,13 @@ interface Props {
  * Merchant name with autocomplete from the user's past merchants
  * (an ARIA 1.2 combobox with a listbox popup). Arrow keys move through
  * suggestions, Enter picks the highlighted one, Escape closes the list.
- * Typing a new name is fine: saving creates the merchant.
+ * Typing a new name is fine: saving creates the merchant ("Create …").
+ *
+ * The list is cmdk in a Radix Popover, but the input is ours, outside the
+ * Command tree: cmdk's own input replaces the id, always says
+ * aria-expanded and takes Enter, which would stop Enter moving to the next
+ * row when nothing is highlighted. The input drives cmdk's highlight
+ * through Command's controlled `value` ("" is none).
  */
 export function MerchantCombobox({
   id,
@@ -53,72 +54,81 @@ export function MerchantCombobox({
   autoFocus,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(-1);
+  const [active, setActive] = useState("");
   const search = useMerchantSearch(open ? value : "");
   const found = search.data ?? [];
-  // Hide the list once the field already holds exactly the only suggestion.
+  const exact = exactMerchant(found, value);
+  // Hide the list once the field already shows the only suggestion, spelled
+  // the same way. A different case still offers it ("rent" → "Rent"), so the
+  // user can take the existing spelling; it just gets no "Create".
   const options = found.length === 1 && found[0].name === value.trim() ? [] : found;
-  const expanded = open && options.length > 0;
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const [place, setPlace] = useState<CSSProperties>();
-  const listId = `${id}-list`;
+  // Offer "Create" only once the search has answered, so it doesn't flash
+  // up for a name that turns out to exist.
+  const createName = !exact && search.isSuccess && value.trim() ? value.trim() : null;
+  const values = [...options.map((m) => m.id), ...(createName ? [CREATE] : [])];
+  const expanded = open && values.length > 0;
+  const highlighted = values.includes(active) ? active : "";
 
-  // The list is position: fixed (so the batch table's scroll box can't clip
-  // it); keep it under the input, or above it when there's no room below.
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [listEl, setListEl] = useState<HTMLDivElement | null>(null);
+
+  // cmdk generates the listbox's and options' ids (and ignores ours), so
+  // aria-controls and aria-activedescendant are read from its DOM. The same
+  // pass keeps the highlighted option in view, which cmdk only does for
+  // its own keyboard handling.
+  const valuesKey = values.join("\n");
   useLayoutEffect(() => {
-    if (!expanded) return;
-    function update() {
-      const box = wrapRef.current?.getBoundingClientRect();
-      if (!box) return;
-      const gap = 4;
-      const margin = 8;
-      const below = window.innerHeight - box.bottom - gap - margin;
-      const above = box.top - gap - margin;
-      const up = below < 160 && above > below;
-      setPlace({
-        left: box.left,
-        minWidth: box.width,
-        maxHeight: Math.max(0, Math.min(LIST_MAX_HEIGHT, up ? above : below)),
-        ...(up ? { bottom: window.innerHeight - box.top + gap } : { top: box.bottom + gap }),
-      });
-    }
-    update();
-    window.addEventListener("resize", update);
-    window.addEventListener("scroll", update, true);
-    return () => {
-      window.removeEventListener("resize", update);
-      window.removeEventListener("scroll", update, true);
-    };
-  }, [expanded]);
-  const optionId = (i: number) => `${id}-opt-${i}`;
+    const input = wrapRef.current?.querySelector("input");
+    if (!input) return;
+    const list = expanded ? listEl : null;
+    // By value, not aria-selected: cmdk re-renders its items after this runs.
+    const option = highlighted
+      ? list?.querySelector<HTMLElement>(`[cmdk-item][data-value="${CSS.escape(highlighted)}"]`)
+      : null;
+    setAttr(input, "aria-controls", list?.id);
+    setAttr(input, "aria-activedescendant", option?.id);
+    option?.scrollIntoView?.({ block: "nearest" });
+  }, [expanded, listEl, highlighted, valuesKey]);
+
+  function close() {
+    setOpen(false);
+    setActive("");
+  }
 
   function pick(m: Schemas["Merchant"]) {
-    setOpen(false);
-    setActive(-1);
+    close();
     onPick(m);
+  }
+
+  function create() {
+    close();
+    onCommit();
+  }
+
+  function choose(v: string) {
+    if (v === CREATE) return create();
+    const m = options.find((o) => o.id === v);
+    if (m) pick(m);
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (expanded && !e.metaKey && !e.ctrlKey) {
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
-        const step = e.key === "ArrowDown" ? 1 : -1;
-        // -1 is "no suggestion highlighted"; wrap through it at both ends.
-        setActive((i) => {
-          const next = i + step;
-          return next < -1 ? options.length - 1 : next >= options.length ? -1 : next;
-        });
+        // -1 is "nothing highlighted"; wrap through it at both ends.
+        const i = values.indexOf(highlighted);
+        const next = i + (e.key === "ArrowDown" ? 1 : -1);
+        setActive(next < -1 ? values[values.length - 1] : next >= values.length || next < 0 ? "" : values[next]);
         return;
       }
-      if (e.key === "Enter" && active >= 0 && options[active]) {
+      if (e.key === "Enter" && highlighted) {
         e.preventDefault();
-        pick(options[active]);
+        choose(highlighted);
         return;
       }
       if (e.key === "Escape") {
         e.preventDefault();
-        setOpen(false);
-        setActive(-1);
+        close();
         return;
       }
     }
@@ -131,59 +141,90 @@ export function MerchantCombobox({
   }
 
   return (
-    <div className="combo" ref={wrapRef}>
-      <input
-        id={id}
-        ref={inputRef}
-        className={className}
-        type="text"
-        role="combobox"
-        aria-label={label}
-        aria-autocomplete="list"
-        aria-expanded={expanded}
-        aria-controls={listId}
-        aria-activedescendant={expanded && active >= 0 ? optionId(active) : undefined}
-        aria-invalid={invalid || undefined}
-        aria-describedby={describedBy}
-        autoComplete="off"
-        autoFocus={autoFocus}
-        maxLength={MERCHANT_MAX}
-        placeholder="Merchant"
-        value={value}
-        onChange={(e) => {
-          onChange(e.target.value);
-          setOpen(true);
-          setActive(-1);
+    <Popover open={expanded} onOpenChange={(next) => !next && close()} modal={false}>
+      <PopoverAnchor asChild>
+        <div className="relative" ref={wrapRef}>
+          <input
+            id={id}
+            ref={inputRef}
+            className={className}
+            type="text"
+            role="combobox"
+            aria-label={label}
+            aria-autocomplete="list"
+            aria-expanded={expanded}
+            aria-invalid={invalid || undefined}
+            aria-describedby={describedBy}
+            autoComplete="off"
+            autoFocus={autoFocus}
+            maxLength={MERCHANT_MAX}
+            placeholder="Merchant"
+            value={value}
+            onChange={(e) => {
+              onChange(e.target.value);
+              setOpen(true);
+              setActive("");
+            }}
+            onKeyDown={handleKeyDown}
+            onBlur={() => {
+              close();
+              onCommit();
+            }}
+          />
+        </div>
+      </PopoverAnchor>
+      <PopoverContent
+        align="start"
+        className="w-auto min-w-(--radix-popover-trigger-width) max-w-[min(420px,calc(100vw-16px))] p-1"
+        // Focus stays in the input the whole time.
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+        // Clicking the input isn't "outside"; it keeps the list open.
+        onInteractOutside={(e) => {
+          if (wrapRef.current?.contains(e.target as Node)) e.preventDefault();
         }}
-        onKeyDown={handleKeyDown}
-        onBlur={() => {
-          setOpen(false);
-          setActive(-1);
-          onCommit();
-        }}
-      />
-      <ul id={listId} role="listbox" aria-label="Past merchants" className="combo__list"
-        style={place}
-        hidden={!expanded}
+        // Keep focus in the input so its blur doesn't close the list before a click lands.
+        onMouseDown={(e) => e.preventDefault()}
       >
-        {expanded &&
-          options.map((m, i) => (
-            <li
-              key={m.id}
-              id={optionId(i)}
-              role="option"
-              aria-selected={i === active}
-              className="combo__option"
-              // Keep focus in the input; pick on mousedown so blur doesn't close the list first.
-              onMouseDown={(e) => {
-                e.preventDefault();
-                pick(m);
-              }}
-            >
-              {m.name}
-            </li>
-          ))}
-      </ul>
-    </div>
+        {/* cmdk would highlight the first item on its own (and Enter would pick
+            it), so the highlight is only ours: its value changes are ignored
+            and the pointer is tracked on the items. */}
+        <Command label="Past merchants" shouldFilter={false} value={highlighted} disablePointerSelection>
+          <CommandList
+            ref={setListEl}
+            label="Past merchants"
+            className="max-h-[min(260px,var(--radix-popover-content-available-height))]"
+          >
+            {options.map((m) => (
+              <CommandItem
+                key={m.id}
+                value={m.id}
+                onSelect={() => pick(m)}
+                onMouseMove={() => setActive(m.id)}
+                className="cursor-pointer font-semibold whitespace-nowrap data-[selected=true]:bg-selected data-[selected=true]:text-selected-foreground"
+              >
+                {m.name}
+              </CommandItem>
+            ))}
+            {createName && (
+              <CommandItem
+                value={CREATE}
+                onSelect={create}
+                onMouseMove={() => setActive(CREATE)}
+                className="cursor-pointer whitespace-nowrap data-[selected=true]:bg-selected data-[selected=true]:text-selected-foreground"
+              >
+                <Plus aria-hidden="true" />
+                Create “{createName}”
+              </CommandItem>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
+}
+
+function setAttr(el: HTMLElement, name: string, value: string | undefined) {
+  if (value) el.setAttribute(name, value);
+  else el.removeAttribute(name);
 }
