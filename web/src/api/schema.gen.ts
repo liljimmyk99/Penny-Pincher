@@ -37,7 +37,7 @@ export interface paths {
          * Sign in with a username and password
          * @description No bearer token. Returns a new session token; keep it and send it as the bearer token.
          *     A wrong username and a wrong password get the same `401 invalid_credentials`.
-         *     Rate limited per client IP and per username (`429 rate_limited`).
+         *     Rate limited per client IP and per username (`429 rate_limited` with `Retry-After`). After 10 failed attempts in a row a username is locked for 15 minutes with the same `429`, whether or not it exists; a successful sign-in resets the count.
          *     When `must_change_password` is true the client sends the user to the Change password screen.
          */
         post: operations["login"];

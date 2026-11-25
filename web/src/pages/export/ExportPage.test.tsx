@@ -11,7 +11,7 @@ function setup(response: Response) {
     urls.push(req.url);
     return response;
   }) as unknown as typeof globalThis.fetch;
-  const api = createApiClient({ getToken: async () => "t", baseUrl: "http://api.test", fetch });
+  const api = createApiClient({ getToken: () => "t", baseUrl: "http://api.test", fetch });
   render(
     <ApiProvider client={api} queryClient={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <ExportPage />

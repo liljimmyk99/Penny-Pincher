@@ -1,55 +1,22 @@
-import type { TokenGetter } from "../api";
+import type { Schemas } from "../api";
 
-/** The signed-in Firebase user, as much of it as the app needs. */
-export interface AuthUser {
-  uid: string;
-  email: string | null;
-}
+/** What `POST /v1/auth/login` returns: the session token and who signed in. */
+export type LoginResult = Schemas["LoginResult"];
 
 /**
- * Our own codes for sign-in failures. The Firebase wrapper maps Firebase's
- * codes onto these, so nothing outside `src/auth` sees Firebase error codes.
- */
-export type AuthErrorCode =
-  | "invalid_credentials"
-  | "user_not_found"
-  | "invalid_email"
-  | "user_disabled"
-  | "no_access"
-  | "too_many_requests"
-  | "network"
-  | "popup_blocked"
-  | "cancelled"
-  | "provider_disabled"
-  | "account_exists"
-  | "unauthorized_domain"
-  | "unknown";
-
-export class AuthError extends Error {
-  readonly code: AuthErrorCode;
-
-  constructor(code: AuthErrorCode, message: string = code) {
-    super(message);
-    this.name = "AuthError";
-    this.code = code;
-  }
-}
-
-/**
- * Everything the app does with Firebase Authentication. `createFirebaseAuth`
- * implements it; tests pass a fake. Every method rejects with an AuthError.
+ * Everything the app does with sign-in. `createApiAuth` implements it against
+ * the API; tests pass a fake. Methods reject with an `ApiError`.
+ * The session token lives only behind this interface.
  */
 export interface AuthService {
-  /**
-   * Calls back once Firebase has finished restoring any saved session (with
-   * the user or null), then again on every sign-in and sign-out.
-   */
-  onUserChange(callback: (user: AuthUser | null) => void): () => void;
-  signInWithGoogle(): Promise<void>;
-  signInWithEmail(email: string, password: string): Promise<void>;
-  /** Resolves even when no account has that email, so the UI can't reveal which emails exist. */
-  sendPasswordReset(email: string): Promise<void>;
+  /** The stored session token, or null when signed out. */
+  getToken(): string | null;
+  /** Signs in and stores the token. */
+  signIn(username: string, password: string): Promise<LoginResult>;
+  /** Changes the password and stores the new token (the old one stops working). */
+  changePassword(currentPassword: string, newPassword: string): Promise<void>;
+  /** Revokes this session on the server (best effort) and forgets the token. */
   signOut(): Promise<void>;
-  /** The current ID token for the API client, or null when signed out. */
-  getToken: TokenGetter;
+  /** Forgets the token without calling the server (the API already refused it). */
+  clearToken(): void;
 }

@@ -41,7 +41,7 @@ function renderPage(list = [saved]) {
       });
     return Response.json({}, { status: 404 });
   });
-  const client = createApiClient({ baseUrl: "http://api.test", getToken: async () => "tok", fetch: fetchMock as unknown as typeof fetch });
+  const client = createApiClient({ baseUrl: "http://api.test", getToken: () => "tok", fetch: fetchMock as unknown as typeof fetch });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <ApiProvider client={client} queryClient={queryClient}>

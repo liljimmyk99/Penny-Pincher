@@ -16,7 +16,7 @@ function renderWith(response: () => Response) {
   const fetchMock = vi.fn(async () => response());
   const client = createApiClient({
     baseUrl: "http://api.test",
-    getToken: async () => "tok",
+    getToken: () => "tok",
     fetch: fetchMock as unknown as typeof fetch,
   });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -37,8 +37,8 @@ describe("useMe", () => {
 
   it("shows a user-facing error when the call fails", async () => {
     renderWith(() =>
-      Response.json({ error: { code: "not_allowlisted", message: "uid not in users" } }, { status: 403 }),
+      Response.json({ error: { code: "password_change_required", message: "choose one" } }, { status: 403 }),
     );
-    expect(await screen.findByRole("alert")).toHaveTextContent(/ask an admin/i);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/new password/i);
   });
 });

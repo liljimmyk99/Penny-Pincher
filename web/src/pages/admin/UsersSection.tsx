@@ -8,8 +8,7 @@ import { formatDateTime } from "./format";
 type Role = Schemas["AdminUser"]["role"];
 
 /**
- * Users tab (root §6.12): the app's users and "Add user". It writes the app's
- * database only; Firebase accounts are created in the Firebase console.
+ * Users tab (root §6.12): the app's users and "Add user" with an initial password.
  */
 export function UsersSection() {
   const users = useAdminUsers();
@@ -23,7 +22,7 @@ export function UsersSection() {
         <div>
           <h2 id="users-h">Users</h2>
           <p className="admin__desc">
-            People who can sign in to Penny-Pincher. Accounts themselves are created in the Firebase console.
+            People who can sign in to Penny-Pincher. Add someone with a username and an initial password.
           </p>
         </div>
         <button type="button" className="btn btn--primary btn--sm" onClick={() => setAdding(true)}>
@@ -45,16 +44,18 @@ export function UsersSection() {
             <thead>
               <tr>
                 <th scope="col">Name</th>
+                <th scope="col">Username</th>
                 <th scope="col">Email</th>
                 <th scope="col">Role</th>
                 <th scope="col">Added</th>
-                <th scope="col">Firebase uid</th>
+                <th scope="col">Password</th>
               </tr>
             </thead>
             <tbody>
               {users.data.map((u) => (
                 <tr key={u.id}>
                   <th scope="row">{u.display_name ?? "—"}</th>
+                  <td>{u.username}</td>
                   <td>{u.email ?? "—"}</td>
                   <td>
                     <span className={`admin-users__role admin-users__role--${u.role}`}>
@@ -63,7 +64,7 @@ export function UsersSection() {
                   </td>
                   <td>{formatDateTime(u.created_at)}</td>
                   <td>
-                    <code className="admin-users__uid">{u.firebase_uid}</code>
+                    {u.must_change_password ? "Must change at sign-in" : "Set by user"}
                   </td>
                 </tr>
               ))}
@@ -88,7 +89,9 @@ export function UsersSection() {
 function AddUserDialog({ onClose, onAdded }: { onClose: () => void; onAdded: () => void }) {
   const uid = useId();
   const add = useAddUser();
-  const [firebaseUid, setFirebaseUid] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [mustChange, setMustChange] = useState(true);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [role, setRole] = useState<Role>("member");
@@ -99,13 +102,19 @@ function AddUserDialog({ onClose, onAdded }: { onClose: () => void; onAdded: () 
     e.preventDefault();
     setAlert(null);
     setErrors({});
-    if (firebaseUid.trim() === "") {
-      setErrors({ firebase_uid: "Paste the Firebase uid." });
+    if (username.trim() === "") {
+      setErrors({ username: "Enter a username." });
+      return;
+    }
+    if (password.length < 12) {
+      setErrors({ password: "Use at least 12 characters." });
       return;
     }
     try {
       await add.mutateAsync({
-        firebase_uid: firebaseUid.trim(),
+        username: username.trim(),
+        password,
+        must_change_password: mustChange,
         email: email.trim() === "" ? null : email.trim(),
         display_name: name.trim() === "" ? null : name.trim(),
         role,
@@ -151,8 +160,7 @@ function AddUserDialog({ onClose, onAdded }: { onClose: () => void; onAdded: () 
             <div className="dialog__text">
               <Dialog.Title className="dialog__title">Add user</Dialog.Title>
               <Dialog.Description className="dialog__body">
-                Create the account in the Firebase console first, then paste its uid. This adds the person to
-                Penny-Pincher only; nothing is changed in Firebase.
+                Set their username and an initial password, then pass them on. There is no email.
               </Dialog.Description>
             </div>
             <Dialog.Close className="icon-btn" aria-label="Close" disabled={add.isPending}>
@@ -160,7 +168,12 @@ function AddUserDialog({ onClose, onAdded }: { onClose: () => void; onAdded: () 
             </Dialog.Close>
           </div>
           <form className="admin-users__form" noValidate onSubmit={(e) => void submit(e)}>
-            {field("firebase_uid", "Firebase uid", firebaseUid, setFirebaseUid)}
+            {field("username", "Username", username, setUsername)}
+            {field("password", "Initial password", password, setPassword, "At least 12 characters.")}
+            <label className="admin-users__check">
+              <input type="checkbox" checked={mustChange} onChange={(e) => setMustChange(e.target.checked)} />
+              Ask them to choose their own password at first sign-in
+            </label>
             {field("email", "Email (optional)", email, setEmail)}
             {field("display_name", "Display name (optional)", name, setName)}
             <div>

@@ -1,39 +1,51 @@
-import { act } from "@testing-library/react";
-import type { AuthService, AuthUser } from "../auth/types";
+import type { AuthService, LoginResult } from "../auth/types";
 
 export type FakeAuth = AuthService & {
-  /** Simulates Firebase reporting a sign-in (user) or sign-out (null). */
-  emit(user: AuthUser | null): void;
-  signInWithGoogle: ReturnType<typeof vi.fn<AuthService["signInWithGoogle"]>>;
-  signInWithEmail: ReturnType<typeof vi.fn<AuthService["signInWithEmail"]>>;
-  sendPasswordReset: ReturnType<typeof vi.fn<AuthService["sendPasswordReset"]>>;
+  getToken: ReturnType<typeof vi.fn<AuthService["getToken"]>>;
+  signIn: ReturnType<typeof vi.fn<AuthService["signIn"]>>;
+  changePassword: ReturnType<typeof vi.fn<AuthService["changePassword"]>>;
   signOut: ReturnType<typeof vi.fn<AuthService["signOut"]>>;
+  clearToken: ReturnType<typeof vi.fn<AuthService["clearToken"]>>;
 };
 
-export const testUser: AuthUser = { uid: "uid-1", email: "user@example.com" };
+export const testMe = {
+  id: "1",
+  username: "sam",
+  email: null,
+  display_name: null,
+  role: "member",
+  must_change_password: false,
+} as const;
+
+export const testLogin = (over: Partial<LoginResult> = {}): LoginResult => ({
+  token: "new-token",
+  expires_at: "2026-12-24T00:00:00Z",
+  user: { ...testMe },
+  must_change_password: false,
+  ...over,
+});
 
 /**
- * An in-memory AuthService. `restored` is what Firebase reports once the saved
- * session is checked; "pending" leaves it restoring until `emit` is called.
- * Successful sign-ins report `testUser`; signOut reports null.
+ * An in-memory AuthService. `token` is the stored session ("test-token" means
+ * already signed in, null means signed out). Sign-in and password changes store
+ * a new token; sign-out and clearToken forget it.
  */
-export function fakeAuth(restored: AuthUser | null | "pending" = null): FakeAuth {
-  let listener: ((user: AuthUser | null) => void) | null = null;
-  const emit = (user: AuthUser | null) => act(() => listener?.(user));
-
+export function fakeAuth(token: string | null = null): FakeAuth {
+  let current = token;
   return {
-    emit,
-    onUserChange(callback) {
-      listener = callback;
-      if (restored !== "pending") callback(restored);
-      return () => {
-        listener = null;
-      };
-    },
-    signInWithGoogle: vi.fn(async () => emit(testUser)),
-    signInWithEmail: vi.fn(async () => emit(testUser)),
-    sendPasswordReset: vi.fn(async () => {}),
-    signOut: vi.fn(async () => emit(null)),
-    getToken: vi.fn(async () => "test-token"),
+    getToken: vi.fn(() => current),
+    signIn: vi.fn(async () => {
+      current = "new-token";
+      return testLogin();
+    }),
+    changePassword: vi.fn(async () => {
+      current = "newer-token";
+    }),
+    signOut: vi.fn(async () => {
+      current = null;
+    }),
+    clearToken: vi.fn(() => {
+      current = null;
+    }),
   };
 }

@@ -6,13 +6,20 @@ import { ApiProvider, createApiClient, meQueryKey, type Schemas } from "../api";
 import { AppRoutes } from "../App";
 import { createSession } from "../auth";
 import { SessionProvider } from "../auth/SessionProvider";
-import { fakeAuth, testUser } from "../test/fakeAuth";
+import { fakeAuth, testMe } from "../test/fakeAuth";
 import { shellFetch } from "../test/summary";
 import { ThemeProvider } from "../theme/ThemeProvider";
 import { THEME_STORAGE_KEY } from "../theme/theme";
 
-const member: Schemas["Me"] = { id: "1", email: testUser.email, display_name: null, role: "member" };
-const admin: Schemas["Me"] = { id: "2", email: "admin@example.com", display_name: "Alex Admin", role: "admin" };
+const member: Schemas["Me"] = { ...testMe };
+const admin: Schemas["Me"] = {
+  id: "2",
+  username: "alex",
+  email: "admin@example.com",
+  display_name: "Alex Admin",
+  role: "admin",
+  must_change_password: false,
+};
 
 const NAV_ORDER = [
   "Summary",
@@ -26,7 +33,7 @@ const NAV_ORDER = [
 ];
 
 function renderShell({ me = member, path = "/" }: { me?: Schemas["Me"]; path?: string } = {}) {
-  const auth = fakeAuth(testUser);
+  const auth = fakeAuth("test-token");
   const session = createSession(auth);
   const api = createApiClient({
     baseUrl: "http://api.test",
@@ -133,12 +140,13 @@ describe("account menu", () => {
     const { user } = renderShell();
     const menu = await openAccountMenu(user);
 
-    expect(menu).toHaveTextContent("Signed in · user@example.com");
+    expect(menu).toHaveTextContent("Signed in · sam");
     const items = within(menu).getAllByRole("menuitem").map((item) => item.textContent);
     expect(items).toEqual([
       expect.stringContaining("Settings"),
       expect.stringContaining("Import transactions"),
       expect.stringContaining("Export data"),
+      "Change password",
       "Sign out",
     ]);
     expect(within(menu).queryByRole("menuitem", { name: /admin dashboard/i })).not.toBeInTheDocument();

@@ -2,21 +2,16 @@ import createClient from "openapi-fetch";
 import { ApiError, isSessionError } from "./errors";
 import type { paths } from "./schema.gen";
 
-/**
- * Returns the current Firebase ID token, or null when signed out.
- * `forceRefresh` asks for a fresh token (after the API rejected the cached one).
- * The Firebase wrapper provides this; nothing here imports the Firebase SDK.
- */
-export type TokenGetter = (opts: { forceRefresh: boolean }) => Promise<string | null>;
+/** Returns the stored session token, or null when signed out. */
+export type TokenGetter = () => string | null | Promise<string | null>;
 
 export interface ApiClientOptions {
   getToken: TokenGetter;
   /**
-   * Called once per failed request when the session is unusable:
-   * `unauthenticated` (still 401 after a token refresh), `session_expired` (401,
-   * the sign-in is too old) or `not_allowlisted` (403).
-   * The app signs the user out here. `admin_required` is not a session error
-   * and is left to the caller.
+   * Called once per failed request when the session is unusable: 401
+   * `unauthenticated` or `session_expired` (the app signs the user out), or 403
+   * `password_change_required` (the app routes to Change password).
+   * There is no token refresh and no retry. `admin_required` is left to the caller.
    */
   onSessionError?: (err: ApiError) => void;
   /** Defaults to this page's origin; the reverse proxy (or Vite in dev) routes `/v1` to the API. */
@@ -40,15 +35,7 @@ function authFetch({ getToken, onSessionError, fetch: baseFetch }: ApiClientOpti
   const send = (req: Request) => (baseFetch ?? globalThis.fetch)(req);
 
   return async (request: Request): Promise<Response> => {
-    // Keep an unsent copy so a 401 can be retried with a refreshed token.
-    const retry = request.clone();
-
-    let response = await send(withToken(request, await getToken({ forceRefresh: false })));
-    // A refreshed token keeps its sign-in time, so it can't fix `session_expired`.
-    if (response.status === 401 && !(await isSessionExpired(response))) {
-      const fresh = await getToken({ forceRefresh: true });
-      if (fresh) response = await send(withToken(retry, fresh));
-    }
+    const response = await send(withToken(request, await getToken()));
 
     if (onSessionError && (response.status === 401 || response.status === 403)) {
       const err = ApiError.fromResponse(response.status, await readJson(response.clone()));
@@ -63,11 +50,6 @@ function withToken(request: Request, token: string | null): Request {
   const headers = new Headers(request.headers);
   headers.set("Authorization", `Bearer ${token}`);
   return new Request(request, { headers });
-}
-
-async function isSessionExpired(response: Response): Promise<boolean> {
-  const err = ApiError.fromResponse(response.status, await readJson(response.clone()));
-  return err.code === "session_expired";
 }
 
 async function readJson(response: Response): Promise<unknown> {

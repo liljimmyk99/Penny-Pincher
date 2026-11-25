@@ -83,7 +83,7 @@ function renderPage(summary: Summary, { path = `/summary?month=${MONTH}`, unconf
     }
     return Response.json({ items: [], next_cursor: null });
   });
-  const client = createApiClient({ baseUrl: "http://api.test", getToken: async () => "tok", fetch: fetchMock as unknown as typeof fetch });
+  const client = createApiClient({ baseUrl: "http://api.test", getToken: () => "tok", fetch: fetchMock as unknown as typeof fetch });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <ApiProvider client={client} queryClient={queryClient}>

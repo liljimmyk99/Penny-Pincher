@@ -48,7 +48,7 @@ function renderPage(filled = true, path = "/yearly?year=2020") {
     const year = Number(/\/v1\/summaries\/yearly\/(\d+)$/.exec(new URL(req.url).pathname)?.[1]);
     return Response.json(summary(year, filled));
   });
-  const client = createApiClient({ baseUrl: "http://api.test", getToken: async () => "tok", fetch: fetchMock as unknown as typeof fetch });
+  const client = createApiClient({ baseUrl: "http://api.test", getToken: () => "tok", fetch: fetchMock as unknown as typeof fetch });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <ApiProvider client={client} queryClient={queryClient}>

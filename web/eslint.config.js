@@ -16,22 +16,4 @@ export default tseslint.config(
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
     },
   },
-  {
-    // Firebase stays behind the auth wrapper (web/AGENTS.md).
-    files: ["src/**/*.{ts,tsx}"],
-    ignores: ["src/auth/firebase.ts", "src/auth/firebase.test.ts"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            {
-              regex: "^@?firebase(/|$)",
-              message: "Only src/auth/firebase.ts imports the Firebase SDK; use src/auth instead.",
-            },
-          ],
-        },
-      ],
-    },
-  },
 );

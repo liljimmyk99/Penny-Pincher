@@ -54,7 +54,7 @@ function setup(handler: (req: Request, path: string) => Response | undefined) {
     calls.push(`${req.method} ${path}`);
     return handler(req, path) ?? Response.json({ items: [] });
   }) as unknown as typeof globalThis.fetch;
-  const api = createApiClient({ getToken: async () => "t", baseUrl: "http://api.test", fetch });
+  const api = createApiClient({ getToken: () => "t", baseUrl: "http://api.test", fetch });
   render(
     <MemoryRouter>
       <ApiProvider client={api} queryClient={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
