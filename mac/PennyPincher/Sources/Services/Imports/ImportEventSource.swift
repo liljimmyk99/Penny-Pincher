@@ -30,7 +30,7 @@ struct ImportEventStream: ImportEventSource {
     }
 
     private func run(importID: String, continuation: AsyncThrowingStream<ImportEvent, any Error>.Continuation) async throws {
-        let (bytes, response) = try await open(importID: importID, forceRefresh: false)
+        let (bytes, response) = try await open(importID: importID)
         var parser = SSEParser()
         var chunk: [UInt8] = []
         func flush() throws -> Bool {
@@ -51,23 +51,20 @@ struct ImportEventStream: ImportEventSource {
         _ = try flush()
     }
 
-    private func open(importID: String, forceRefresh: Bool) async throws -> (URLSession.AsyncBytes, HTTPURLResponse) {
+    private func open(importID: String) async throws -> (URLSession.AsyncBytes, HTTPURLResponse) {
         var request = URLRequest(url: serverURL.appending(path: "v1/imports/\(importID)/events"))
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
         request.timeoutInterval = 60 * 60
-        if let token = try await token(forceRefresh) {
+        if let token = token() {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         let (bytes, response) = try await session.bytes(for: request)
         guard let http = response as? HTTPURLResponse else { throw APIError.unexpected() }
-        if http.statusCode == 401, !forceRefresh {
-            return try await open(importID: importID, forceRefresh: true)
-        }
         guard http.statusCode == 200 else {
             var body = Data()
             for try await byte in bytes { body.append(byte); if body.count > 64 * 1024 { break } }
             let error = APIError.decode(body, status: http.statusCode)
-            if http.statusCode == 401 || error.isSessionError { onSessionError(error) }
+            if error.isSessionError || error.isPasswordChangeRequired { onSessionError(error) }
             throw error
         }
         return (bytes, http)

@@ -12,8 +12,4 @@ extension RootView {
     func signOut() {
         viewModel.signOut()
     }
-
-    func open(_ url: URL) {
-        viewModel.open(url)
-    }
 }

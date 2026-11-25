@@ -47,12 +47,12 @@ struct MainViewModelTests {
         #expect(member.accountName == "Test Member")
         #expect(member.accountInitial == "T")
         #expect(member.roleTitle == "Member")
-        #expect(member.signedInText == "Signed in · member@example.test")
+        #expect(member.signedInText == "Signed in · member")
         #expect(member.accountAccessibilityLabel == "Account: Test Member, Member")
         #expect(!member.isAdmin)
 
         let (admin, _, _) = await makeViewModel(.admin)
-        #expect(admin.accountName == "admin@example.test")
+        #expect(admin.accountName == "admin")
         #expect(admin.roleTitle == "Admin")
         #expect(admin.isAdmin)
     }
@@ -79,6 +79,7 @@ struct MainViewModelTests {
 
         viewModel.signOut()
         #expect(session.phase == .signedOut(nil))
+        await settle()
         #expect(auth.calls == ["signOut"])
         #expect(!viewModel.canAddEntries)
         viewModel.selection = .summary
@@ -133,10 +134,25 @@ struct MainViewModelTests {
         let first = try #require(viewModel.workspace)
         viewModel.signOut()
         #expect(viewModel.workspace == nil)
-        _ = session
-        auth.emit(.test)
-        await settle()
+        _ = auth
+        try? await session.signIn(username: "member", password: "test-password")
         #expect(viewModel.workspace?.accountID == first.accountID)
+    }
+
+    @Test("Change password opens as a sheet and closes when done")
+    func changePasswordSheet() async {
+        let (viewModel, session, auth) = await makeViewModel()
+        #expect(!viewModel.showsChangePassword)
+        viewModel.openChangePassword()
+        #expect(viewModel.showsChangePassword)
+        let changer = viewModel.passwordChanger
+        changer?.current = "old-password-1"
+        changer?.new = "new-password-123"
+        changer?.repeated = "new-password-123"
+        await changer?.submit()
+        #expect(auth.calls == ["change:old-password-1>new-password-123"])
+        #expect(!viewModel.showsChangePassword)
+        #expect(session.account == .member)
     }
 
     @Test("Sidebar order matches the spec")

@@ -8,7 +8,7 @@ struct APIClientTrendsTests {
         let transport = ScriptedTransport(replies)
         let tokens = TokenLog()
         let client = APIClient(serverURL: URL(string: "https://spend.example.test")!,
-                               token: { tokens.token(forceRefresh: $0) }, onSessionError: { _ in },
+                               token: { tokens.token() }, onSessionError: { _ in },
                                transport: transport)
         return (client, transport)
     }

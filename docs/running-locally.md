@@ -74,7 +74,7 @@ Then it:
 2. Builds the `PennyPincher` scheme with `xcodebuild` into `.local/mac-build`, passing `-skipPackagePluginValidation` (the OpenAPI generator plugin) and `-allowProvisioningUpdates` (signing).
 3. Launches the app and waits. Closing the app, or pressing Ctrl-C, stops a local API the script started.
 
-The first build is slow because it resolves packages and runs the OpenAPI generator. Building needs a signing team: set `DEVELOPMENT_TEAM` once in `Local.xcconfig` (an empty duplicate line overrides a real one), because Firebase needs the keychain access group. See `mac/AGENTS.md` ("Running it") for the details.
+The first build is slow because it resolves packages and runs the OpenAPI generator. Building needs a signing team: set `DEVELOPMENT_TEAM` once in `Local.xcconfig` (an empty duplicate line overrides a real one), because the Keychain needs the keychain access group. See `mac/AGENTS.md` ("Running it") for the details.
 
 `--emulator` overrides the server and Firebase values in `Local.xcconfig` with command-line build settings (`http://localhost:8080`, the `demo-penny-pincher` project, the emulator on port 19099), so you don't edit that file. It also creates the account `demo@example.test` / `demo-password-123` in the emulator and allowlists it as an admin (override with `EMU_EMAIL` and `EMU_PASSWORD`). Google sign-in is hidden in this mode. These settings apply only to builds the script runs: if you run from Xcode instead, `Local.xcconfig` must hold them.
 

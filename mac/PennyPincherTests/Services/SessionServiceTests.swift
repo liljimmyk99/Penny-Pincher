@@ -10,54 +10,115 @@ struct SessionServiceTests {
 
     init() {
         session = SessionService(auth: auth, api: api)
-        session.start()
     }
 
-    @Test("Restores until Firebase reports")
-    func restoring() {
+    @Test("Starts signed out when no token is stored")
+    func noToken() {
         #expect(session.phase == .restoring)
-        auth.emit(nil)
+        session.start()
         #expect(session.phase == .signedOut(nil))
     }
 
-    @Test("Loads the account after sign-in")
-    func loadsAccount() async {
-        auth.emit(.test)
-        #expect(session.phase == .loadingAccount(.test))
+    @Test("A stored token loads the account")
+    func restores() async {
+        auth.hasStoredSession = true
+        session.start()
+        #expect(session.phase == .loadingAccount)
         await settle()
         #expect(session.phase == .signedIn(.member))
         #expect(session.account == .member)
     }
 
-    @Test("not_allowlisted signs out with a notice")
-    func notAllowlisted() async {
-        api.result = .failure(.code("not_allowlisted", status: 403))
-        auth.emit(.test)
+    @Test("A stored token that must be changed goes to Change password")
+    func restoresMustChange() async {
+        var account = Account.member
+        account.mustChangePassword = true
+        api.result = .success(account)
+        auth.hasStoredSession = true
+        session.start()
         await settle()
-        #expect(session.phase == .signedOut(.noAccess(email: "member@example.test")))
-        #expect(auth.calls == ["signOut"])
-        // Firebase reports the sign-out afterwards; the notice stays.
-        auth.emit(nil)
-        #expect(session.phase == .signedOut(.noAccess(email: "member@example.test")))
+        #expect(session.phase == .passwordChangeRequired)
+    }
+
+    @Test("A refused stored token signs out with a notice and forgets it")
+    func refusedToken() async {
+        api.result = .failure(.code("unauthenticated", status: 401))
+        auth.hasStoredSession = true
+        session.start()
+        await settle()
+        #expect(session.phase == .signedOut(.expired))
+        #expect(auth.calls == ["clearToken"])
+    }
+
+    @Test("Signing in signs the person in")
+    func signIn() async throws {
+        session.start()
+        try await session.signIn(username: "member", password: "test-password")
+        #expect(session.phase == .signedIn(.member))
+        #expect(auth.calls == ["signIn:member"])
+    }
+
+    @Test("A sign-in that must change the password goes to Change password")
+    func signInMustChange() async throws {
+        var account = Account.member
+        account.mustChangePassword = true
+        auth.signInResult = .success(account)
+        session.start()
+        try await session.signIn(username: "member", password: "temporary-password")
+        #expect(session.phase == .passwordChangeRequired)
+        #expect(session.account == nil)
+    }
+
+    @Test("A failed sign-in throws and stays signed out")
+    func signInFails() async {
+        auth.signInResult = .failure(.code("invalid_credentials", status: 401))
+        session.start()
+        await #expect(throws: APIError.self) {
+            try await session.signIn(username: "member", password: "wrong")
+        }
+        #expect(session.phase == .signedOut(nil))
+    }
+
+    @Test("Changing the password signs in")
+    func changePassword() async throws {
+        var account = Account.member
+        account.mustChangePassword = true
+        auth.signInResult = .success(account)
+        session.start()
+        try await session.signIn(username: "member", password: "temporary-password")
+        try await session.changePassword(current: "temporary-password", new: "a-new-password-1")
+        #expect(session.phase == .signedIn(.member))
+        #expect(auth.calls.last == "change:temporary-password>a-new-password-1")
+    }
+
+    @Test("password_change_required keeps the token and shows Change password")
+    func passwordChangeRequired() async {
+        auth.hasStoredSession = true
+        session.start()
+        await settle()
+        session.end(.code("password_change_required", status: 403))
+        #expect(session.phase == .passwordChangeRequired)
+        #expect(!auth.calls.contains("clearToken"))
     }
 
     @Test("An expired session signs out with a notice; only the first failure counts")
     func expired() async {
-        auth.emit(.test)
+        auth.hasStoredSession = true
+        session.start()
         await settle()
         session.end(.code("session_expired", status: 401))
         #expect(session.phase == .signedOut(.expired))
-        session.end(.code("not_allowlisted", status: 403))
-        #expect(session.phase == .signedOut(.expired))
-        #expect(auth.calls == ["signOut"])
+        session.end(.code("unauthenticated", status: 401))
+        #expect(auth.calls == ["clearToken"])
     }
 
     @Test("An unreachable server offers retry")
     func unreachable() async {
         api.result = .failure(.network())
-        auth.emit(.test)
+        auth.hasStoredSession = true
+        session.start()
         await settle()
-        #expect(session.phase == .accountUnavailable(.test, message: APIError.network().message))
+        #expect(session.phase == .accountUnavailable(message: APIError.network().message))
 
         api.result = .success(.admin)
         session.retryAccount()
@@ -65,27 +126,22 @@ struct SessionServiceTests {
         #expect(session.phase == .signedIn(.admin))
     }
 
-    @Test("Sign out clears the account")
+    @Test("Sign out clears the account and revokes the session")
     func signOut() async {
-        auth.emit(.test)
+        auth.hasStoredSession = true
+        session.start()
         await settle()
         session.signOut()
         #expect(session.phase == .signedOut(nil))
         #expect(session.account == nil)
-        #expect(auth.calls == ["signOut"])
-    }
-
-    @Test("Ignores an account answer for an earlier user")
-    func staleAnswer() async {
-        auth.emit(.test)
-        auth.emit(nil)
         await settle()
-        #expect(session.phase == .signedOut(nil))
+        #expect(auth.calls == ["signOut"])
     }
 
     @Test("clearNotice drops only the notice")
     func clearNotice() async {
-        auth.emit(.test)
+        auth.hasStoredSession = true
+        session.start()
         await settle()
         session.end(.code("session_expired", status: 401))
         session.clearNotice()

@@ -2,12 +2,8 @@ import Foundation
 @testable import PennyPincher
 
 extension Account {
-    static let member = Account(id: "u1", email: "member@example.test", displayName: "Test Member", role: .member)
-    static let admin = Account(id: "u2", email: "admin@example.test", displayName: nil, role: .admin)
-}
-
-extension AuthUser {
-    static let test = AuthUser(uid: "firebase-uid", email: "member@example.test")
+    static let member = Account(id: "u1", username: "member", email: "member@example.test", displayName: "Test Member", role: .member)
+    static let admin = Account(id: "u2", username: "admin", email: "admin@example.test", displayName: nil, role: .admin)
 }
 
 extension APIError {
@@ -28,9 +24,9 @@ func makeTestDefaults() -> UserDefaults {
 @MainActor
 func makeSession(_ account: Account = .member) async -> (SessionService, FakeAuth) {
     let auth = FakeAuth()
+    auth.hasStoredSession = true
     let session = SessionService(auth: auth, api: FakeAccountAPI(.success(account)))
     session.start()
-    auth.emit(.test)
     await settle()
     return (session, auth)
 }

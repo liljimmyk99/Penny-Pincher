@@ -10,28 +10,14 @@ struct SignInView: View {
             Spacer(minLength: 24)
             SignInCard {
                 BrandMark()
-                switch viewModel.mode {
-                case .signIn:
-                    SignInForm(
-                        viewModel: viewModel,
-                        focus: $focus,
-                        onGoogle: continueWithGoogle,
-                        onEmailSubmit: emailSubmitted,
-                        onSignIn: signIn,
-                        onForgotPassword: forgotPassword
-                    )
-                case .reset:
-                    ResetForm(viewModel: viewModel, focus: $focus, onBack: backToSignIn, onSend: sendReset)
-                case .sent:
-                    ResetSentView(onBack: backToSignIn)
-                }
+                SignInForm(viewModel: viewModel, focus: $focus,
+                           onUsernameSubmit: usernameSubmitted, onSignIn: signIn)
             }
             Spacer(minLength: 24)
             SignInFooter()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .disabled(viewModel.isWorking)
+        .disabled(viewModel.isSigningIn)
         .onAppear(perform: focusInitialField)
-        .onChange(of: viewModel.mode, focusInitialField)
     }
 }

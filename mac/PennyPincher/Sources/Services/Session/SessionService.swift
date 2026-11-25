@@ -7,20 +7,22 @@ import Observation
 @Observable
 final class SessionService {
     enum Phase: Equatable {
-        /// Waiting for Firebase to restore a saved session.
+        /// Before `start()` has looked for a stored token.
         case restoring
         case signedOut(SessionNotice?)
-        /// Firebase has a user; loading their account from the API.
-        case loadingAccount(AuthUser)
+        /// A token is stored; asking the API who it belongs to.
+        case loadingAccount
+        /// An admin set or reset the password: only Change password is allowed.
+        case passwordChangeRequired
         case signedIn(Account)
-        /// Firebase has a user but the API couldn't be reached. Retry or sign out.
-        case accountUnavailable(AuthUser, message: String)
+        /// A token is stored but the API couldn't be reached. Retry or sign out.
+        case accountUnavailable(message: String)
     }
 
     private(set) var phase: Phase = .restoring
     let auth: AuthService
     private let api: AccountAPI
-    /// Bumped on every Firebase user change, so a stale `/v1/me` answer is dropped.
+    /// Bumped on every phase change that matters, so a stale `/v1/me` answer is dropped.
     private var generation = 0
 
     init(auth: AuthService, api: AccountAPI) {
@@ -28,31 +30,55 @@ final class SessionService {
         self.api = api
     }
 
-    /// Starts listening to Firebase. Call once.
+    /// Looks for a token from an earlier launch. Call once.
     func start() {
-        auth.observeUser { [weak self] user in self?.userChanged(user) }
+        guard case .restoring = phase else { return }
+        if auth.hasStoredSession {
+            load()
+        } else {
+            phase = .signedOut(nil)
+        }
     }
 
     var account: Account? {
         if case .signedIn(let account) = phase { account } else { nil }
     }
 
-    func signOut() {
-        phase = .signedOut(nil)
-        auth.signOut()
+    /// Signs in; the phase follows. Throws the API's error for the form to show.
+    func signIn(username: String, password: String) async throws(APIError) {
+        clearNotice()
+        let account = try await auth.signIn(username: username, password: password)
+        accept(account)
     }
 
-    /// The API refused this session: sign out and say why. Several requests can
-    /// fail at once; the first one decides the notice.
+    /// Changes the password (forced or from the account menu). The stored token
+    /// is replaced; the phase becomes signed in.
+    func changePassword(current: String, new: String) async throws(APIError) {
+        let account = try await auth.changePassword(current: current, new: new)
+        accept(account)
+    }
+
+    func signOut() {
+        generation += 1
+        phase = .signedOut(nil)
+        let auth = auth
+        Task { await auth.signOut() }
+    }
+
+    /// The API refused this session. Several requests can fail at once; the
+    /// first one decides.
     func end(_ error: APIError) {
-        let email: String?
         switch phase {
-        case .signedIn(let account): email = account.email
-        case .loadingAccount(let user), .accountUnavailable(let user, _): email = user.email
         case .restoring, .signedOut: return
+        case .loadingAccount, .passwordChangeRequired, .signedIn, .accountUnavailable: break
         }
-        phase = .signedOut(error.code == "not_allowlisted" ? .noAccess(email: email) : .expired)
-        auth.signOut()
+        generation += 1
+        if error.isPasswordChangeRequired {
+            phase = .passwordChangeRequired
+        } else if error.isSessionError {
+            phase = .signedOut(.expired)
+            auth.clearToken()
+        }
     }
 
     /// Drops the sign-out notice when the person starts another attempt.
@@ -61,39 +87,30 @@ final class SessionService {
     }
 
     func retryAccount() {
-        if case .accountUnavailable(let user, _) = phase { load(user) }
+        if case .accountUnavailable = phase { load() }
     }
 
-    /// Hands a redirect URL (Google sign-in) to the auth SDK.
-    @discardableResult
-    func handle(url: URL) -> Bool { auth.handle(url: url) }
-
-    private func userChanged(_ user: AuthUser?) {
+    private func accept(_ account: Account) {
         generation += 1
-        guard let user else {
-            // Keep a notice set by end(): Firebase reports the sign-out after it.
-            if case .signedOut = phase { return }
-            phase = .signedOut(nil)
-            return
-        }
-        load(user)
+        phase = account.mustChangePassword ? .passwordChangeRequired : .signedIn(account)
     }
 
-    private func load(_ user: AuthUser) {
+    private func load() {
+        generation += 1
         let current = generation
-        phase = .loadingAccount(user)
+        phase = .loadingAccount
         Task {
             do throws(APIError) {
                 let account = try await api.me()
                 guard current == generation, case .loadingAccount = phase else { return }
-                phase = .signedIn(account)
+                accept(account)
             } catch {
                 // Session errors may already have gone through end() (from the middleware).
                 guard current == generation, case .loadingAccount = phase else { return }
-                if error.isSessionError {
+                if error.isSessionError || error.isPasswordChangeRequired {
                     end(error)
                 } else {
-                    phase = .accountUnavailable(user, message: error.message)
+                    phase = .accountUnavailable(message: error.message)
                 }
             }
         }
