@@ -58,7 +58,9 @@ The Excel import screens (root §6.14: Import, Import · Dark, Progress banner a
 
 ## Design system
 
-Define these as tokens in one place (`src/styles/tokens.css`, exposed to Tailwind with `@theme`). Do not scatter hex values through components. #167 moves the values into shadcn's variable names and re-checks every pair for contrast.
+Every value below is a token in one place, `src/styles/tokens.css`, under shadcn's variable names plus our domain names; `src/index.css` exposes them to Tailwind with `@theme inline`, so `bg-card`, `text-muted-foreground`, `border-input`, `text-income`, `bg-refund-pill` and so on follow the theme. Do not scatter hex values through components or charts (`charts/` reads `var(--…)` too).
+- The old `--color-*` names in that file are aliases of these tokens for the CSS not yet moved to shadcn/ui, so old and new components share the palette. Don't use them in new code; they go in #180.
+- Change a colour in the light or dark block, never in an alias. `src/styles/tokens.contrast.test.ts` checks every pair below (text 4.5:1, bars and focus rings 3:1); add a pair there when you add a token.
 
 **Type:** Geist (400–700) from Google Fonts (already allowed by the CSP), system sans-serif fallback. Tabular numerals for every money column.
 - Page title 32px/600 · section title 18px/600 · body 14px · labels 13px/500 · tile value 26px/700
@@ -69,32 +71,40 @@ Define these as tokens in one place (`src/styles/tokens.css`, exposed to Tailwin
 
 | Token | Light | Dark | Used for |
 |---|---|---|---|
-| background / card / popover | `#FFFFFF` | `#18181B` | page, cards, menus, dialogs |
+| background | `#FAFAFA` | `#09090B` | the page behind the cards |
+| card / popover | `#FFFFFF` | `#18181B` | cards, menus, dialogs, fields |
 | foreground | `#09090B` | `#FAFAFA` | primary text |
 | muted / secondary / accent | `#F4F4F5` | `#27272A` | quiet fills, tab lists, hovered rows |
 | muted-foreground | `#52525B` | `#A1A1AA` | labels, secondary text |
 | border | `#E4E4E7` | `#27272A` | card borders, dividers |
 | input | `#D4D4D8` | `#3F3F46` | field and outline-button borders |
-| primary / ring | `#2563EB`, hover `#1D4ED8` | `#2563EB`, hover `#1D4ED8` | primary buttons, selection, focus |
-| destructive | `#B91C1C` | `#DC2626` | destructive buttons |
-| sidebar | `#18181B`, accent `#27272A` | `#18181B`, accent `#27272A` | left navigation |
+| primary / ring | `#2563EB`, hover `#1D4ED8`, text `#FFFFFF` | the same | primary buttons, selection, focus |
+| destructive | `#B91C1C`, hover `#991B1B`, text `#FFFFFF` | `#DC2626`, hover `#B91C1C`, text `#FFFFFF` | destructive buttons |
+| sidebar | `#18181B`, accent and border `#27272A`, text `#FAFAFA`, muted text `#A1A1AA` | the same | left navigation (and the sign-in brand panel) |
 
 **Domain tokens (ours, light / dark):**
 
 | Token | Light | Dark | Used for |
 |---|---|---|---|
-| brand (orange) | `#F97316` | `#F97316` | logo, trend bars, unconfirmed dot |
-| income / success (green) | `#15803D` | `#5BD68A` | net income figures, the green Save button |
+| brand (orange) | `#F97316`, `#FDBA74` on the sidebar | the same | logo, unconfirmed dot, orange accents on the sidebar |
+| income (green) | `#15803D` | `#5BD68A` | net income figures |
+| success (green) | `#15803D`, hover `#166534`, text `#FFFFFF` | the same | the green Save button |
 | saving (blue) | `#1E40AF` text, `#1F5FD6` bars | `#A9C4FF` text, `#3D78EA` bars | Saving everywhere |
 | spent (slate) | `#475569` | `#8C9AB0` | spent bars, ordinary category bars |
 | refund | row `#F0FDF4`, text `#166534`, pill `#DCFCE7` | row `#0F2A1C`, text `#6EE7A0`, pill `#12391F` | refund rows, amounts and tags |
 | unconfirmed | tint `#FFF7ED`, pill `#FFEDD5`, text `#9A3412` | tint `#2B1D12`, pill `#4A2A10`, text `#FDBA74` | template copies not yet confirmed |
 | danger alert | bg `#FEF2F2`, border `#FECACA`, text `#991B1B`, invalid field `#DC2626` | bg `#3A1518`, border `#7F1D1D`, text `#FCA5A5`, invalid field `#F87171` | inline error alerts, invalid inputs |
 | success alert | bg `#F0FDF4`, border `#BBF7D0`, text `#166534` | bg `#0F2A1C`, border `#1E4D33`, text `#86EFAC` | confirmations |
-| toast | bg `#111827`, text `#FFFFFF` | bg `#E8EDF5`, text `#0D1524` | toasts (refund linked, backup finished) |
+| info alert | bg `#EFF6FF`, border `#BFDBFE`, text `#1E3A8A` | bg `#172554`, border `#1E3A8A`, text `#BFDBFE` | neutral notices |
+| selected | bg `#EFF6FF`, text `#1E3A8A` | bg `#172554`, text `#DBEAFE` | the chosen option in a picker |
+| toast | bg `#18181B`, text `#FAFAFA` | bg `#FAFAFA`, text `#09090B` | toasts (refund linked, backup finished) |
 | link | `#1D4ED8`, hover `#1E3A8A` | `#8AB4FF`, hover `#B9D0FF` | links and text buttons |
+| worse / better | `#9A3412` / `#1E40AF` | `#FDBA74` / `#A9C4FF` | change indicators (below) |
+| chart-1 … chart-8 | see `tokens.css` | see `tokens.css` | donut slices for categories without their own colour |
 
-The domain values are carried over from v1; #167 re-checks them against the Zinc neutrals and updates this table if any change.
+The domain values are v1's, re-checked against the Zinc neutrals in #167. Changed there: toast, info alert and selected moved to the Zinc and blue-950 shades of the V2 canvas.
+
+**Known exceptions to 3:1 (as in v1):** field borders (`input`, about 1.5:1 in light), because fields are also marked by their label and their card fill on the page colour; and brand orange on white (2.8:1), used only for the logo and the unconfirmed dot, which always sits beside text that says the same. Don't use brand orange for anything that carries meaning on its own.
 
 - Orange, blue and green are the action/accent colors; white is an accent only, never a primary color.
 - Text must meet 4.5:1 contrast (3:1 for large text). Colors that must be told apart also differ in lightness, not hue alone.
@@ -103,7 +113,7 @@ The domain values are carried over from v1; #167 re-checks them against the Zinc
 
 **Icons:** `lucide-react` line icons (2px stroke, 24px grid, shown at 18px). No emoji.
 
-**Theme:** Light, Dark and System, chosen in the account menu. Default to System.
+**Theme:** Light, Dark and System, chosen in the account menu. Default to System. Dark mode is the `dark` class on `<html>` (shadcn's convention, and what Tailwind's `dark:` reads); `data-theme="light|dark"` is set alongside it for the old CSS and the tests. `src/theme` and `public/theme-init.js` (before first paint) set both.
 
 ## Layout and navigation
 

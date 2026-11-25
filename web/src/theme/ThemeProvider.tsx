@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ThemeContext } from "./context";
-import { readPreference, resolveTheme, writePreference, type ThemePreference } from "./theme";
+import { applyTheme, readPreference, resolveTheme, writePreference, type ThemePreference } from "./theme";
 
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 
@@ -18,7 +18,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const resolved = resolveTheme(preference, systemIsDark);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = resolved;
+    applyTheme(resolved);
   }, [resolved]);
 
   const setPreference = useCallback((next: ThemePreference) => {

@@ -6,6 +6,7 @@ afterEach(() => {
   cleanup();
   window.localStorage.clear();
   delete document.documentElement.dataset.theme;
+  document.documentElement.classList.remove("dark");
   window.history.replaceState(null, "", "/");
 });
 

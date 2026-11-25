@@ -32,3 +32,13 @@ export function resolveTheme(preference: ThemePreference, systemIsDark: boolean)
   if (preference === "system") return systemIsDark ? "dark" : "light";
   return preference;
 }
+
+/**
+ * Shows the theme on <html>: the `dark` class (what shadcn/ui and Tailwind's dark: read)
+ * and data-theme (what tests and the old CSS read). public/theme-init.js does the same.
+ */
+export function applyTheme(theme: ResolvedTheme): void {
+  const root = document.documentElement;
+  root.classList.toggle("dark", theme === "dark");
+  root.dataset.theme = theme;
+}

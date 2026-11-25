@@ -1,18 +1,119 @@
 /*
  * Design tokens: the single place colours, type, spacing and radii are defined.
- * Source of truth: web/AGENTS.md "Design system". Components use these via
- * var(--…); never hard-code hex values elsewhere.
- * The theme is set on <html data-theme="light|dark"> (see src/theme).
+ * Source of truth: web/AGENTS.md "Design system" (the V2 palette, #167).
+ * Never hard-code hex values anywhere else.
+ *
+ * Three groups, each for light (:root) and dark:
+ *   1. shadcn/ui's variables (--background, --primary, --sidebar-*, ...).
+ *   2. Our domain variables (--income, --saving-*, --refund-*, ...).
+ *   3. Legacy aliases (--color-*, ...) that the old, hand-built CSS still reads.
+ *      They point at groups 1 and 2, so old and new components share one
+ *      palette. They go away with the old CSS in #180.
+ * Groups 1 and 2 hold literal hex only: tokens.contrast.test.ts reads them.
+ * src/index.css exposes groups 1 and 2 to Tailwind (bg-card, text-income, ...).
+ *
+ * Dark mode is the `dark` class on <html> (shadcn's convention); data-theme is
+ * set alongside it (src/theme, public/theme-init.js), and either selects it.
  */
 
 :root {
-  /* Type */
-  --font-sans: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --text-page-title: 800 32px/1.2 var(--font-sans);
-  --text-section-title: 800 18px/1.3 var(--font-sans);
+  color-scheme: light;
+
+  /* 1. shadcn/ui: light */
+  --background: #fafafa; /* the page */
+  --foreground: #09090b;
+  --card: #ffffff;
+  --card-foreground: #09090b;
+  --popover: #ffffff;
+  --popover-foreground: #09090b;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #09090b;
+  --muted: #f4f4f5;
+  --muted-foreground: #52525b;
+  --accent: #f4f4f5;
+  --accent-foreground: #09090b;
+  --destructive: #b91c1c;
+  --destructive-hover: #991b1b;
+  --destructive-foreground: #ffffff;
+  --border: #e4e4e7;
+  --input: #d4d4d8;
+  --ring: #2563eb;
+  --sidebar: #18181b;
+  --sidebar-foreground: #fafafa;
+  --sidebar-muted-foreground: #a1a1aa;
+  --sidebar-primary: #2563eb;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #27272a;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #27272a;
+  --sidebar-ring: #2563eb;
+  --radius: 10px;
+
+  /* 2. Domain: light */
+  --brand: #f97316;
+  --on-brand: #09090b; /* the letter on the orange logo mark */
+  --brand-on-sidebar: #fdba74; /* orange text and focus outline on the sidebar */
+  --income: #15803d;
+  --success: #15803d; /* the green Save button */
+  --success-hover: #166534;
+  --success-foreground: #ffffff;
+  --saving-text: #1e40af;
+  --saving-bar: #1f5fd6;
+  --spent: #475569;
+  --refund-row: #f0fdf4;
+  --refund-text: #166534;
+  --refund-pill: #dcfce7;
+  --unconfirmed-tint: #fff7ed;
+  --unconfirmed-pill: #ffedd5;
+  --unconfirmed-text: #9a3412;
+  --danger-alert-bg: #fef2f2;
+  --danger-alert-border: #fecaca;
+  --danger-alert-text: #991b1b;
+  --danger-alert-line: #dc2626; /* invalid field border */
+  --success-alert-bg: #f0fdf4;
+  --success-alert-border: #bbf7d0;
+  --success-alert-text: #166534;
+  --info-alert-bg: #eff6ff;
+  --info-alert-border: #bfdbfe;
+  --info-alert-text: #1e3a8a;
+  --selected: #eff6ff; /* chosen option in a picker */
+  --selected-foreground: #1e3a8a;
+  --toast: #18181b;
+  --toast-foreground: #fafafa;
+  --link: #1d4ed8;
+  --link-hover: #1e3a8a;
+  /* Change indicators: orange = worse, blue = better (Saving flips). Text-safe on cards. */
+  --worse: #9a3412;
+  --better: #1e40af;
+  /* Fallback slice colours for categories without their own (donut). Saving keeps --saving-bar. */
+  --chart-1: #0f766e;
+  --chart-2: #b45309;
+  --chart-3: #7c3aed;
+  --chart-4: #be123c;
+  --chart-5: #4d7c0f;
+  --chart-6: #0369a1;
+  --chart-7: #a21caf;
+  --chart-8: #64748b;
+  --focus-ring: rgb(37 99 235 / 0.35); /* 3px of primary at 35% */
+  --backdrop: rgb(0 0 0 / 0.5);
+  --shadow-menu: 0 18px 48px rgb(0 0 0 / 0.16), 0 2px 6px rgb(0 0 0 / 0.06);
+  --shadow-raised: 0 18px 48px rgb(0 0 0 / 0.08), 0 2px 6px rgb(0 0 0 / 0.04);
+  --shadow-dialog: 0 24px 64px rgb(0 0 0 / 0.24);
+  --sidebar-hover: rgb(255 255 255 / 0.07);
+  --sidebar-pressed: rgb(255 255 255 / 0.12);
+  --sidebar-divider: rgb(255 255 255 / 0.12);
+  --sidebar-edge: transparent;
+
+  /* Type: Geist (index.html loads it from Google Fonts) */
+  --font-sans: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --text-page-title: 600 32px/1.2 var(--font-sans);
+  --text-section-title: 600 18px/1.3 var(--font-sans);
   --text-body: 400 14px/1.5 var(--font-sans);
-  --text-tile-value: 800 26px/1.2 var(--font-sans);
-  --text-eyebrow: 800 12px/1.2 var(--font-sans);
+  --text-tile-value: 700 26px/1.2 var(--font-sans);
+  --text-eyebrow: 600 12px/1.2 var(--font-sans);
   --eyebrow-spacing: 0.06em;
 
   /* Spacing */
@@ -24,135 +125,88 @@
   --space-8: 32px; /* page padding, top */
   --space-10: 40px; /* page padding, sides */
 
-  /* Shape */
-  --radius-card: 14px;
-  --radius-control: 10px; /* buttons, inputs */
+  /* Shape (shadcn's scale from --radius; Tailwind's rounded-* read the same values) */
+  --radius-sm: calc(var(--radius) - 4px); /* 6px: badges */
+  --radius-md: calc(var(--radius) - 2px); /* 8px: buttons, inputs */
+  --radius-lg: var(--radius); /* 10px */
+  --radius-xl: calc(var(--radius) + 4px); /* 14px: cards */
   --radius-pill: 999px; /* chips, pills */
   --control-height: 44px; /* also the minimum touch target */
   --sidebar-width: 232px;
   --sidebar-width-collapsed: 76px;
-
-  /* Colour: light */
-  color-scheme: light;
-  --color-background: #f2f4f7;
-  --color-surface: #ffffff;
-  --color-border: #e3e7ed;
-  --color-text: #111827;
-  --color-text-muted: #4b5563;
-  --color-sidebar: #0e1a2b;
-  --color-primary: #1f5fd6;
-  --color-brand: #f97316;
-  --color-income: #15803d;
-  --color-saving-text: #1e40af;
-  --color-saving-bar: #1f5fd6;
-  --color-spent: #475569;
-  --color-refund-row: #f0fdf4;
-  --color-refund-text: #166534;
-  --color-refund-pill: #dcfce7;
-  --color-unconfirmed-tint: #fff7ed;
-  --color-unconfirmed-pill: #ffedd5;
-  --color-unconfirmed-text: #9a3412;
-  --color-danger: #b91c1c;
-
-  /* Change indicators: orange = worse, blue = better (Saving flips). Text-safe on the surface. */
-  --color-worse: #9a3412;
-  --color-better: #1e40af;
-
-  /* Fallback slice colours for categories without their own (donut). Saving keeps --color-saving-bar. */
-  --chart-1: #0f766e;
-  --chart-2: #b45309;
-  --chart-3: #7c3aed;
-  --chart-4: #be123c;
-  --chart-5: #4d7c0f;
-  --chart-6: #0369a1;
-  --chart-7: #a21caf;
-  --chart-8: #64748b;
-
-  /* Forms, links and alerts (sign-in screens onward) */
-  --color-text-secondary: #374151; /* field labels */
-  --color-placeholder: #6b7280;
-  --color-border-strong: #d5dbe3; /* input and ghost-button borders */
-  --color-field: #ffffff;
-  --color-surface-soft: #f7f8fa; /* hover on light surfaces */
-  --color-ghost: #ffffff;
-  --color-ghost-hover: #f7f8fa;
-  --color-primary-hover: #1a4fb4;
-  --color-focus-ring: rgba(31, 95, 214, 0.22);
-  --color-link: #1d4ed8;
-  --color-link-hover: #1e3a8a;
-  --color-danger-bg: #fef2f2;
-  --color-danger-border: #fecaca;
-  --color-danger-text: #991b1b;
-  --color-danger-line: #dc2626; /* invalid field border */
-  --color-success-bg: #f0fdf4;
-  --color-success-border: #bbf7d0;
-  --color-success-text: #166534;
-  --color-info-bg: #eff6ff;
-  --color-info-border: #bfdbfe;
-  --color-info-text: #1e3a8a;
-
-  /* On the dark brand panel (sidebar colour) */
-  --color-on-sidebar: #ffffff;
-  --color-on-sidebar-muted: #b8c2d1;
-  --color-on-sidebar-accent: #fdba74;
-  --color-on-brand: #0e1a2b; /* the letter on the orange logo mark */
-  --color-sidebar-edge: transparent;
-  --color-sidebar-hover: rgba(255, 255, 255, 0.07);
-  --color-sidebar-pressed: rgba(255, 255, 255, 0.12);
-  --color-sidebar-divider: rgba(255, 255, 255, 0.12);
-  --color-sidebar-active: #ffffff; /* the white pill on the current page */
-  --color-on-sidebar-active: #0e1a2b;
-
-  /* Menus (account menu) */
-  --color-menu-border: #e3e7ed;
-  --color-menu-divider: #eef1f5;
-  --color-menu-hover: #f2f4f7;
-  --color-selected-bg: #eef4ff; /* chosen option in a picker */
-  --color-selected-text: #1e3a8a;
-  --color-selected-line: #1f5fd6;
-  --shadow-menu: 0 18px 48px rgba(14, 26, 43, 0.22), 0 2px 6px rgba(14, 26, 43, 0.08);
-
-  --shadow-raised: 0 18px 48px rgba(14, 26, 43, 0.1), 0 2px 6px rgba(14, 26, 43, 0.06);
-
-  /* Tables, badges and dialogs (Categories & sources onward) */
-  --color-divider: #eef1f5; /* row separators inside cards */
-  --color-badge: #f2f4f7; /* neutral pill, e.g. "Default" */
-  --color-danger-hover: #991b1b;
-  --color-income-btn: #157f3b; /* "Save income"; white text passes 4.5:1 */
-  --color-income-btn-hover: #116a31;
-  --color-backdrop: rgba(14, 26, 43, 0.45);
-  --shadow-dialog: 0 24px 64px rgba(14, 26, 43, 0.3);
-
-  /* Toasts (refund linked, backup finished) */
-  --color-toast-bg: #111827;
-  --color-toast-text: #ffffff;
 }
 
+:root.dark,
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --color-background: #0d1524;
-  --color-surface: #141d2e;
-  --color-border: #233047;
-  --color-text: #e8edf5;
-  --color-text-muted: #a3aec0;
-  --color-sidebar: #070c16;
-  --color-primary: #2f6be0;
-  --color-brand: #f97316;
-  --color-income: #5bd68a;
-  --color-saving-text: #a9c4ff;
-  --color-saving-bar: #3d78ea;
-  --color-spent: #8c9ab0;
-  --color-refund-row: #0f2a1c;
-  --color-refund-text: #6ee7a0;
-  --color-refund-pill: #12391f;
-  --color-unconfirmed-tint: #2b1d12;
-  --color-unconfirmed-pill: #4a2a10;
-  --color-unconfirmed-text: #fdba74;
-  --color-danger: #dc2626;
 
-  --color-worse: #fdba74;
-  --color-better: #a9c4ff;
+  /* 1. shadcn/ui: dark */
+  --background: #09090b;
+  --foreground: #fafafa;
+  --card: #18181b;
+  --card-foreground: #fafafa;
+  --popover: #18181b;
+  --popover-foreground: #fafafa;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-foreground: #ffffff;
+  --secondary: #27272a;
+  --secondary-foreground: #fafafa;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --accent: #27272a;
+  --accent-foreground: #fafafa;
+  --destructive: #dc2626;
+  --destructive-hover: #b91c1c;
+  --destructive-foreground: #ffffff;
+  --border: #27272a;
+  --input: #3f3f46;
+  --ring: #2563eb;
+  --sidebar: #18181b;
+  --sidebar-foreground: #fafafa;
+  --sidebar-muted-foreground: #a1a1aa;
+  --sidebar-primary: #2563eb;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #27272a;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #27272a;
+  --sidebar-ring: #2563eb;
 
+  /* 2. Domain: dark */
+  --brand: #f97316;
+  --on-brand: #09090b;
+  --brand-on-sidebar: #fdba74;
+  --income: #5bd68a;
+  --success: #15803d;
+  --success-hover: #166534;
+  --success-foreground: #ffffff;
+  --saving-text: #a9c4ff;
+  --saving-bar: #3d78ea;
+  --spent: #8c9ab0;
+  --refund-row: #0f2a1c;
+  --refund-text: #6ee7a0;
+  --refund-pill: #12391f;
+  --unconfirmed-tint: #2b1d12;
+  --unconfirmed-pill: #4a2a10;
+  --unconfirmed-text: #fdba74;
+  --danger-alert-bg: #3a1518;
+  --danger-alert-border: #7f1d1d;
+  --danger-alert-text: #fca5a5;
+  --danger-alert-line: #f87171;
+  --success-alert-bg: #0f2a1c;
+  --success-alert-border: #1e4d33;
+  --success-alert-text: #86efac;
+  --info-alert-bg: #172554;
+  --info-alert-border: #1e3a8a;
+  --info-alert-text: #bfdbfe;
+  --selected: #172554;
+  --selected-foreground: #dbeafe;
+  --toast: #fafafa;
+  --toast-foreground: #09090b;
+  --link: #8ab4ff;
+  --link-hover: #b9d0ff;
+  --worse: #fdba74;
+  --better: #a9c4ff;
   --chart-1: #2dd4bf;
   --chart-2: #fbbf24;
   --chart-3: #c4b5fd;
@@ -161,51 +215,85 @@
   --chart-6: #38bdf8;
   --chart-7: #e879f9;
   --chart-8: #94a3b8;
+  --focus-ring: rgb(37 99 235 / 0.35);
+  --backdrop: rgb(0 0 0 / 0.6);
+  --shadow-menu: 0 18px 48px rgb(0 0 0 / 0.55);
+  --shadow-raised: 0 18px 48px rgb(0 0 0 / 0.45);
+  --shadow-dialog: 0 24px 64px rgb(0 0 0 / 0.6);
+  --sidebar-edge: #27272a;
+}
 
-  --color-text-secondary: #c9d2df;
-  --color-placeholder: #7d889b;
-  --color-border-strong: #2e3b54;
-  --color-field: #0f1726;
-  --color-surface-soft: #1a2538;
-  --color-ghost: #1a2538;
-  --color-ghost-hover: #1f2a3e;
-  --color-primary-hover: #3d78ea;
-  --color-focus-ring: rgba(61, 120, 234, 0.35);
-  --color-link: #8ab4ff;
-  --color-link-hover: #b9d0ff;
-  --color-danger-bg: #3a1518;
-  --color-danger-border: #7f1d1d;
-  --color-danger-text: #fca5a5;
-  --color-danger-line: #f87171;
-  --color-success-bg: #0f2a1c;
-  --color-success-border: #1e4d33;
-  --color-success-text: #86efac;
-  --color-info-bg: #0f1d3a;
-  --color-info-border: #1e3a6e;
-  --color-info-text: #bfdbfe;
-
-  --color-on-brand: #0b1220;
-  --color-sidebar-edge: #1c2638;
-  --color-on-sidebar-active: #0b1220;
-
-  --color-menu-border: #2e3b54;
-  --color-menu-divider: #233047;
-  --color-menu-hover: #1f2a3e;
-  --color-selected-bg: #1b2e57;
-  --color-selected-text: #dce7fb;
-  --color-selected-line: #3d78ea;
-  --shadow-menu: 0 18px 48px rgba(0, 0, 0, 0.55);
-
-  --shadow-raised: 0 18px 48px rgba(0, 0, 0, 0.45);
-
-  --color-divider: #1c2638;
-  --color-badge: #1f2a3e;
-  --color-danger-hover: #b91c1c;
-  --color-income-btn: #157f3b;
-  --color-income-btn-hover: #116a31;
-  --color-backdrop: rgba(0, 0, 0, 0.6);
-  --shadow-dialog: 0 24px 64px rgba(0, 0, 0, 0.6);
-
-  --color-toast-bg: #e8edf5;
-  --color-toast-text: #0d1524;
+/*
+ * 3. Legacy aliases for the old CSS (removed in #180). They only point at the
+ * tokens above, so they need no dark block: the var()s resolve per theme.
+ */
+:root {
+  --color-background: var(--background);
+  --color-surface: var(--card);
+  --color-surface-soft: var(--accent); /* hover on light surfaces */
+  --color-border: var(--border);
+  --color-border-strong: var(--input); /* input and ghost-button borders */
+  --color-divider: var(--muted); /* row separators inside cards */
+  --color-text: var(--foreground);
+  --color-text-muted: var(--muted-foreground);
+  --color-text-secondary: var(--foreground); /* field labels */
+  --color-placeholder: var(--muted-foreground);
+  --color-field: var(--card);
+  --color-ghost: var(--card);
+  --color-ghost-hover: var(--accent);
+  --color-badge: var(--muted);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-focus-ring: var(--focus-ring);
+  --color-link: var(--link);
+  --color-link-hover: var(--link-hover);
+  --color-danger: var(--destructive);
+  --color-danger-hover: var(--destructive-hover);
+  --color-brand: var(--brand);
+  --color-on-brand: var(--on-brand);
+  --color-income: var(--income);
+  --color-income-btn: var(--success);
+  --color-income-btn-hover: var(--success-hover);
+  --color-saving-text: var(--saving-text);
+  --color-saving-bar: var(--saving-bar);
+  --color-spent: var(--spent);
+  --color-refund-row: var(--refund-row);
+  --color-refund-text: var(--refund-text);
+  --color-refund-pill: var(--refund-pill);
+  --color-unconfirmed-tint: var(--unconfirmed-tint);
+  --color-unconfirmed-pill: var(--unconfirmed-pill);
+  --color-unconfirmed-text: var(--unconfirmed-text);
+  --color-worse: var(--worse);
+  --color-better: var(--better);
+  --color-danger-bg: var(--danger-alert-bg);
+  --color-danger-border: var(--danger-alert-border);
+  --color-danger-text: var(--danger-alert-text);
+  --color-danger-line: var(--danger-alert-line);
+  --color-success-bg: var(--success-alert-bg);
+  --color-success-border: var(--success-alert-border);
+  --color-success-text: var(--success-alert-text);
+  --color-info-bg: var(--info-alert-bg);
+  --color-info-border: var(--info-alert-border);
+  --color-info-text: var(--info-alert-text);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-edge: var(--sidebar-edge);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-sidebar-pressed: var(--sidebar-pressed);
+  --color-sidebar-divider: var(--sidebar-divider);
+  --color-sidebar-active: var(--sidebar-foreground); /* the light pill on the current page */
+  --color-on-sidebar: var(--sidebar-foreground);
+  --color-on-sidebar-muted: var(--sidebar-muted-foreground);
+  --color-on-sidebar-accent: var(--brand-on-sidebar);
+  --color-on-sidebar-active: var(--sidebar);
+  --color-menu-border: var(--border);
+  --color-menu-divider: var(--border);
+  --color-menu-hover: var(--accent);
+  --color-selected-bg: var(--selected);
+  --color-selected-text: var(--selected-foreground);
+  --color-selected-line: var(--primary);
+  --color-backdrop: var(--backdrop);
+  --color-toast-bg: var(--toast);
+  --color-toast-text: var(--toast-foreground);
+  --radius-card: var(--radius-xl);
+  --radius-control: var(--radius-md);
 }

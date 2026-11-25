@@ -69,13 +69,16 @@ describe("ThemeProvider", () => {
     renderSwitch();
     expect(screen.getByRole("button", { name: "System" })).toHaveAttribute("aria-pressed", "true");
     expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(document.documentElement).toHaveClass("dark");
   });
 
   it("applies and stores an explicit choice", async () => {
     mockSystemDark(false);
     renderSwitch();
+    expect(document.documentElement).not.toHaveClass("dark");
     await userEvent.click(screen.getByRole("button", { name: "Dark" }));
     expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(document.documentElement).toHaveClass("dark");
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe("dark");
     expect(screen.getByRole("button", { name: "Dark" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "System" })).toHaveAttribute("aria-pressed", "false");
@@ -86,6 +89,16 @@ describe("ThemeProvider", () => {
     window.localStorage.setItem(THEME_STORAGE_KEY, "light");
     renderSwitch();
     expect(document.documentElement.dataset.theme).toBe("light");
+    expect(document.documentElement).not.toHaveClass("dark");
     expect(screen.getByRole("button", { name: "Light" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("removes the dark class when switching back to light", async () => {
+    mockSystemDark(true);
+    renderSwitch();
+    expect(document.documentElement).toHaveClass("dark");
+    await userEvent.click(screen.getByRole("button", { name: "Light" }));
+    expect(document.documentElement).not.toHaveClass("dark");
+    expect(document.documentElement.dataset.theme).toBe("light");
   });
 });
