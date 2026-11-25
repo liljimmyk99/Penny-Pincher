@@ -51,7 +51,7 @@ api backup restore --in penny-pincher-20261108T030000Z-weekly.sqlite.age --ident
 
    The command refuses to overwrite an existing file, and runs `PRAGMA integrity_check` before reporting success. (Without the `api` binary: `age -d -i backup-key.txt -o restored.db <file>`.)
 3. **Replacing production:** stop the API, move the old `spend.db` and its `-wal`/`-shm` files aside, copy `restored.db` in as `spend.db` (on the `api-data` volume, owned by uid 65532), start the API. Migrations run on startup, so a snapshot from an older version is upgraded.
-4. **Scratch check (no downtime):** run a throwaway API against the copy: `DB_PATH=./restored.db FIREBASE_PROJECT_ID=... api` and confirm the same data appears.
+4. **Scratch check (no downtime):** run a throwaway API against the copy: `DB_PATH=./restored.db PORT=8081 api`, sign in to it with an existing user's password, and confirm the same data appears. Passwords and sessions are restored with the data, so a password changed after the snapshot was taken is back to its old value.
 
 ## Restore drill
 

@@ -10,8 +10,7 @@ Policy: AGENTS.md §8 and the 2026-11-06 encryption decision. Do the server setu
 |---|---|
 | Browser / Mac app → Caddy | HTTPS with a Let's Encrypt certificate. Plain HTTP is redirected to HTTPS, and HSTS (`max-age` one year) stops browsers from trying HTTP again. |
 | Caddy → `api` / `web` containers | Plain HTTP on Docker's internal network, inside the same host. Those ports are `expose`d only, never published. |
-| API → Firebase (token checks) | HTTPS (Firebase Admin SDK). |
-| API → backup bucket | HTTPS. The API refuses `BACKUP_S3_INSECURE=1` unless the project is a `demo-` one. Snapshots are also `age`-encrypted before upload. |
+| API → backup bucket | HTTPS. The API refuses `BACKUP_S3_INSECURE=1` unless `APP_TEST_MODE=1`, which only the e2e stack sets. Snapshots are also `age`-encrypted before upload. |
 | Backup download from the admin panel | HTTPS, and the file is still `age`-encrypted. |
 
 **At rest**
@@ -20,7 +19,7 @@ Policy: AGENTS.md §8 and the 2026-11-06 encryption decision. Do the server setu
 |---|---|
 | SQLite database, `-wal` / `-shm` files | Encrypted LUKS volume (below). |
 | Docker's everything else: container layers, logs, Caddy's TLS keys | The same LUKS volume (Docker's `data-root` lives on it). |
-| `.env`, `secrets/firebase-sa.json` | The same LUKS volume (the repo checkout lives on it). |
+| `.env`, and the Tailscale certificate folder (`TLS_DIR`) on a tailnet host | The same LUKS volume (the repo checkout lives on it). |
 | Plaintext snapshot during a backup | `tmpfs` (memory only) at the API's `/tmp`, so it never touches disk. |
 | Off-server backups | `age`-encrypted to a public key; see `docs/backups.md`. |
 
@@ -86,7 +85,7 @@ sudo mkdir -p /srv/pp/app && sudo chown "$USER" /srv/pp/app
 git clone https://github.com/liljimmyk99/Penny-Pincher.git /srv/pp/app
 ```
 
-Create `/srv/pp/app/.env` and `/srv/pp/app/secrets/firebase-sa.json` there (never anywhere else on the server).
+Create `/srv/pp/app/.env` there (never anywhere else on the server). On a tailnet host, keep the certificate folder on this volume too (`docs/tailscale.md`). Sign-in needs no key or service account.
 
 ### 4. Swap
 

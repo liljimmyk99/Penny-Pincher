@@ -31,15 +31,19 @@ npm run seed
 
 Then sign in at `https://localhost:18443` as `demo` / `demo-password-123`. It runs the end-to-end stack (the same images and Caddy config as production) and never touches your dev stack, `.env` or `secrets/`. See **[LOCAL_DEMO.md](LOCAL_DEMO.md)** for what the data contains, resetting, signing in as other accounts, and troubleshooting.
 
-## Firebase credentials
+## Signing in
 
-The API needs Google credentials for the Firebase Admin SDK, which reads each account to refuse revoked or disabled users. Create a service account with only the **Firebase Authentication Admin** role (Google Cloud console → IAM & Admin → Service accounts), add a JSON key, and save it as `secrets/firebase-sa.json`. Avoid the Firebase console's default `firebase-adminsdk` key, which can reach every Firebase product (`docs/security.md`, console checklist). Compose mounts it read-only at `/run/secrets/firebase-sa.json` and sets `GOOGLE_APPLICATION_CREDENTIALS`. The `secrets/` folder is git-ignored; never commit the key. The file must exist before `docker compose up`, or Docker creates a directory in its place.
+Sign-in is the app's own username and password; there is no external identity provider and no secret to set up. There is no sign-up either: create the first admin with the API's CLI once the stack is up.
 
-## Firebase sign-in (web)
+```bash
+docker compose exec api /api user add --username <you> --role admin
+```
 
-The web app needs the project's public web config. In the Firebase console (Project settings → General → Your apps), add a Web app if there isn't one and copy its `apiKey` into `FIREBASE_WEB_API_KEY` in `.env`; Compose passes it and `FIREBASE_PROJECT_ID` to the web build. For `npm run dev`, copy `web/.env.example` to `web/.env.local` and fill in the same values.
+It prompts twice for a password (at least 12 characters, not echoed). Then sign in at `https://localhost:8443` (or your domain). Add everyone else from the admin panel's **Users** tab, which sets their initial password. A forgotten password is reset there (**Reset password**) or with `docker compose exec api /api user set-password --username <name>`.
 
-Also in the console: enable the Google and Email/Password providers (Authentication → Sign-in method), and add your domain under Authentication → Settings → Authorized domains (`localhost` is there by default). Sign-ins are still refused unless the user is in the API's users table.
+- Upgrading a server that used Firebase sign-in: follow the one-time [migration runbook](docs/security.md#moving-from-firebase-to-passwords-one-time).
+- Serving it on a tailnet-only host: [docs/tailscale.md](docs/tailscale.md).
+- Running the API and web app natively for development (it creates a local `demo` admin for you): [docs/running-locally.md](docs/running-locally.md).
 
 ## Web app
 
