@@ -138,7 +138,7 @@ test.describe("under the Content-Security-Policy", () => {
       );
 
       // Charts and dialogs: Radix menus and dialogs add their own styles while open.
-      await page.getByRole("button", { name: "Donut", exact: true }).click();
+      await page.getByRole("radio", { name: "Donut", exact: true }).click();
       const bodyOverflow = () => page.evaluate(() => getComputedStyle(document.body).overflow);
       await page.getByRole("button", { name: /^Policy Job, / }).click();
       await expect(page.getByRole("dialog", { name: "Policy Job" })).toBeVisible();

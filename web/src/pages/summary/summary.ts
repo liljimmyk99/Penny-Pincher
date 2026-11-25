@@ -24,7 +24,7 @@ export const CHART_PALETTE_SIZE = 8;
 
 /** The colour for a category's bar or slice. Saving always keeps its own colour. */
 export function categoryColor(category: Pick<Category, "is_saving" | "color">, index: number): string {
-  if (category.is_saving) return "var(--color-saving-bar)";
+  if (category.is_saving) return "var(--saving-bar)";
   return category.color ?? `var(--chart-${(index % CHART_PALETTE_SIZE) + 1})`;
 }
 
@@ -49,6 +49,6 @@ export function donutSlices(ranked: Category[]): DonutSlice[] {
 
 /** The CSS `conic-gradient(...)` for those slices. */
 export function donutGradient(slices: DonutSlice[]): string {
-  if (slices.length === 0) return "conic-gradient(var(--color-divider) 0 100%)";
+  if (slices.length === 0) return "conic-gradient(var(--muted) 0 100%)";
   return `conic-gradient(${slices.map((s) => `${s.color} ${s.from.toFixed(3)}% ${s.to.toFixed(3)}%`).join(", ")})`;
 }

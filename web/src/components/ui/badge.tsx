@@ -10,6 +10,10 @@ import { Slot } from "radix-ui"
  *   `refund` (refund tags), `unconfirmed` (template copies not yet confirmed),
  *   `saving` (Saving's badge) and `income`. Colours come from tokens only.
  * - `destructive` uses the danger-alert tokens, like inline errors.
+ * - Change indicators (#177): `worse` (orange), `better` (blue) and `unchanged`
+ *   are coloured text with no fill and no side padding, as the V2 boards draw
+ *   them. The caller always adds the ▲/▼ arrow and the +/− sign (ChangeBadge),
+ *   so colour is never the only signal.
  */
 const badgeVariants = cva(
   "inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-sm border border-transparent px-2 py-0.5 text-xs font-semibold whitespace-nowrap tabular-nums transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:ring-ring/35 [&>svg]:pointer-events-none [&>svg]:size-3",
@@ -26,6 +30,9 @@ const badgeVariants = cva(
         unconfirmed: "bg-unconfirmed-pill text-unconfirmed-text",
         saving: "bg-selected text-saving",
         income: "bg-success-alert text-income",
+        worse: "bg-transparent px-0 text-worse",
+        better: "bg-transparent px-0 text-better",
+        unchanged: "bg-transparent px-0 font-medium text-muted-foreground",
       },
     },
     defaultVariants: {

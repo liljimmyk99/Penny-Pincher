@@ -2,12 +2,20 @@ import { useState } from "react";
 import { errorMessage, useCategoryTrends, type Schemas } from "../../api";
 import { DivergingBars, type DivergingBar } from "../../charts/DivergingBars";
 import { PairedBars } from "../../charts/PairedBars";
-import { AlertIcon, ChevronLeftIcon, ChevronRightIcon } from "../../components/icons";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChangeBadge, ChangeText } from "@/components/ChangeBadge";
+import { LoadError } from "@/components/LoadError";
+import { LoadingSection } from "@/components/LoadingSection";
+import { SectionCard } from "@/components/SectionCard";
+import { StatTile, TileRow } from "@/components/StatTile";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Toggle } from "@/components/ui/toggle";
+import { cn } from "@/lib/utils";
 import { changeWords, describeChange } from "../../lib/change";
 import { monthName, todayISO } from "../../lib/dates";
 import { formatCents } from "../../lib/money";
-import { ChangeBadge } from "../summary/ChangeBadge";
-import "../yearly/YearlyPage.css";
 import { biggestMovers, defaultMonthIndex, monthFigures, type Series } from "./trendChange";
 
 const MIN_YEAR = 2000;
@@ -24,34 +32,26 @@ export function CategoryTrends() {
   const trends = useCategoryTrends(year);
 
   const yearSwitcher = (
-    <div role="group" aria-label="Year" className="month-switcher">
-      <button type="button" className="icon-btn" aria-label={`Previous year, ${year - 1}`} disabled={year <= MIN_YEAR} onClick={() => setYear(year - 1)}>
-        <ChevronLeftIcon />
-      </button>
-      <span className="month-switcher__label" aria-live="polite">{year}</span>
-      <button type="button" className="icon-btn" aria-label={`Next year, ${year + 1}`} disabled={year >= MAX_YEAR} onClick={() => setYear(year + 1)}>
-        <ChevronRightIcon />
-      </button>
+    <div role="group" aria-label="Year" className="flex items-center gap-2">
+      <Button variant="outline" size="icon" aria-label={`Previous year, ${year - 1}`} disabled={year <= MIN_YEAR} onClick={() => setYear(year - 1)}>
+        <ChevronLeft aria-hidden="true" />
+      </Button>
+      <span className="min-w-14 text-center font-semibold tabular-nums" aria-live="polite">{year}</span>
+      <Button variant="outline" size="icon" aria-label={`Next year, ${year + 1}`} disabled={year >= MAX_YEAR} onClick={() => setYear(year + 1)}>
+        <ChevronRight aria-hidden="true" />
+      </Button>
     </div>
   );
 
   let body;
-  if (trends.isPending) body = <p className="trends__status">Loading {year}…</p>;
+  if (trends.isPending) body = <LoadingSection label={String(year)} rows={4} />;
   else if (trends.isError)
-    body = (
-      <p role="alert" className="alert alert--danger trends__alert">
-        <AlertIcon width={18} height={18} />
-        <span>
-          Couldn’t load category trends. {errorMessage(trends.error)}{" "}
-          <button type="button" className="text-btn" onClick={() => void trends.refetch()}>Try again</button>
-        </span>
-      </p>
-    );
+    body = <LoadError message={`Couldn’t load category trends. ${errorMessage(trends.error)}`} onRetry={() => void trends.refetch()} />;
   else body = <Body key={year} data={trends.data} today={today} />;
 
   return (
-    <div className="cattrends">
-      <div className="cattrends__bar">{yearSwitcher}</div>
+    <div className="flex flex-col gap-4">
+      <div className="flex justify-end">{yearSwitcher}</div>
       {body}
     </div>
   );
@@ -84,47 +84,41 @@ function Body({ data, today }: { data: Trends; today: string }) {
       delta: m.delta,
       tone: m.tone,
       saving: m.series.is_saving,
-      change: <span className={`change change--${c.tone}`}>{c.arrow} {c.amount}</span>,
+      change: <ChangeText tone={c.tone} text={`${c.arrow} ${c.amount}`} />,
       name: `${m.series.name}, ${words}. Chart this category`,
     };
   });
 
   const tile = (label: string, value: string, current: number, previous: number, suffix: string) => (
-    <div className="tile">
-      <span className="tile__label">{label}</span>
-      <span className="tile__value">{value}</span>
-      <span className="tile__sub"><ChangeBadge current={current} previous={previous} saving={saving} suffix={suffix} /></span>
-    </div>
+    <StatTile label={label} value={value} sub={<ChangeBadge current={current} previous={previous} saving={saving} suffix={suffix} />} />
   );
 
   return (
     <>
-      <div role="group" aria-label="Category" className="cattrends__chips">
+      <div role="group" aria-label="Category" className="flex flex-wrap gap-2">
         {[{ id: ALL, name: "All spending", saving: false }, ...data.categories.map((c) => ({ id: c.category_id as string, name: c.name, saving: c.is_saving }))].map((c) => (
-          <button key={c.id} type="button" className={`chip${selected === c.id ? " is-active" : ""}`} aria-pressed={selected === c.id} onClick={() => setSelected(c.id)}>
+          <Toggle
+            key={c.id}
+            variant="outline"
+            pressed={selected === c.id}
+            onPressedChange={() => setSelected(c.id)}
+            className="rounded-full px-4 text-foreground data-[state=on]:border-primary"
+          >
             {c.name}
-            {c.saving && <span className="badge badge--saving">Saving</span>}
-          </button>
+            {c.saving && <Badge variant="saving">Saving</Badge>}
+          </Toggle>
         ))}
       </div>
 
-      <div className="tiles" role="group" aria-label={`${series.name}, ${month} ${data.year}`}>
-        <div className="tile">
-          <span className="tile__label">{month} spend</span>
-          <span className="tile__value">{formatCents(f.spend)}</span>
-          <span className="tile__sub">{series.name}</span>
-        </div>
+      <TileRow label={`${series.name}, ${month} ${data.year}`}>
+        <StatTile label={`${month} spend`} value={formatCents(f.spend)} sub={series.name} />
         {tile("vs. previous month", formatCents(f.previousMonth), f.spend, f.previousMonth, index === 0 ? "vs. last December" : "vs. last month")}
         {tile(`vs. ${month} ${data.year - 1}`, formatCents(f.sameMonthLastYear), f.spend, f.sameMonthLastYear, `vs. ${month} ${data.year - 1}`)}
         {tile("Year to date vs. last year", formatCents(f.ytd), f.ytd, f.ytdLastYear, `vs. ${formatCents(f.ytdLastYear)} last year`)}
-      </div>
+      </TileRow>
 
-      <div className="cattrends__charts">
-        <section className="card cattrends__panel" aria-labelledby="cat-pairs-h">
-          <div className="yearly__head">
-            <h2 id="cat-pairs-h">{data.year} vs. {data.year - 1}</h2>
-            <p className="yearly__desc">{series.name} per month. Select a month to compare it.</p>
-          </div>
+      <div className="grid items-start gap-4 min-[900px]:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <SectionCard title={`${data.year} vs. ${data.year - 1}`} description={`${series.name} per month. Select a month to compare it.`}>
           <PairedBars
             groups={groups}
             aName={String(data.year)}
@@ -135,15 +129,11 @@ function Body({ data, today }: { data: Trends; today: string }) {
             label={`${series.name} per month, ${data.year} and ${data.year - 1}`}
             summary={`${series.name}: ${data.year} year to date ${formatCents(f.ytd)}, ${data.year - 1} ${formatCents(f.ytdLastYear)}.`}
           />
-        </section>
+        </SectionCard>
 
-        <section className="card cattrends__panel" aria-labelledby="cat-movers-h">
-          <div className="yearly__head">
-            <h2 id="cat-movers-h">Biggest movers</h2>
-            <p className="yearly__desc">Change in {month} vs. {month} {data.year - 1}. Select a category to chart it.</p>
-          </div>
+        <SectionCard title="Biggest movers" description={`Change in ${month} vs. ${month} ${data.year - 1}. Select a category to chart it.`}>
           {moverRows.length === 0 ? (
-            <p className="trends__status">No category changed in {month}.</p>
+            <p className="m-0 text-muted-foreground">No category changed in {month}.</p>
           ) : (
             <DivergingBars
               rows={moverRows}
@@ -152,46 +142,46 @@ function Body({ data, today }: { data: Trends; today: string }) {
               label={`Biggest movers, ${month} ${data.year} vs. ${data.year - 1}`}
             />
           )}
-        </section>
+        </SectionCard>
       </div>
 
-      <section className="card cattrends__panel" aria-labelledby="cat-table-h">
-        <div className="yearly__head">
-          <h2 id="cat-table-h">Month by month</h2>
-          <p className="yearly__desc">{series.name}. January compares with last December.</p>
-        </div>
-        <div className="yearly__scroll">
-          <table className="tx-table yearly__table">
-            <thead>
-              <tr>
-                <th scope="col">Month</th>
-                <th scope="col" className="num">Spend</th>
-                <th scope="col" className="num">vs. previous month</th>
-                <th scope="col" className="num">{data.year - 1}</th>
-                <th scope="col" className="num">vs. {data.year - 1}</th>
-                <th scope="col" className="num">Year to date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {MONTHS.map((m, i) => {
-                const r = monthFigures(series, i);
-                const future = data.year === Number(today.slice(0, 4)) && i > Number(today.slice(5, 7)) - 1;
-                const dash = <span aria-label="none">—</span>;
-                return (
-                  <tr key={m} className={`yearly__row${future ? " is-quiet" : ""}${i === index ? " is-selected" : ""}`} onClick={() => setIndex(i)}>
-                    <th scope="row">{m}</th>
-                    <td className="num">{future ? dash : formatCents(r.spend)}</td>
-                    <td className="num">{future ? dash : <ChangeBadge current={r.spend} previous={r.previousMonth} saving={saving} />}</td>
-                    <td className="num">{formatCents(r.sameMonthLastYear)}</td>
-                    <td className="num">{future ? dash : <ChangeBadge current={r.spend} previous={r.sameMonthLastYear} saving={saving} suffix={`vs. ${m} ${data.year - 1}`} />}</td>
-                    <td className="num">{future ? dash : formatCents(r.ytd)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <SectionCard title="Month by month" description={`${series.name}. January compares with last December.`}>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead scope="col">Month</TableHead>
+              <TableHead scope="col" numeric>Spend</TableHead>
+              <TableHead scope="col" numeric>vs. previous month</TableHead>
+              <TableHead scope="col" numeric>{data.year - 1}</TableHead>
+              <TableHead scope="col" numeric>vs. {data.year - 1}</TableHead>
+              <TableHead scope="col" numeric>Year to date</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {MONTHS.map((m, i) => {
+              const r = monthFigures(series, i);
+              const future = data.year === Number(today.slice(0, 4)) && i > Number(today.slice(5, 7)) - 1;
+              const dash = <span aria-label="none">—</span>;
+              return (
+                <TableRow
+                  key={m}
+                  data-future={future || undefined}
+                  data-selected={i === index || undefined}
+                  className={cn("cursor-pointer", future && "text-muted-foreground", i === index && "bg-selected hover:bg-selected")}
+                  onClick={() => setIndex(i)}
+                >
+                  <TableHead scope="row" className="text-inherit">{m}</TableHead>
+                  <TableCell numeric>{future ? dash : formatCents(r.spend)}</TableCell>
+                  <TableCell numeric>{future ? dash : <ChangeBadge current={r.spend} previous={r.previousMonth} saving={saving} />}</TableCell>
+                  <TableCell numeric>{formatCents(r.sameMonthLastYear)}</TableCell>
+                  <TableCell numeric>{future ? dash : <ChangeBadge current={r.spend} previous={r.sameMonthLastYear} saving={saving} suffix={`vs. ${m} ${data.year - 1}`} />}</TableCell>
+                  <TableCell numeric>{future ? dash : formatCents(r.ytd)}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </SectionCard>
     </>
   );
 }

@@ -1,4 +1,5 @@
 import type { ChangeTone } from "../lib/change";
+import { Badge } from "@/components/ui/badge";
 import "./charts.css";
 
 export interface DivergingBar {
@@ -49,7 +50,7 @@ export function DivergingBars({
           >
             <span className="ranked__name">
               {r.label}
-              {r.saving && <span className="badge badge--saving">Saving</span>}
+              {r.saving && <Badge variant="saving">Saving</Badge>}
             </span>
             <span className="diverging__track" aria-hidden="true">
               <span

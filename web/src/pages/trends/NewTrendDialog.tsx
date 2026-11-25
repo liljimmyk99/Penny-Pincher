@@ -1,12 +1,20 @@
-import { useId, useState } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiError, errorMessage, findMerchant, useApi, useCategories, useSavedTrendMutations, type Schemas } from "../../api";
 import { MerchantCombobox } from "../../components/MerchantCombobox";
-import { EditDialog, FormField } from "../transactions/EditDialog";
-import { invalidProps } from "../transactions/form";
+import { FormField } from "@/components/FormField";
+import { Segmented } from "@/components/Segmented";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { EditDialog } from "../transactions/EditDialog";
 
 type MatchType = Schemas["TrendMatchType"];
 type Measure = Schemas["TrendMeasure"];
+
+const MEASURES = [
+  { value: "amount", label: "Amount" },
+  { value: "count", label: "Count" },
+] as const;
 
 const MATCHES: { value: MatchType; label: string }[] = [
   { value: "merchant", label: "Merchant" },
@@ -24,7 +32,6 @@ export function NewTrendDialog({
   onClose: () => void;
   onCreated: (trend: Schemas["SavedTrend"]) => void;
 }) {
-  const id = useId();
   const api = useApi();
   const qc = useQueryClient();
   const categories = useCategories();
@@ -81,7 +88,6 @@ export function NewTrendDialog({
     }
   }
 
-  const valueId = `${id}-value`;
   return (
     <EditDialog
       open={open}
@@ -93,80 +99,71 @@ export function NewTrendDialog({
       onClose={onClose}
       submitLabel="Save trend"
     >
-      <FormField id={`${id}-name`} label="Name" error={errors.name} wide>
-        <input
-          id={`${id}-name`}
-          className="field"
-          value={name}
-          maxLength={100}
-          onChange={(e) => setName(e.target.value)}
-          {...invalidProps(`${id}-name`, errors.name)}
-        />
+      <FormField label="Name" error={errors.name}>
+        {(control) => <Input {...control} value={name} maxLength={100} onChange={(e) => setName(e.target.value)} />}
       </FormField>
-      <FormField id={`${id}-match`} label="Match by">
-        <select
-          id={`${id}-match`}
-          className="field"
-          value={match}
-          onChange={(e) => {
-            setMatch(e.target.value as MatchType);
-            setErrors((x) => ({ ...x, value: undefined }));
-          }}
-        >
-          {MATCHES.map((m) => (
-            <option key={m.value} value={m.value}>{m.label}</option>
-          ))}
-        </select>
-      </FormField>
-      <FormField id={`${id}-measure`} label="Measure">
-        <select id={`${id}-measure`} className="field" value={measure} onChange={(e) => setMeasure(e.target.value as Measure)}>
-          <option value="amount">Amount</option>
-          <option value="count">Count</option>
-        </select>
-      </FormField>
-      <FormField id={valueId} label={match === "merchant" ? "Merchant" : match === "category" ? "Category" : "Note contains"} error={errors.value} wide>
-        {match === "merchant" ? (
-          <MerchantCombobox
-            id={valueId}
-            label="Merchant"
-            className="field"
-            value={merchant}
-            invalid={!!errors.value}
-            describedBy={errors.value ? `${valueId}-err` : undefined}
-            onChange={(v) => {
-              setMerchant(v);
-              setMerchantId(null);
+      <FormField label="Match by">
+        {(control) => (
+          <Select
+            value={match}
+            onValueChange={(v) => {
+              setMatch(v as MatchType);
+              setErrors((x) => ({ ...x, value: undefined }));
             }}
-            onPick={(m) => {
-              setMerchant(m.name);
-              setMerchantId(m.id);
-            }}
-            onCommit={() => {}}
-          />
-        ) : match === "category" ? (
-          <select
-            id={valueId}
-            className="field"
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-            {...invalidProps(valueId, errors.value)}
           >
-            <option value="">Choose a category…</option>
-            {(categories.data ?? []).map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        ) : (
-          <input
-            id={valueId}
-            className="field"
-            value={text}
-            maxLength={200}
-            onChange={(e) => setText(e.target.value)}
-            {...invalidProps(valueId, errors.value)}
-          />
+            <SelectTrigger {...control} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MATCHES.map((m) => (
+                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
       </FormField>
+      <FormField label={match === "merchant" ? "Merchant" : match === "category" ? "Category" : "Note contains"} error={errors.value}>
+        {(control) =>
+          match === "merchant" ? (
+            <MerchantCombobox
+              id={control.id}
+              label="Merchant"
+              // The old .field look matches Input (#169); the combobox's own input moves in #175.
+              className="field"
+              value={merchant}
+              invalid={!!errors.value}
+              describedBy={control["aria-describedby"]}
+              onChange={(v) => {
+                setMerchant(v);
+                setMerchantId(null);
+              }}
+              onPick={(m) => {
+                setMerchant(m.name);
+                setMerchantId(m.id);
+              }}
+              onCommit={() => {}}
+            />
+          ) : match === "category" ? (
+            <Select value={categoryId || undefined} onValueChange={setCategoryId}>
+              <SelectTrigger {...control} className="w-full">
+                <SelectValue placeholder="Choose a category…" />
+              </SelectTrigger>
+              <SelectContent>
+                {(categories.data ?? []).map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input {...control} value={text} maxLength={200} onChange={(e) => setText(e.target.value)} />
+          )
+        }
+      </FormField>
+      <div className="flex flex-col gap-1.5">
+        {/* The visible label; the radiogroup carries the same name. */}
+        <span className="text-[13px] font-medium" aria-hidden="true">Measure</span>
+        <Segmented label="Measure" value={measure} options={MEASURES} onChange={setMeasure} />
+      </div>
     </EditDialog>
   );
 }

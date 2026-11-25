@@ -40,7 +40,7 @@ export function PairedBars({
   const height = (cents: number) => (cents <= 0 || max <= 0 ? 0 : Math.max(2, Math.round((cents / max) * 100)));
   return (
     <div className={`paired${variant ? ` paired--${variant}` : ""}`}>
-      <p className="visually-hidden">{summary}</p>
+      <p className="sr-only">{summary}</p>
       <ul className="paired__plot" aria-label={label}>
         {groups.map((g) => {
           const inner = (
