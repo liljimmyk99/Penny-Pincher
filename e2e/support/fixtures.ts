@@ -1,20 +1,33 @@
 import { test as base, expect, type Page } from "@playwright/test";
-import { allowlist, Api, createAccount, type TestAccount } from "./stack";
+import { Api, createAccount, type TestAccount } from "./stack";
 
-/** Signs in through the real sign-in screen (email and password, against the emulator). */
-export async function signIn(page: Page, account: TestAccount, path = "/transactions") {
-  await page.goto(path);
-  await page.getByLabel("Email").fill(account.email);
-  await page.getByLabel("Password", { exact: true }).fill(account.password);
+/** Where the web app keeps its session token (web/src/auth/api.ts). */
+export const TOKEN_KEY = "penny-pincher.session-token";
+
+/** Fills and submits the real sign-in screen. The caller checks what happens next. */
+export async function submitSignIn(page: Page, username: string, password: string) {
+  await page.getByLabel("Username").fill(username);
+  await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
 }
 
-/** Every test gets its own allowlisted user, so tests never see each other's data. */
+/** Opens `path` and signs in through the real sign-in screen with a username and password. */
+export async function signIn(page: Page, account: Pick<TestAccount, "username" | "password">, path = "/transactions") {
+  await page.goto(path);
+  await submitSignIn(page, account.username, account.password);
+}
+
+/** The session token the page signed in with. */
+export async function pageToken(page: Page): Promise<string> {
+  const token = await page.evaluate((key) => localStorage.getItem(key), TOKEN_KEY);
+  if (!token) throw new Error("the page has no session token");
+  return token;
+}
+
+/** Every test gets its own user, made with the real CLI, so tests never see each other's data. */
 export const test = base.extend<{ account: TestAccount; api: Api; signedIn: Page }>({
   account: async ({}, use) => {
-    const account = await createAccount();
-    allowlist(account);
-    await use(account);
+    await use(createAccount());
   },
   api: async ({ account }, use) => {
     const api = await Api.as(account);

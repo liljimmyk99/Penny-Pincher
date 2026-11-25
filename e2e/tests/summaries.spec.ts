@@ -12,7 +12,7 @@
 import type { Page } from "@playwright/test";
 import { expect, signIn, test } from "../support/fixtures";
 import { parseMoney } from "../support/money";
-import { allowlist, Api, createAccount, type IncomeSource } from "../support/stack";
+import { Api, createAccount, type IncomeSource } from "../support/stack";
 
 /* ---- The golden month (generic names only) ---------------------------- */
 
@@ -511,8 +511,7 @@ test("ED-6 phone width has no sideways scroll on either screen, in dark mode too
 
 test("ED-3 a new second user sees none of the first user's data", async ({ api, browser }) => {
   await seedGoldenMonth(api);
-  const second = await createAccount("second");
-  allowlist(second);
+  const second = createAccount("second");
   const context = await browser.newContext({ ignoreHTTPSErrors: true });
   try {
     const page = await context.newPage();

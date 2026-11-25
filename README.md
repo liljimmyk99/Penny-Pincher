@@ -21,7 +21,7 @@ The SQLite file lives on the `api-data` volume; certificates on `caddy-data`/`ca
 
 ## Running locally without the live service
 
-To try the app with no real Firebase project and with sample data:
+To try the app on your own machine with sample data:
 
 ```bash
 cd e2e
@@ -29,7 +29,7 @@ npm ci
 npm run seed
 ```
 
-Then sign in at `https://localhost:18443` as `demo@example.test` / `demo-password-123`. It runs the end-to-end stack (the same images, with the Firebase Auth emulator) and never touches your dev stack, `.env` or `secrets/`. See **[LOCAL_DEMO.md](LOCAL_DEMO.md)** for what the data contains, resetting, signing in as other accounts, and troubleshooting.
+Then sign in at `https://localhost:18443` as `demo` / `demo-password-123`. It runs the end-to-end stack (the same images and Caddy config as production) and never touches your dev stack, `.env` or `secrets/`. See **[LOCAL_DEMO.md](LOCAL_DEMO.md)** for what the data contains, resetting, signing in as other accounts, and troubleshooting.
 
 ## Firebase credentials
 

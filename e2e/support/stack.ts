@@ -1,71 +1,124 @@
 /**
- * The pieces of the e2e stack (compose.yml) that tests drive directly:
- * Firebase Auth emulator accounts, the API's `user add` CLI (the allowlist),
- * and an API client for arranging and checking data.
+ * The pieces of the e2e stack (compose.yml) that tests drive directly: the
+ * API's `user add` CLI (how accounts are made, with test-generated passwords),
+ * an API client for arranging and checking data, and a database tool for the
+ * one thing no route can do (ageing a session past its 30 days).
  */
 import { execFileSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { request, type APIRequestContext } from "@playwright/test";
 
 export const BASE_URL = "https://localhost:18443";
-export const EMULATOR_URL = "http://localhost:19099";
-export const PROJECT_ID = "demo-penny-pincher";
 const E2E_DIR = dirname(dirname(fileURLToPath(import.meta.url)));
 
 /** `docker compose ...` for this stack (project pp-e2e). */
 export function compose(...args: string[]): string {
-  return execFileSync("docker", ["compose", ...args], { cwd: E2E_DIR, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  return composeWithInput(undefined, ...args);
+}
+
+/** Like `compose`, with `input` on the command's stdin. */
+export function composeWithInput(input: string | undefined, ...args: string[]): string {
+  return execFileSync("docker", ["compose", ...args], {
+    cwd: E2E_DIR,
+    encoding: "utf8",
+    input,
+    stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe"],
+  });
 }
 
 export interface TestAccount {
-  email: string;
+  username: string;
   password: string;
-  uid: string;
+  email?: string;
+  name?: string;
 }
 
-/** A Firebase account in the emulator, with generated test credentials. */
-export async function createAccount(label = "user"): Promise<TestAccount> {
-  const email = `${label}-${randomUUID().slice(0, 8)}@example.test`;
-  const password = `pw-${randomUUID()}`;
-  const res = await fetch(`${EMULATOR_URL}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-api-key`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email, password, returnSecureToken: true }),
-  });
-  if (!res.ok) throw new Error(`emulator signUp failed: ${res.status} ${await res.text()}`);
-  const body = (await res.json()) as { localId: string };
-  return { email, password, uid: body.localId };
+/** A fresh username, unique per call: `label-xxxxxxxx`. */
+export function newUsername(label = "user"): string {
+  return `${label}-${randomUUID().slice(0, 8)}`;
 }
 
-/** Adds the account to the API's users table, the way an admin does in v1. */
-export function allowlist(account: Pick<TestAccount, "uid" | "email">, role: "admin" | "member" = "member"): void {
-  compose("exec", "-T", "api", "/api", "user", "add", "--uid", account.uid, "--email", account.email, "--role", role);
+/** A generated test password (never a real one), well over the 12-character minimum. */
+export function newPassword(): string {
+  return `pw-${randomBytes(12).toString("base64url")}`;
 }
 
-/** The uid of an emulator account made somewhere else (the Google popup), by its email. */
-export async function uidOf(email: string): Promise<string> {
-  const res = await fetch(`${EMULATOR_URL}/identitytoolkit.googleapis.com/v1/projects/${PROJECT_ID}/accounts:lookup`, {
-    method: "POST",
-    // The emulator accepts "owner" as admin credentials.
-    headers: { "content-type": "application/json", authorization: "Bearer owner" },
-    body: JSON.stringify({ email: [email] }),
-  });
-  if (!res.ok) throw new Error(`emulator lookup failed: ${res.status} ${await res.text()}`);
-  const users = ((await res.json()) as { users?: { localId: string }[] }).users ?? [];
-  if (users.length !== 1) throw new Error(`expected one emulator account for ${email}, found ${users.length}`);
-  return users[0].localId;
+export interface AccountOptions {
+  role?: "admin" | "member";
+  /** `--must-change`: they choose their own password at first sign-in. */
+  mustChange?: boolean;
+  email?: string;
+  name?: string;
 }
 
-async function idToken(account: TestAccount): Promise<string> {
-  const res = await fetch(`${EMULATOR_URL}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-api-key`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: account.email, password: account.password, returnSecureToken: true }),
-  });
-  if (!res.ok) throw new Error(`emulator sign-in failed: ${res.status}`);
-  return ((await res.json()) as { idToken: string }).idToken;
+/**
+ * Adds a user with the real admin CLI, `api user add`, the way the first admin
+ * is made. The password goes in on stdin, as the CLI reads it when not on a terminal.
+ * Throws with the CLI's message (for example "is already taken") on failure.
+ */
+export function addUser(account: Pick<TestAccount, "username" | "password">, opts: AccountOptions = {}): void {
+  const args = ["exec", "-T", "api", "/api", "user", "add", "--username", account.username, "--role", opts.role ?? "member"];
+  if (opts.email) args.push("--email", opts.email);
+  if (opts.name) args.push("--name", opts.name);
+  if (opts.mustChange) args.push("--must-change");
+  try {
+    composeWithInput(`${account.password}\n`, ...args);
+  } catch (err) {
+    const stderr = (err as { stderr?: string }).stderr ?? "";
+    throw new Error(`api user add ${account.username} failed: ${stderr.trim() || String(err)}`);
+  }
+}
+
+/** A new user with a generated username and test password, added with the CLI. */
+export function createAccount(label = "user", opts: AccountOptions = {}): TestAccount {
+  const account: TestAccount = { username: newUsername(label), password: newPassword(), email: opts.email, name: opts.name };
+  addUser(account, opts);
+  return account;
+}
+
+export interface LoginResult {
+  token: string;
+  must_change_password: boolean;
+}
+
+/** `POST /v1/auth/login`, as is: the response, for checking refusals. */
+export async function login(username: string, password: string) {
+  const ctx = await request.newContext({ baseURL: BASE_URL, ignoreHTTPSErrors: true });
+  try {
+    const res = await ctx.post("/v1/auth/login", { data: { username, password } });
+    return { status: res.status(), headers: res.headers(), body: (await res.json().catch(() => null)) as Record<string, unknown> | null };
+  } finally {
+    await ctx.dispose();
+  }
+}
+
+async function token(account: Pick<TestAccount, "username" | "password">): Promise<string> {
+  const res = await login(account.username, account.password);
+  if (res.status !== 200) throw new Error(`sign-in as ${account.username} failed: ${res.status} ${JSON.stringify(res.body)}`);
+  return (res.body as unknown as LoginResult).token;
+}
+
+/**
+ * Moves a session's start back by `days` in the database, through the
+ * compose `dbtool` service (Node's built-in SQLite on the API's volume, while
+ * the API keeps running; WAL allows the second writer). Sessions are found by
+ * the SHA-256 of their token, as the API stores them.
+ */
+export function ageSession(sessionToken: string, days: number): void {
+  const out = compose(
+    "run", "--rm", "-T", "-e", `TOKEN=${sessionToken}`, "-e", `DAYS=${days}`, "dbtool", "node", "-e",
+    `const { DatabaseSync } = require("node:sqlite");
+     const { createHash } = require("node:crypto");
+     const db = new DatabaseSync("/data/spend.db");
+     db.exec("PRAGMA busy_timeout = 5000");
+     const hash = createHash("sha256").update(process.env.TOKEN).digest();
+     const r = db.prepare("UPDATE sessions SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now', ?) WHERE token_hash = ?")
+       .run("-" + process.env.DAYS + " days", hash);
+     console.log(r.changes);`,
+  );
+  if (out.trim().split("\n").pop() !== "1") throw new Error(`expected to age one session, got: ${out}`);
 }
 
 /* ---- API ---------------------------------------------------------------- */
@@ -95,12 +148,17 @@ const items = <T>(body: unknown): T[] => (Array.isArray(body) ? body : (body as 
 export class Api {
   private constructor(private readonly ctx: APIRequestContext) {}
 
-  static async as(account: TestAccount): Promise<Api> {
-    const token = await idToken(account);
+  /** Signs in with the account's password (its own session, separate from any browser's). */
+  static async as(account: Pick<TestAccount, "username" | "password">): Promise<Api> {
+    return Api.withToken(await token(account));
+  }
+
+  /** The API as whoever holds this session token. */
+  static async withToken(sessionToken: string): Promise<Api> {
     const ctx = await request.newContext({
       baseURL: BASE_URL,
       ignoreHTTPSErrors: true,
-      extraHTTPHeaders: { authorization: `Bearer ${token}` },
+      extraHTTPHeaders: { authorization: `Bearer ${sessionToken}` },
     });
     return new Api(ctx);
   }

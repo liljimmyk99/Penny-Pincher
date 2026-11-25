@@ -1,6 +1,6 @@
 # AGENTS.md — /e2e
 
-Read the root `AGENTS.md` first. This folder is the end-to-end suite: Playwright driving the real Docker stack. It automates the **M1 testing gate**'s smoke checklist, the **M2 acceptance tests** (AT-1 to AT-24), the **M3 acceptance tests** (MS, RB, YS, ED) the M6 security headers (#105) and request limits (#106), the **M8 import gate** (#100), and the admin panel's **Users tab** (#157).
+Read the root `AGENTS.md` first. This folder is the end-to-end suite: Playwright driving the real Docker stack. It automates the **M1 testing gate**'s smoke checklist, the **M2 acceptance tests** (AT-1 to AT-24), the **M3 acceptance tests** (MS, RB, YS, ED) the M6 security headers (#105) and request limits (#106), the **M8 import gate** (#100), the admin panel's **Users tab** (#157, #190), and **username and password sign-in** (#182, #192).
 
 ## Running it
 
@@ -13,19 +13,17 @@ npm test                 # builds + starts compose.yml, runs every spec, removes
 
 - `E2E_KEEP_STACK=1 npm test` leaves the stack running afterwards.
 - `npm run stack:up` once, then `E2E_SKIP_STACK=1 npx playwright test …` reruns specs against the running stack. `npm run stack:down` removes it, volume included.
-- The stack is compose project `pp-e2e` on ports 18443 (Caddy, `https://localhost:18443`) and 19099 (auth emulator), so it never touches the dev stack or its data.
-- **Demo data to click around in:** `npm run seed` starts the stack if needed and adds one admin account, `demo@example.test` / `demo-password-123` (emulator-only; override with `SEED_EMAIL` / `SEED_PASSWORD`), with generic made-up data from January last year to today: expenses in every category, Saving, salary, freelance and one-off income, two linked refunds in January, a template applied to the current month (unconfirmed copies), and three saved trends. Sign in at `https://localhost:18443` (accept the local certificate). Running it again changes nothing; `npm run stack:down` and seed again to start over. It has its own config (`playwright.seed.config.ts`, `seed/`), so `npm test` never runs it, and the tests' own users never see its data.
+- The stack is compose project `pp-e2e` on port 18443 (Caddy, `https://localhost:18443`), so it never touches the dev stack or its data.
+- **Demo data to click around in:** `npm run seed` starts the stack if needed and adds one admin account, username `demo`, password `demo-password-123` (made up, for this local stack only; override with `SEED_USERNAME` / `SEED_PASSWORD`), with generic made-up data from January last year to today: expenses in every category, Saving, salary, freelance and one-off income, two linked refunds in January, a template applied to the current month (unconfirmed copies), and three saved trends. Sign in at `https://localhost:18443` (accept the local certificate). Running it again changes nothing; `npm run stack:down` and seed again to start over. It has its own config (`playwright.seed.config.ts`, `seed/`), so `npm test` never runs it, and the tests' own users never see its data.
 - CI runs it as the `e2e` job (`.github/workflows/ci.yml`); a failure uploads the Playwright report with traces.
 
 ## How it works
 
-- `compose.yml` uses the same API and web images and the same `deploy/Caddyfile` as the root `docker-compose.yml` (dev profile). The **Firebase Auth emulator** (`auth-emulator/`) replaces real Firebase.
-  - **API:** `FIREBASE_AUTH_EMULATOR_HOST` makes the Admin SDK accept emulator tokens. The API refuses to start with it unless `FIREBASE_PROJECT_ID` starts with `demo-` (`internal/config`).
-  - **Web:** the build arg `VITE_FIREBASE_AUTH_EMULATOR_URL` connects the SDK to the emulator, and is likewise ignored unless the project id starts with `demo-`. A production build never sets either.
-  - **Proxy:** `FIREBASE_AUTH_EMULATOR_URL` adds the emulator's origin to the Content-Security-Policy's `connect-src` and `frame-src`. Only this stack sets it.
-- Every test gets a **fresh user**: an emulator account with generated test credentials, added to the allowlist with the real CLI (`docker compose exec api /api user add …`). Tests share the stack but never each other's data. `admin-users.spec.ts` is the exception: its admin comes from the CLI, and the user under test is added from the admin panel.
+- `compose.yml` uses the same API and web images and the same `deploy/Caddyfile` as the root `docker-compose.yml` (dev profile). There is no identity provider or emulator: the API checks the passwords itself (#182), so the suite signs in exactly as production does.
+  - The only test-only settings are the raised `RATE_LIMIT_*` limits (below) and the `dbtool` service: a pinned Node image with the API's volume, under the `tools` profile so `up` never starts it. `ageSession` runs it (`docker compose run dbtool`) to move a session's start back 31 days, the one thing no route can do.
+- Every test gets a **fresh user**: a generated username and test password, added with the real CLI (`docker compose exec -T api /api user add --username …`, password on stdin; `support/stack.ts` `createAccount`). Tests sign in through the real sign-in screen (`support/fixtures.ts` `signIn`), and the `Api` helper signs in with `POST /v1/auth/login`, so it holds its own session. Tests share the stack but never each other's data. `admin-users.spec.ts` is the exception: its admin comes from the CLI, and the users under test are added from the admin panel.
 - Tests drive the UI and check results through the API (`support/stack.ts` `Api`). They arrange data through the API too, where the UI isn't what's being tested.
-- One worker. `security-headers.spec.ts` is its own Playwright project on full Chromium (below), so the smoke project keeps one worker throughout. `resilience.spec.ts` stops the API container, so it is its own project too, and runs after smoke.
+- One worker. `security-headers.spec.ts` is its own Playwright project, so the smoke project keeps one worker throughout. `resilience.spec.ts` stops the API container, so it is its own project too, and runs after smoke.
 
 ## Gate coverage
 
@@ -49,11 +47,10 @@ npm test                 # builds + starts compose.yml, runs every spec, removes
 | Refund linked to last month counts this month; the original shows its net | `refunds` · linked |
 | Delete the original; the refund is kept, unlinked | `refunds` · delete original |
 | **Across the whole app** | |
-| Second allowlisted user (CLI) sees none of your data and gets defaults | `app` · second user |
-| Non-allowlisted account sees "No access" | `app` · not allowlisted |
+| Second user (CLI) sees none of your data and gets defaults | `app` · second user |
 | API stopped: clear error, nothing looks saved | `resilience` |
 | API restarted: earlier data still there | `resilience` |
-| New screens in dark mode | `app` · dark mode (axe colour contrast + screenshots) |
+| New screens in dark mode, including the sign-in screen with its error, the forced Change password screen and the account menu's Change password dialog | `app` · dark mode (axe colour contrast + screenshots) |
 | **Categories & sources (#23)** | |
 | Reorder persists across a reload | `categories` · reorder |
 | "Other" recolorable, not renamable or deletable | `categories` · Other (recolour via API, see below) |
@@ -115,12 +112,8 @@ Each test seeds the doc's golden month (Dec 2026 to Mar 2027, generic names) for
 
 | Check | Test |
 | --- | --- |
-| Every header on `/`, an app route, `theme-init.js`, `/healthz` and `/v1/*` (signed in and out); no `Server` or `Via`; `no-store` on API responses; no inline `<script>` in the page | `security-headers` · every response |
-| Email sign-in, the pre-paint theme, Google Fonts, every screen, menus and dialogs (including the scroll lock) with no CSP violations | `security-headers` · email sign-in and every screen |
-| Google sign-in through the popup with no CSP violations: not allowlisted, then allowlisted | `security-headers` · Google popup |
-
-- This spec is the `security` project, on **full Chromium** (`channel: "chromium"`), not Playwright's default headless shell. In the shell, an iframe created while a popup opens often never runs its scripts, so the SDK's auth iframe stalls and the popup can't return its result.
-- The Google test waits for the emulator's account chooser to finish loading and for the SDK's auth iframe in the page, as a person picking an account naturally does.
+| Every header on `/`, an app route, `theme-init.js`, `/healthz` and `/v1/*` (signed in and out); no `Server` or `Via`; `no-store` on API responses; no inline `<script>` in the page; a policy with only our own origin and Google Fonts (no Google sign-in or Firebase origin) | `security-headers` · every response |
+| Sign-in (a failed attempt, then the right password), the pre-paint theme, Google Fonts, every screen, menus and dialogs (including the scroll lock) with no CSP violations | `security-headers` · sign-in and every screen |
 
 ### M6 request limits (`request-limits.spec.ts`, #106)
 
@@ -149,21 +142,36 @@ Fixture workbooks are built in the test with `exceljs` (`support/workbooks.ts`) 
 - **`exceljs` is loaded with Node's `require`** (`createRequire`), because Playwright's module loader cannot load its dependency tree.
 - **Not automated:** the Mac import screens, an import interrupted by a server restart (the backend tests cover recovery), and opening the downloaded problem-rows file in Excel.
 
-### Admin panel · Users tab (`admin-users.spec.ts`, #157)
+### Sign-in (`auth.spec.ts`, #192)
 
 | Check | Test |
 | --- | --- |
-| An emulator account that isn't in the database gets `403`; an admin pastes its uid into the Add user dialog; the row appears in the Users table; that person signs in to an empty account with the eight default categories and the "Other" income source, and has no admin rights | `admin-users` · admin adds a user |
-| Adding the same uid again shows the `user_exists` message in the dialog, which stays open; the table still has one row for it | `admin-users` · duplicate uid |
+| The sign-in screen has no Google button and no reset email, only the "ask an admin" note; a wrong password and an unknown username show the same "Wrong username or password" error, and the API answers both with the same `401 invalid_credentials`; usernames are case-insensitive | `auth` · generic error |
+| A user added with `--must-change` sees only "Choose a new password" (other routes and the API's `403 password_change_required` until then); the checklist and a wrong temporary password are refused; after the change the old token and password stop working | `auth` · forced change |
+| Signing out ends that session only | `auth` · sign out |
+| Changing your password from the account menu keeps this device signed in and signs out your other browser and API sessions; only the new password works | `auth` · change password |
+| A session older than 30 days gets `401 session_expired`; the app drops the token and says "Your session has expired" | `auth` · session expiry |
+| 10 wrong passwords in a row lock the username (`429 rate_limited`, a long `Retry-After`, "Too many attempts" on the screen), even for the right password; other usernames still sign in | `auth` · lock-out |
+
+- **Session expiry** ages the session in the database (`ageSession`, through `dbtool`) while the API runs. The hourly sweep that deletes old sessions could in theory run between the edit and the request; it runs once at start-up and then hourly, so in practice it doesn't.
+- **The lock-out** is checked rather than the per-username rate (8 attempts, then one per 12 s), because `compose.yml` raises that rate with `RATE_LIMIT_LOGIN` for the rest of the suite. The lock-out keeps its production values, so the test uses its own user. The backend tests cover the rate itself.
+
+### Admin panel · Users tab (`admin-users.spec.ts`, #157, #190)
+
+| Check | Test |
+| --- | --- |
+| A username that isn't a user can't sign in; an admin adds it with an initial password ("choose their own" on by default); the sign-in details show once; the row appears without the password; that person signs in, must choose a password, and finds an empty account with the eight default categories and the "Other" income source and no admin rights | `admin-users` · admin adds a user |
+| With "choose their own" unchecked, the person signs straight in with the initial password | `admin-users` · no forced change |
+| A taken username (in any case) shows "That username is already taken." in the dialog, which stays open; nothing is added and their password is untouched | `admin-users` · taken username |
+| Reset password with a generated password: the details show once, the person's browser and API sessions stop working ("Your session has expired"), the old password is refused and the new one leads to Choose a new password | `admin-users` · reset password |
 | A member has no "Admin dashboard" menu item, gets "Page not found" at `/admin`, and `GET` and `POST /v1/admin/users` answer `403` (nothing is added) | `admin-users` · member |
 
-- **The "create the account in the Firebase console" step** is the emulator's sign-up endpoint (`createAccount`). The panel never calls Firebase, so nothing else stands in for it.
-- **The first admin still comes from the CLI** (`allowlist(admin, "admin")`), as on a real deployment. Each test has its own admin, so the limit on `POST /v1/admin/users` (burst 5 per user) is never reached.
+- **The first admin still comes from the CLI** (`createAccount("admin", { role: "admin" })`), as on a real deployment. Each test has its own admin, so the limit on `POST /v1/admin/users` (burst 5 per user) is never reached.
 - The added person signs in in a second browser context, so the admin's session stays open alongside it.
 
 ### Where the automation differs from the manual checklist
 
-- **Sign-in uses the auth emulator, not real Firebase.** The email-and-password flow and the backend's token check and allowlist are exercised for real. Google sign-in runs through the emulator's popup: the SDK loads the same Google script and opens the same kind of auth iframe, so the CSP is exercised, but Google's real account chooser is not. Check real Google sign-in, with no CSP errors in the console, and the real project's configuration by hand once on the deployed stack.
+- **Sign-in is the real thing**, with test-generated passwords. What stays manual: signing in on the deployed tailnet host (its `ts.net` certificate and HSTS, `docs/tailscale.md`), the Mac app's sign-in and Keychain, and the copy button in the sign-in details (the browser's clipboard permission).
 - **Time zone:** the browser runs in a zone whose calendar date differs from UTC's at the moment of the run (`Pacific/Pago_Pago` or `Pacific/Kiritimati`). That catches the same `new Date()` / `toISOString()` bug as "after 7 pm Eastern", at any hour.
 - **Recolouring "Other"** is checked on the API because the Categories screen has no colour control yet.
 - **Dark mode** is checked for theme, background and WCAG colour contrast, with screenshots attached to the report. Whether it *looks right* is still a human call.
@@ -173,6 +181,6 @@ Fixture workbooks are built in the test with `exceljs` (`support/workbooks.ts`) 
 ## Rules
 
 - Generic fixtures only (root §9): no real names, employers or amounts.
-- Generate test credentials in the test (`createAccount`); never use a real account.
+- Generate test credentials in the test (`createAccount`, `newPassword`); never use a real account or password.
 - Keep a test per gate item, named after it, and update the table above when the gate changes.
 - Don't add `waitForTimeout`; wait on a locator, response or URL.

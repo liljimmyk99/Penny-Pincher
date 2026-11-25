@@ -4,14 +4,14 @@
  * folder). Not part of the test suite; it has its own config
  * (playwright.seed.config.ts).
  *
- * Emulator-only credentials: the demo- project's Auth emulator accepts
- * nothing else, so these never work against real Firebase.
+ * Made-up credentials for this local stack only; override them with
+ * SEED_USERNAME / SEED_PASSWORD.
  */
 import { test } from "@playwright/test";
 
-import { Api, EMULATOR_URL, allowlist, type IncomeSource, type TestAccount } from "../support/stack";
+import { Api, addUser, type IncomeSource, type TestAccount } from "../support/stack";
 
-const EMAIL = process.env.SEED_EMAIL ?? "demo@example.test";
+const USERNAME = process.env.SEED_USERNAME ?? "demo";
 const PASSWORD = process.env.SEED_PASSWORD ?? "demo-password-123";
 
 type Method = "GET" | "POST" | "PATCH" | "DELETE";
@@ -22,19 +22,16 @@ async function call<T>(api: Api, method: Method, path: string, data?: unknown): 
   return (res.status() === 204 ? undefined : await res.json()) as T;
 }
 
-/** Makes the emulator account, or returns null when it already exists. */
-async function signUp(): Promise<TestAccount | null> {
-  const res = await fetch(`${EMULATOR_URL}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-api-key`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: EMAIL, password: PASSWORD, returnSecureToken: true }),
-  });
-  if (!res.ok) {
-    if ((await res.text()).includes("EMAIL_EXISTS")) return null;
-    throw new Error(`emulator signUp failed: ${res.status}`);
+/** Adds the demo admin with the CLI, or returns null when the username is already taken. */
+function signUp(): TestAccount | null {
+  const account = { username: USERNAME, password: PASSWORD };
+  try {
+    addUser(account, { role: "admin", name: "Demo User" });
+  } catch (err) {
+    if (String(err).includes("already taken")) return null;
+    throw err;
   }
-  const body = (await res.json()) as { localId: string };
-  return { email: EMAIL, password: PASSWORD, uid: body.localId };
+  return account;
 }
 
 /* ---- deterministic made-up numbers ------------------------------------- */
@@ -94,12 +91,11 @@ function monthExpenses(y: number, m: number, scale: number): Row[] {
 
 test("seed the demo account", async () => {
   test.setTimeout(10 * 60_000);
-  const account = await signUp();
+  const account = signUp();
   if (!account) {
-    console.log(`\n${EMAIL} already exists, so nothing was added. To start over: npm run stack:down, then npm run seed.\n`);
+    console.log(`\n${USERNAME} already exists, so nothing was added. To start over: npm run stack:down, then npm run seed.\n`);
     return;
   }
-  allowlist(account, "admin");
   const api = await Api.as(account);
 
   try {
@@ -191,7 +187,7 @@ test("seed the demo account", async () => {
 
     console.log(
       `\nSeeded ${count} expenses, income, a template and 3 saved trends from January ${ty - 1} to today.\n` +
-        `Sign in at https://localhost:18443 as ${EMAIL} / ${PASSWORD} (admin).\n`,
+        `Sign in at https://localhost:18443 as ${USERNAME} / ${PASSWORD} (admin).\n`,
     );
   } finally {
     await api.dispose();

@@ -238,9 +238,9 @@ Rules:
 
 - **End-to-end tests** (decided 2026-11-05)
   - **Playwright** (`@playwright/test`, Chromium) in its own `/e2e` package, with `@axe-core/playwright` for the dark-mode colour-contrast check. It drives `e2e/compose.yml`: the real API and web images and Caddyfile.
-  - *Superseded (#182): once Firebase is removed, tests sign in with real passwords against the API and the emulator is deleted.*
-  - **Sign-in uses the Firebase Auth emulator**, not the real project. It is enabled by `FIREBASE_AUTH_EMULATOR_HOST` (API) and `VITE_FIREBASE_AUTH_EMULATOR_URL` (web build). **Both are honored only for a `demo-` project id**, and the API refuses to start otherwise, so a production deployment can't accept emulator tokens by mistake.
-  - Each test creates its own allowlisted user with the real `api user add` CLI. It runs in CI as the `e2e` job. `e2e/AGENTS.md` maps each gate item to its test and lists what stays manual.
+  - **Sign-in is real (#192):** each test creates its own user with the real `api user add` CLI and a generated test password, and signs in through the real sign-in screen. There is no emulator or test-only auth setting. (Until #182 this used the Firebase Auth emulator, now deleted.)
+  - The one test-only helper is a `dbtool` service (pinned Node image, `tools` profile, never started by `up`) that ages a session in the database to test the 30-day expiry.
+  - It runs in CI as the `e2e` job. `e2e/AGENTS.md` maps each gate item to its test and lists what stays manual.
 
 - **Backups: tooling, destination and admin integration** (decided 2026-11-06)
   - **Snapshot: SQLite `VACUUM INTO`** run by the API process, which gives a consistent copy of a live WAL database with no extra binaries (pure Go, no CGO). **Encryption: `age`** (Go library, `filippo.io/age`). The API writes one `.sqlite.age` file per snapshot. `restic` and Litestream were rejected: restic needs an extra binary and makes "download one encrypted archive" clumsy, and Litestream is continuous replication, not weekly/monthly snapshots.

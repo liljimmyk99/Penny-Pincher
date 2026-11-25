@@ -1,6 +1,6 @@
 # Running the app locally with demo data
 
-How to run the whole app on your own machine, with sample data and no real Firebase project. It uses the end-to-end stack in `e2e/`: the same API and web images as production, behind the same Caddy config, with the **Firebase Auth emulator** in place of Firebase. Everything is made up, and it stays on your machine.
+How to run the whole app on your own machine, with sample data. It uses the end-to-end stack in `e2e/`: the same API and web images as production, behind the same Caddy config, with the same username and password sign-in. Everything is made up, and it stays on your machine.
 
 It is separate from the dev stack in the root `docker-compose.yml`. It has its own ports, its own database volume and its own compose project (`pp-e2e`), and it never reads `.env` or `secrets/`, so you can run both at once.
 
@@ -20,19 +20,19 @@ npm run seed
 The first run builds the images, which takes a few minutes; after that it starts in seconds. It:
 
 1. starts the stack if it isn't running and waits until every service is healthy,
-2. creates the demo account and adds it to the allowlist as an **admin**,
+2. creates the demo account as an **admin** with the API's real `user add` CLI,
 3. fills it with sample data (below) and prints how to sign in.
 
-Then open **https://localhost:18443** and sign in with email and password:
+Then open **https://localhost:18443** and sign in:
 
 | | |
 |---|---|
-| Email | `demo@example.test` |
+| Username | `demo` |
 | Password | `demo-password-123` |
 
 Your browser will warn about the certificate: Caddy signs `localhost` with its own local certificate authority. Accept the warning for this site.
 
-These credentials only work with this stack's emulator, which runs under a `demo-` project id. The API and the web build accept the emulator only for `demo-` projects, so they can't work against real Firebase. To use others: `SEED_EMAIL=you@example.test SEED_PASSWORD=something npm run seed`.
+These are made-up credentials for this local stack only; never reuse them on a real server. To use others: `SEED_USERNAME=someone SEED_PASSWORD=at-least-12-chars npm run seed` (on a fresh stack).
 
 ## What the demo account has
 
@@ -60,7 +60,6 @@ Good places to look: the current month's summary, December and January (gifts an
 | What | Where |
 |---|---|
 | Web app (through Caddy) | https://localhost:18443 |
-| Auth emulator | http://localhost:19099 |
 | API | `https://localhost:18443/v1/…`; its own port isn't published |
 
 Run `docker compose` commands for this stack from the `e2e/` folder, for example `docker compose logs -f api`.
@@ -69,52 +68,36 @@ Run `docker compose` commands for this stack from the `e2e/` folder, for example
 
 ### Your own account
 
-Create it in the emulator, then add it to the allowlist with the API's real CLI. From `e2e/`:
+Add it with the API's real CLI, which asks for the password twice (at least 12 characters). From `e2e/`:
 
 ```bash
-curl -s -X POST 'http://localhost:19099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-api-key' \
-  -H 'content-type: application/json' \
-  -d '{"email":"someone@example.test","password":"any-password","returnSecureToken":true}'
+docker compose exec api /api user add --username someone --role member
 ```
 
-Copy `localId` from the response, then:
-
-```bash
-docker compose exec -T api /api user add --uid <localId> --email someone@example.test --role member
-```
-
-Use `--role admin` to see the admin panel. A new account starts the way a real one does: default categories, an "Other" income source and an empty template.
+Use `--role admin` to see the admin panel, and `--must-change` to be asked for a new password at first sign-in. A new account starts the way a real one does: default categories, an "Other" income source and an empty template. Signed in as the demo admin, you can also add users from the admin panel's **Users** tab.
 
 ### Accounts left behind by the end-to-end tests
 
-`E2E_KEEP_STACK=1 npm test` (or `E2E_SKIP_STACK=1 npx playwright test` against a running stack) leaves each test's account and data in place. Every test makes its own account with a random password, and each one holds only that test's small set of data. To sign in as one:
+`E2E_KEEP_STACK=1 npm test` (or `E2E_SKIP_STACK=1 npx playwright test` against a running stack) leaves each test's account and data in place. Every test makes its own account with a generated password, and each one holds only that test's small set of data. The passwords aren't kept anywhere, so to sign in as one, set a new password:
 
-1. List the emulator's accounts (the emulator accepts `owner` as an admin token):
+1. Find the username in the admin panel's **Users** tab (signed in as the demo admin); test usernames look like `user-1a2b3c4d`.
+2. Reset it there with **Reset password**, or from `e2e/`:
    ```bash
-   curl -s -X POST http://localhost:19099/identitytoolkit.googleapis.com/v1/projects/demo-penny-pincher/accounts:query \
-     -H 'authorization: Bearer owner' -H 'content-type: application/json' -d '{"returnUserInfo":true}'
+   docker compose exec api /api user set-password --username user-1a2b3c4d
    ```
-2. The emulator doesn't really hash passwords: each account's `passwordHash` ends in `password=…`, and that is the password. Sign in with it and the account's `email`.
-3. Or set one you choose. Replace both values:
-   ```bash
-   curl -s -X POST http://localhost:19099/identitytoolkit.googleapis.com/v1/projects/demo-penny-pincher/accounts:update \
-     -H 'authorization: Bearer owner' -H 'content-type: application/json' \
-     -d '{"localId":"<localId from step 1>","password":"<new password>"}'
-   ```
-   `USER_NOT_FOUND` means the `localId` is wrong, or still the `<…>` placeholder.
 
 The tests' accounts are members, so they don't see the admin panel.
 
 ## Troubleshooting
 
 - **The certificate warning won't go away, or an embedded browser refuses the site.** That's expected for Caddy's local certificate authority. Use a regular browser and accept the warning. Some embedded browsers, including the Claude desktop app's browser pane, don't let you skip it.
-- **"No access" after signing in.** The account is in the emulator but not on the allowlist. Run the `user add` command above.
-- **Sign-in fails for an account that worked before.** The stack was recreated (`stack:down`, or the auth container restarted), and the emulator keeps accounts in memory only. Run `npm run seed` again.
-- **Ports 18443 or 19099 are in use.** Another copy of the stack is running, perhaps from an `.claude/worktrees/…` checkout. Stop it with `docker compose -p pp-e2e down` (add `-v` to delete its data too).
+- **"Wrong username or password" for an account that worked before.** The stack was recreated with `stack:down`, which deletes its data. Run `npm run seed` again.
+- **"Too many attempts".** 10 wrong passwords in a row lock a username for 15 minutes. Wait, or restart the API (`docker compose restart api`), which forgets the lock-out.
+- **Port 18443 is in use.** Another copy of the stack is running, perhaps from an `.claude/worktrees/…` checkout. Stop it with `docker compose -p pp-e2e down` (add `-v` to delete its data too).
 - **This month is empty and there's no banner.** Months and "today" come from your computer's clock and time zone when you seeded. If the month has changed since, the new month is empty, which is expected; reset and seed again.
 
 ## How it works
 
 - `e2e/compose.yml` defines the stack. `e2e/seed/seed.spec.ts` is the seed, run with its own Playwright config (`e2e/playwright.seed.config.ts`), so `npm test` and CI never run it.
-- The seed signs up through the emulator, runs `api user add` in the API container, then writes everything through the public API (`e2e/support/stack.ts`), the same way the web app does. It touches no database files directly.
+- The seed runs `api user add` in the API container, signs in with `POST /v1/auth/login`, then writes everything through the public API (`e2e/support/stack.ts`), the same way the web app does. It touches no database files directly.
 - `e2e/AGENTS.md` has more on the stack and the test suite.

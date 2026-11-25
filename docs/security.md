@@ -76,14 +76,14 @@ The public proxy adds these to every response, from the web app and the API alik
 
 | Measure | Where |
 |---|---|
-| **Content-Security-Policy:** `default-src 'self'`. Scripts only from our own files and `https://apis.google.com` (the loader the Firebase Auth popup uses): no inline script, no `eval`. Connections to the API and Firebase Auth's two token hosts (so the Google loader's sampled `gen_204` usage beacon is blocked, which sign-in doesn't need). Frames only from the Firebase auth domain. Styles from our CSS and Google Fonts, fonts from Google Fonts. `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`. | `deploy/Caddyfile` |
+| **Content-Security-Policy:** `default-src 'self'`. Scripts only from our own files: no inline script, no `eval`, no third-party script. Connections only to our own origin (the API, which also handles sign-in, #182). Styles from our own files and the Google Fonts stylesheet, fonts from Google Fonts' file host. `object-src 'none'`, `base-uri 'self'`, `form-action 'self'` and `frame-ancestors 'none'`. No Google sign-in or Firebase origin is allowed. | `deploy/Caddyfile` |
 | **No inline code to allow:** the theme script that runs before first paint is a file (`theme-init.js`), not inline. Radix's scroll lock would inject a `<style>` element, so a stand-in adds that CSS as a constructed stylesheet, which the policy doesn't restrict. Neither `script-src` nor `style-src` has `'unsafe-inline'`. | `web/public/theme-init.js`, `web/src/lib/cspStyleSingleton.ts`, `web/vite.config.ts` |
 | **Clickjacking:** `frame-ancestors 'none'`, plus `X-Frame-Options: DENY` for older browsers. | `deploy/Caddyfile` |
 | **MIME sniffing:** `X-Content-Type-Options: nosniff`. | `deploy/Caddyfile` |
-| `Referrer-Policy: strict-origin-when-cross-origin` (no paths or query strings to other sites), `Permissions-Policy` turning off camera, microphone, geolocation and payment, and `Cross-Origin-Opener-Policy: same-origin-allow-popups` (isolates the window but keeps the Google sign-in popup working). | `deploy/Caddyfile` |
+| `Referrer-Policy: strict-origin-when-cross-origin` (no paths or query strings to other sites), `Permissions-Policy` turning off camera, microphone, geolocation and payment, and `Cross-Origin-Opener-Policy: same-origin` (isolates the window; there is no sign-in popup any more). | `deploy/Caddyfile` |
 | **No caching of financial data:** `Cache-Control: no-store` on every `/v1/*` and `/healthz` response. | `deploy/Caddyfile` |
 | The `Server` and `Via` headers, which name Caddy, are removed. | `deploy/Caddyfile` |
-| The Firebase Auth emulator's origin is allowed only by the e2e stack (`FIREBASE_AUTH_EMULATOR_URL` in `e2e/compose.yml`). The root `docker-compose.yml` never passes it to the proxy. | `e2e/compose.yml` |
+| The e2e stack runs exactly this policy: it adds no test-only origin (the Firebase Auth emulator and its CSP exception were removed in #192). | `e2e/compose.yml` |
 
 ### Request limits and rate limiting (#106)
 

@@ -1,7 +1,8 @@
 # The M1 smoke stack for the end-to-end suite: the same API and web images and
-# Caddyfile as the root docker-compose.yml (dev profile), with the Firebase Auth
-# emulator in place of real Firebase. Run it through `npm test` in this folder,
-# which starts it as project "pp-e2e" on its own ports and volume.
+# Caddyfile as the root docker-compose.yml (dev profile). Tests sign in with real
+# usernames and passwords made with the API's `user add` CLI. Run it through
+# `npm test` in this folder, which starts it as project "pp-e2e" on its own port
+# and volume.
 name: pp-e2e
 
 # The same lockdown as the root docker-compose.yml (#109), so e2e runs the stack
@@ -14,24 +15,6 @@ x-hardening: &hardening
   read_only: true
 
 services:
-  auth:
-    build: ./auth-emulator
-    # Test-only: no privileges or capabilities, but a writable filesystem
-    # (firebase-tools writes its cache and config under the home directory).
-    security_opt:
-      - "no-new-privileges:true"
-    cap_drop:
-      - ALL
-    mem_limit: 1g
-    pids_limit: 256
-    ports:
-      - "19099:9099" # the browser signs in here (baked into the web build below)
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9099/"]
-      interval: 2s
-      timeout: 2s
-      retries: 30
-
   api:
     <<: *hardening
     build: ../backend
@@ -44,22 +27,17 @@ services:
     environment:
       PORT: "8080"
       DB_PATH: /data/spend.db
-      # demo- projects are emulator-only; the API refuses the emulator otherwise.
-      FIREBASE_PROJECT_ID: demo-penny-pincher
-      FIREBASE_AUTH_EMULATOR_HOST: auth:9099
       # Every test reaches the API from this one Docker network address, one
       # after another for minutes, so the per-IP and per-user limits are raised
       # (#106). The expensive-route limit keeps its production value and is
       # what request-limits.spec.ts checks; backend tests cover the rest.
       RATE_LIMIT_PER_IP: "500/1000"
       RATE_LIMIT_PER_USER: "500/1000"
-      # Tests sign in as the same few users again and again.
+      # Tests sign in as the same few users again and again. The lock-out after
+      # 10 failures in a row keeps its production value (auth.spec.ts checks it).
       RATE_LIMIT_LOGIN: "500/1000"
     expose:
       - "8080"
-    depends_on:
-      auth:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "/api", "healthcheck"]
       interval: 2s
@@ -68,12 +46,7 @@ services:
 
   web:
     <<: *hardening
-    build:
-      context: ../web
-      args:
-        VITE_FIREBASE_API_KEY: demo-api-key
-        VITE_FIREBASE_PROJECT_ID: demo-penny-pincher
-        VITE_FIREBASE_AUTH_EMULATOR_URL: http://localhost:19099
+    build: ../web
     tmpfs:
       - /config:uid=10001,gid=10001,mode=0700
       - /data:uid=10001,gid=10001,mode=0700
@@ -95,20 +68,28 @@ services:
     pids_limit: 256
     environment:
       DOMAIN: localhost
-      # The web build's default auth domain (no VITE_FIREBASE_AUTH_DOMAIN above).
-      FIREBASE_AUTH_DOMAIN: demo-penny-pincher.firebaseapp.com
-      # Lets the Content-Security-Policy reach the emulator (sign-in requests and
-      # the popup's iframe). Only this stack sets it; see deploy/Caddyfile.
-      FIREBASE_AUTH_EMULATOR_URL: http://localhost:19099
     ports:
       - "18443:443"
     volumes:
       - ../deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../deploy/no-certs:/certs:ro # no tailnet certificate: Caddy's internal CA signs localhost
     depends_on:
       api:
         condition: service_healthy
       web:
         condition: service_started
+
+  # Test-only and never started by `up`: `docker compose run dbtool node -e …`
+  # edits the API's database with Node's built-in SQLite, for the one thing no
+  # route can do (ageing a session past its 30 days; support/stack.ts ageSession).
+  dbtool:
+    <<: *hardening
+    profiles: ["tools"]
+    image: node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5
+    user: "65532:65532" # the API image's nonroot user, which owns the database
+    network_mode: none
+    volumes:
+      - api-data:/data
 
 volumes:
   api-data:
