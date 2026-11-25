@@ -78,13 +78,26 @@ The public proxy adds these to every response, from the web app and the API alik
 | Measure | Where |
 |---|---|
 | **Content-Security-Policy:** `default-src 'self'`. Scripts only from our own files: no inline script, no `eval`, no third-party script. Connections only to our own origin (the API, which also handles sign-in, #182). Styles from our own files and the Google Fonts stylesheet, fonts from Google Fonts' file host. `object-src 'none'`, `base-uri 'self'`, `form-action 'self'` and `frame-ancestors 'none'`. No Google sign-in or Firebase origin is allowed. | `deploy/Caddyfile` |
-| **No inline code to allow:** the theme script that runs before first paint is a file (`theme-init.js`), not inline. Radix's scroll lock would inject a `<style>` element, so a stand-in adds that CSS as a constructed stylesheet, which the policy doesn't restrict. Neither `script-src` nor `style-src` has `'unsafe-inline'`. | `web/public/theme-init.js`, `web/src/lib/cspStyleSingleton.ts`, `web/vite.config.ts` |
+| **No inline code to allow:** the theme script that runs before first paint is a file (`theme-init.js`), not inline. Dependencies that would inject a `<style>` element add the same CSS as a constructed stylesheet (`adoptedStyleSheets`) instead, which the policy doesn't restrict (audit below). Neither `script-src` nor `style-src` has `'unsafe-inline'`, and no hash or nonce is needed. | `web/public/theme-init.js`, `web/src/lib/cspStyleSingleton.ts`, `web/src/lib/cspAdoptedStyles.ts`, `web/plugins/cspSafeStyles.ts`, `web/vite.config.ts` |
 | **Clickjacking:** `frame-ancestors 'none'`, plus `X-Frame-Options: DENY` for older browsers. | `deploy/Caddyfile` |
 | **MIME sniffing:** `X-Content-Type-Options: nosniff`. | `deploy/Caddyfile` |
 | `Referrer-Policy: strict-origin-when-cross-origin` (no paths or query strings to other sites), `Permissions-Policy` turning off camera, microphone, geolocation and payment, and `Cross-Origin-Opener-Policy: same-origin` (isolates the window; there is no sign-in popup any more). | `deploy/Caddyfile` |
 | **No caching of financial data:** `Cache-Control: no-store` on every `/v1/*` and `/healthz` response. | `deploy/Caddyfile` |
 | The `Server` and `Via` headers, which name Caddy, are removed. | `deploy/Caddyfile` |
 | The e2e stack runs exactly this policy: it adds no test-only origin (the Firebase Auth emulator and its CSP exception were removed in #192). | `e2e/compose.yml` |
+
+**shadcn/ui dependencies under the CSP (#168).** Each package the web app adds for shadcn/ui was checked for `<style>` elements and for inline `style` attributes set from script. The policy blocks both a `<style>` element and an attribute written with `setAttribute("style", …)` or HTML markup; it allows CSS files, constructed stylesheets, and styles set through the CSSOM (`element.style.…`, which is what React's `style` prop and `style.setProperty` use). The policy is unchanged.
+
+| Package | What it does | How it's handled |
+|---|---|---|
+| Radix dialogs, alert dialogs, menus, popovers, selects (`radix-ui` / `@radix-ui/*`, through `react-remove-scroll`) | The scroll lock injects a `<style>` element with the scrollbar's width | `react-style-singleton` is aliased to `cspStyleSingleton.ts`, which adopts the CSS instead |
+| Radix Select and ScrollArea | Render a `<style>` element that hides the viewport's scrollbar | `cspSafeStyles` rewrites it to `CspStyle`, which adopts that CSS while mounted |
+| Sonner (`sonner`) | Injects its whole stylesheet as a `<style>` element when imported | `cspSafeStyles` rewrites its `__insertCSS` to `insertCss`, which adopts it |
+| cmdk (`cmdk`) | No `<style>`; sets `--cmdk-list-height` with `style.setProperty` and hides its label through React's `style` prop | Allowed as is; its dialog is Radix's (above) |
+| Radix positioning (Floating UI), presence and other primitives | Inline positions and CSS variables through React's `style` prop | Allowed as is |
+| Tailwind CSS v4, `tw-animate-css` | Compiled into the app's static CSS file | Allowed as is |
+
+`cspSafeStyles` fails the build if an upgrade changes the code it rewrites, so a new version is rechecked instead of shipping a violation. Vitest runs the same rewrites and checks that each overlay (dialog, alert dialog, menu, select, scroll area, popover with a cmdk combobox, cmdk dialog, tooltip, Sonner toast) adds no `<style>` element (`web/src/lib/cspSafeStyles.test.tsx`); the e2e CSP tour opens a dialog, an alert dialog, a menu, the merchant combobox and a toast with no violation (`e2e/tests/security-headers.spec.ts`). Vite's dev server doesn't send the CSP and skips the rewrites. Where constructed stylesheets aren't supported, those rules are simply missing: cosmetic (scroll lock, hidden scrollbars) for Radix; toasts unstyled for Sonner.
 
 ### Request limits and rate limiting (#106)
 

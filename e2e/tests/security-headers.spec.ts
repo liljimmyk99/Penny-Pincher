@@ -163,6 +163,17 @@ test.describe("under the Content-Security-Policy", () => {
       await confirm.getByRole("button", { name: "Cancel" }).click();
       await expect(confirm).toBeHidden();
 
+      // A toast (#168): saving the month as a template confirms it with one.
+      await page.getByRole("button", { name: "Save as template…" }).click();
+      await page.getByRole("dialog", { name: /^Save .+ as a template$/ }).getByRole("button", { name: "Save template" }).click();
+      await expect(page.getByRole("status").filter({ hasText: /^Saved .+ as the template/ })).toBeVisible();
+
+      // The merchant combobox and its suggestions (#168).
+      await page.goto("/add");
+      await page.getByRole("combobox", { name: "Merchant, row 1" }).fill("Policy");
+      await expect(page.getByRole("option", { name: "Policy Grocer" })).toBeVisible();
+      await page.keyboard.press("Escape");
+
       // The rest of the screens, each waited on by a heading that shows once it has loaded.
       for (const [path, heading] of [
         ["/add", "Add entries"],
