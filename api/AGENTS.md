@@ -14,7 +14,9 @@ Read the root `AGENTS.md` first. This folder holds the OpenAPI spec (`openapi.ya
 - **Money:** integer cents (`integer`, int64). Never decimals or strings.
 - **Dates:** calendar dates as `YYYY-MM-DD`. No time zones.
 - **IDs:** opaque strings.
-- **Auth:** bearer token on every route except `/healthz`. All data is scoped to the authenticated user; `user_id` is never accepted from the client.
+- **Auth:** an opaque session token (from `POST /v1/auth/login`) sent as a bearer token on every route except `/healthz` and `auth/login`. All data is scoped to the authenticated user; `user_id` is never accepted from the client.
+  - Auth errors: `401 unauthenticated` (missing, unknown or revoked token), `401 session_expired` (older than 30 days), `401 invalid_credentials` (login only, one generic answer for a wrong username or a wrong password), `403 password_change_required` (the user must choose a new password first: every route except `auth/password`, `auth/logout` and `me` returns it).
+  - The spec describes tokens as opaque strings; clients never parse them. No route accepts or returns a password hash.
 - **Errors:** one consistent error body (code, message) across all routes.
 - **Limits:** any route can return `413 request_too_large` and `429 rate_limited` (with `Retry-After`). They are described once in the spec's Conventions, not on each route; only the expensive routes (back up now, import upload, export) list `429` explicitly.
 - **Lists:** filterable by month where relevant; paginated if they can grow large.
@@ -43,10 +45,19 @@ Read the root `AGENTS.md` first. This folder holds the OpenAPI spec (`openapi.ya
   - by-category monthly totals for a year and the previous year
 - `saved-trends` (name, match type, match value, measure)
 - `merchants` (autocomplete suggestions)
+- `auth` (username and password; replaces Firebase, see root §10):
+  - `POST auth/login` (no bearer): `username` and `password` in, session `token`, `expires_at`, the user and `must_change_password` out. Rate limited per client IP and per username (`429 rate_limited`)
+  - `POST auth/logout`: revokes the calling session
+  - `POST auth/password`: `current_password` and `new_password` (at least 12 characters, else `400 weak_password` with a field error). Revokes every other session, returns a fresh token, and clears `must_change_password`
+  - `GET me` (the signed-in user: username, display name, email, role, `must_change_password`)
 - `admin` (admins only):
   - status
   - backups: list, run now, download encrypted snapshot
-  - no user-management routes in v1
+  - users (account details only, never entries, amounts or counts):
+    - `GET admin/users`: username, display name, email, role, `must_change_password`, added date
+    - `POST admin/users`: add a user with `username`, initial `password`, `role`, optional `display_name` and `email`, and `must_change_password` (default true). Seeds the account like the CLI. `409 user_exists` for a taken username (compared case-insensitively)
+    - `POST admin/users/{id}/password`: reset a user's password (`password`, `must_change_password`). Revokes all of that user's sessions
+    - no edit-role, disable or remove routes in v1
 - `imports` (Excel import; built last, with export):
   - `GET imports/template` (per-user `.xlsx` with category and source dropdowns)
   - upload (`multipart/form-data`) checks every row and returns status `review`; nothing is saved until `start`
