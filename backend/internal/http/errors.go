@@ -35,3 +35,13 @@ func validationError(ve *store.ValidationError) api.Error {
 	}{{Field: ve.Field, Issue: ve.Issue}}
 	return e
 }
+
+// weakPasswordError builds a 400 weak_password body naming the field.
+func weakPasswordError(field, issue string) api.Error {
+	e := newError(api.ErrorErrorCodeWeakPassword, "Choose a longer password: "+field+" "+issue+".")
+	e.Error.Details = &[]struct {
+		Field string `json:"field"`
+		Issue string `json:"issue"`
+	}{{Field: field, Issue: issue}}
+	return e
+}

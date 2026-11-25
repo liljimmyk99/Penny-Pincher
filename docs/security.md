@@ -24,15 +24,15 @@ The design doesn't try to protect a running, unlocked server from someone who al
 
 | Measure | Where |
 |---|---|
-| Sign-in is delegated to Firebase Authentication (Google or email and password). The app never sees or stores a password. Firebase handles password hashing, brute-force throttling and reset emails. | `web/src/auth/firebase.ts` |
-| Every API request needs a Firebase ID token in the `Authorization: Bearer` header, verified by the Firebase Admin SDK (signature, issuer, audience, expiry). The only exception is `GET /healthz`. | `backend/internal/auth/middleware.go`, `firebase.go` |
-| **Revocation (#108):** a token is refused (`401 unauthenticated`) when its Firebase account is disabled or deleted, or its sessions were revoked after the token was issued. Each account is looked up with the service account and cached for 5 minutes, so access stops within 5 minutes. If Firebase can't be reached, a cached account up to an hour old is still used, otherwise the request fails. | `backend/internal/auth/revocation.go`, `firebase.go` |
-| **Session lifetime (#108):** a sign-in lasts 30 days, measured from the token's `auth_time` (refreshing the token doesn't extend it). After that the API answers `401 session_expired`, and the web signs out and says "Your session has expired. Please sign in again." | `backend/internal/auth/middleware.go`, `web/src/api/client.ts` |
-| **Password policy (#108):** email-and-password accounts need at least 12 characters, set in the Firebase console (see the checklist below). In-app MFA is v2; until then, users with a Google account should turn on its 2-Step Verification and sign in with Google. | Firebase console |
-| **Allowlist:** a valid token is not enough. The uid must also exist in the local `users` table, or the API answers `403 not_allowlisted`. Accounts are added only by an admin, with the `api user add` CLI or the admin panel's Add user (`POST /v1/admin/users`, database only, logged as an `admin_action` with ids but no uid or email), and `api user revoke` signs one out everywhere. There is no sign-up screen. | `backend/internal/auth/middleware.go`, `backend/cmd/api/user.go` |
+| Sign-in is the app's own username and password (#182, #185). Passwords are hashed with **argon2id** (64 MiB, 3 passes; the parameters are stored in each hash) in the API process; no more than 4 hashes run at once, so a burst of attempts can't exhaust memory. The minimum is 12 characters (`400 weak_password`). The API never returns a password or hash, and none is logged. *The web and Mac clients still use Firebase until their issues land.* | `backend/internal/auth/password.go` |
+| Every API request needs a session token in the `Authorization: Bearer` header, checked against the `sessions` table. The only exceptions are `GET /healthz` and `POST /v1/auth/login`. | `backend/internal/auth/middleware.go`, `backend/internal/store/sessions.go` |
+| **Sessions and revocation:** `POST /v1/auth/login` issues a random 256-bit token; only its SHA-256 is stored, so a copy of the database can't be used to sign in. Sign-out, a password change or reset, and removing the user delete the session row, so access stops at once (the row is read on every request, with no cache). Any other token is `401 unauthenticated`. | `backend/internal/store/sessions.go`, `backend/internal/http/auth.go` |
+| **Session lifetime:** a session lasts 30 days from its creation (not extended by use); after that `401 session_expired`. An hourly job deletes expired rows. | `backend/internal/store/sessions.go`, `backend/cmd/api/main.go` |
+| **Login protection:** a wrong password and an unknown username get the same `401 invalid_credentials`, and an unknown username still costs one argon2id hash, so neither the response nor its timing reveals which usernames exist. Logins are rate limited per client IP (the general limit) and per username (burst 8, then one per 12 s, `429 rate_limited`). | `backend/internal/http/auth.go`, `backend/internal/http/limits.go` |
+| **Accounts and passwords:** there is no sign-up. Accounts are created only by an admin, with the `api user add` CLI or the admin panel (`POST /v1/admin/users`), which set the initial password; an admin can reset one (`POST /v1/admin/users/{id}/password`, or `api user set-password`), which signs that user out everywhere. A user with `must_change_password` can do nothing but change it, read `/v1/me` and sign out (`403 password_change_required`). Changing a password revokes every session and issues a new one. Admin actions are logged with ids only, never a username, email or password. | `backend/internal/auth/middleware.go`, `backend/internal/http/admin.go`, `backend/cmd/api/user.go` |
 | **Roles:** `/v1/admin/*` requires the `admin` role, checked on the server. The web hides admin pages from members and shows them "Page not found". A role can only be changed with the CLI, never through the API. | `backend/internal/auth/middleware.go`, `web/src/pages/AdminOnly.tsx` |
 | Routes not built yet return `501`, but only after authentication, so unfinished routes are never open. | `backend/internal/http/server.go` |
-| The Firebase Auth emulator (unsigned tokens) is accepted only for a `demo-` project id. Otherwise the API refuses to start, and the Mac app shows a setup error instead of signing in. | `backend/internal/config/config.go`, `mac/PennyPincher/Sources/Models/AppConfig.swift` |
+| `BACKUP_S3_INSECURE=1` and other test-only relaxations need `APP_TEST_MODE=1`, which only the e2e stack sets. | `backend/internal/config/config.go` |
 | **Mac app tokens (#44):** the Firebase and Google sign-in SDKs keep the session in the data-protection Keychain, under the app's own keychain access group (which is why the app is signed with a development team). The app's code never stores, caches or logs a token. Like the web, it retries a `401` once with a refreshed token (never a `session_expired`), and signs out on a `401` that remains or a `403 not_allowlisted`. | `mac/PennyPincher/Sources/Services/Auth/FirebaseAuthService.swift`, `mac/PennyPincher/Sources/Services/API/AuthMiddleware.swift` |
 | **No CSRF exposure:** auth is a bearer header, not a cookie, so another site can't make the browser send authenticated requests. No CORS headers are sent, so other origins can't read API responses. | — |
 | **No account enumeration in the UI:** a wrong email and a wrong password show the same message, and "Forgot password" never reveals whether an account exists. | `web/src/auth/errors.ts`, `web/src/auth/firebase.ts`, `mac/PennyPincher/Sources/Services/Auth/` |
@@ -65,7 +65,7 @@ See `docs/encryption.md` for details and the server runbook.
 |---|---|
 | HTTPS only through Caddy with automatic certificates. HTTP redirects to HTTPS. HSTS for one year (not for `localhost`). | `deploy/Caddyfile` |
 | `api` and `web` ports are only `expose`d on Docker's internal network. Only the proxy publishes 80/443. | `docker-compose.yml` |
-| Every outbound connection uses TLS (Firebase, backup bucket). Plain HTTP to the bucket is refused outside `demo-` projects. | `backend/internal/config/config.go` |
+| Every outbound connection uses TLS (the backup bucket). Plain HTTP to the bucket is refused unless `APP_TEST_MODE=1`. | `backend/internal/config/config.go` |
 | **Mac app (#44):** the server address must be `https`; plain `http` is accepted only for `localhost` and loopback addresses, for development. App Transport Security enforces HTTPS too, with one exception, `NSAllowsLocalNetworking`, which allows plain HTTP only to local names (a dev API or the auth emulator). The app is sandboxed (outgoing network and files the user picks only) with the hardened runtime. | `mac/PennyPincher/Sources/Models/AppConfig.swift`, `mac/Project.swift`, `mac/PennyPincher/PennyPincher.entitlements` |
 | The database, Docker's data, `.env` and `secrets/` live on a LUKS2 volume that is unlocked by hand after each reboot. | `docs/encryption.md` |
 | Backups are `VACUUM INTO` copies in a memory-only `tmpfs`, encrypted with `age` to a public key before upload. The server can't decrypt its own backups, and admins can download only the encrypted file. | `backend/internal/backup`, `docs/backups.md` |
@@ -124,7 +124,7 @@ The public proxy adds these to every response, from the web app and the API alik
 |---|---|
 | Secrets live in `.env` and `secrets/`, both git-ignored. The Firebase web API key is public by design and grants no data access on its own. The Mac app's server, Firebase and signing values live in the git-ignored `mac/Config/Local.xcconfig`. | `.gitignore`, `.env.example`, `mac/Config/Local.example.xcconfig` |
 | Logs are JSON through a **redacting handler** that blanks any attribute whose key looks like money, a merchant, a note, a token or a secret. Handlers log only error *types*, never error text. It is also slog's default logger, so nothing in the API logs around it. | `backend/internal/logging`, `backend/cmd/api/main.go` |
-| **Security events (#110):** every refused request logs one `"event":"auth_failure"` line with a `reason` (`missing_token`, `invalid_token`, `session_expired`, `not_allowlisted`, `admin_required`), the status, client IP, method and path (never the query string or the token), and the Firebase `uid` and local `user_id` once they are known (never for a token that failed verification). Starting and downloading a backup each log one `"event":"admin_action"` line with the `action`, the admin's `user_id` and the `backup_id`. Tests check that no token, query string, amount, merchant or note reaches these lines. | `backend/internal/auth/middleware.go`, `backend/internal/http/admin.go` |
+| **Security events (#110):** every refused request logs one `"event":"auth_failure"` line with a `reason` (`missing_token`, `invalid_token`, `session_expired`, `admin_required`, `invalid_credentials`, `password_change_required`), the status, client IP, method and path (never the query string or the token), and the local `user_id` once it is known (never the submitted username or password, and never for a token that failed lookup). Starting and downloading a backup, adding a user and resetting a password each log one `"event":"admin_action"` line with the `action`, the admin's `user_id` and the `backup_id`. Tests check that no token, query string, amount, merchant or note reaches these lines. | `backend/internal/auth/middleware.go`, `backend/internal/http/admin.go` |
 | **Proxy access logs (#110):** Caddy writes one JSON line per request to stdout with the query string cut from the URI (the trends `?text=` filter matches note text), and the `Authorization`, `Cookie`, `Referer` (the full previous URL on same-origin requests) and `Set-Cookie` headers removed. | `deploy/Caddyfile` |
 | **Log rotation (#110):** every container uses Docker's `json-file` driver with at most 5 files of 10 MB, so logs can't fill the disk. They live under Docker's data-root, on the encrypted volume. | `docker-compose.yml` |
 | **Alerting (#110):** an external uptime monitor on `/healthz`, and an hourly cron job that reports many failed sign-ins or any admin action. See [Alerting](#alerting). | `deploy/security-alert.sh` |
@@ -153,19 +153,22 @@ Every M6 issue is done in the code. Before the first deployment (#42), complete 
 
 ### Lock someone out now
 
-Use this when an account is compromised, a device is lost, or someone should no longer have access. Either step stops their API access within 5 minutes (the revocation cache); their data stays in the database.
+Use this when an account is compromised, a device is lost, or someone should no longer have access. Both steps work at once; their data stays in the database. On the server in `/srv/pp/app`:
 
-1. **Block the account:** Firebase console → Authentication → Users → the user's ⋮ menu → **Disable account**. Firebase stops issuing tokens for it, and the API refuses the tokens it already has.
-2. **Or sign them out everywhere but keep the account** (a lost device, or right after resetting a compromised password). The console has no button for this, so the API binary does it with the service account, on the server in `/srv/pp/app`:
+1. **Sign them out everywhere but keep the account** (a lost device): 
    ```bash
-   docker compose exec api /api user revoke --uid <firebase-uid>
+   docker compose exec api /api user revoke --username <username>
    ```
-   Tokens issued before now are refused; signing in again works.
-3. Do both for a compromised account: revoke, reset the password in the console, and disable it until the owner has confirmed the new one.
-4. Check afterwards that the account is being refused. Once its token is refused it can't be tied to a uid, so look for `invalid_token` failures, and for any request that still names the uid:
+   Signing in again still works.
+2. **Compromised password:** set a new one, which also signs them out everywhere (the password is read from standard input, never from a flag):
+   ```bash
+   docker compose exec -T api /api user set-password --username <username> --must-change
+   ```
+   Or use **Reset password** in the admin panel's Users tab.
+3. Existing accounts migrated from Firebase were given the placeholder username `user-<id>` and no usable password. Nobody can sign in as them until you run `set-password` for each one (the first admin included).
+4. Check afterwards that the account is being refused:
    ```bash
    docker compose logs --since 1h api | grep '"event":"auth_failure"'
-   docker compose logs --since 1h api | grep '<firebase-uid>'
    ```
 
 ### Alerting
@@ -342,10 +345,10 @@ Run these after setup and after any server change, and record the date in #42.
 | 12 | Blind SQL injection | ✅ | Parameterized queries only |
 | 13 | Server-side template injection | — | No server templates |
 | **Authentication and sessions** ||||
-| 14 | Session fixation | ✅ | Firebase-issued tokens, no server sessions |
-| 15 | Brute force | ✅ | Firebase throttling, plus per-IP API rate limits (#106) |
-| 16 | Session hijacking | ✅ | HTTPS/HSTS and CSP, revocation within 5 minutes, 30-day sessions (#108) |
-| 17 | Password cracking | ✅ | Firebase hashing |
+| 14 | Session fixation | ✅ | A new random token on every sign-in and password change (#185) |
+| 15 | Brute force | ✅ | Per-IP and per-username login limits, plus per-IP API limits (#106, #185) |
+| 16 | Session hijacking | ✅ | HTTPS/HSTS and CSP, revocation at once, 30-day sessions, only token hashes stored (#185) |
+| 17 | Password cracking | ✅ | argon2id with per-password salt (#185) |
 | 18 | Weak password storage | ✅ | No passwords stored by the app |
 | 19 | Insecure authentication | ✅ | Token on every request + allowlist |
 | 20 | Cookie theft | ✅ | No auth cookies |

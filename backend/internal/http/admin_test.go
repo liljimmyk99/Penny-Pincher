@@ -90,7 +90,7 @@ func TestAdminRoutesRejectMembersAndStrangers(t *testing.T) {
 	a := newBackupAPI(t, nil)
 	for _, r := range adminRoutes {
 		wantError(t, a.call(r.method, r.path, tokMember, ""), 403, api.ErrorErrorCodeAdminRequired)
-		wantError(t, a.call(r.method, r.path, tokStray, ""), 403, api.ErrorErrorCodeNotAllowlisted)
+		wantError(t, a.call(r.method, r.path, tokStray, ""), 401, api.ErrorErrorCodeUnauthenticated)
 		wantError(t, a.call(r.method, r.path, "", ""), 401, api.ErrorErrorCodeUnauthenticated)
 	}
 	if len(a.bucket.objs) != 0 {
@@ -236,9 +236,7 @@ func TestFailedBackupIsListedWithSafeMessage(t *testing.T) {
 }
 
 func TestAdminStatus(t *testing.T) {
-	a := newTestAPIWith(t, func(_ *sql.DB, d *Deps) {
-		d.AuthCheck = func(context.Context) error { return errors.New("down") }
-	})
+	a := newTestAPI(t)
 	rec := a.call("GET", "/v1/admin/status", tokAdmin, "")
 	if rec.Code != 200 {
 		t.Fatalf("status = %d %s", rec.Code, rec.Body)
@@ -262,9 +260,6 @@ func TestAdminStatus(t *testing.T) {
 	if !st.Backups.LastRun.IsNull() {
 		t.Fatal("no backup has run")
 	}
-	if st.AuthProvider.Status != api.AdminStatusAuthProviderStatusUnreachable {
-		t.Fatalf("provider = %v", st.AuthProvider.Status)
-	}
 }
 
 func TestAdminWithoutBackupsConfigured(t *testing.T) {
@@ -279,13 +274,13 @@ func TestAdminWithoutBackupsConfigured(t *testing.T) {
 	wantError(t, a.call("GET", "/v1/admin/backups/x/download", tokAdmin, ""), 404, api.ErrorErrorCodeNotFound)
 }
 
-func addUserBody(uid string) string {
-	return `{"firebase_uid":"` + uid + `","email":"new@example.com","display_name":"New Person"}`
+func addUserBody(username string) string {
+	return `{"username":"` + username + `","password":"` + testPassword + `","email":"new@example.com","display_name":"New Person"}`
 }
 
 func TestAdminAddAndListUsers(t *testing.T) {
 	a := newTestAPI(t)
-	rec := a.call("POST", "/v1/admin/users", tokAdmin, addUserBody("uid-new"))
+	rec := a.call("POST", "/v1/admin/users", tokAdmin, addUserBody("new-person"))
 	if rec.Code != 201 {
 		t.Fatalf("add = %d %s", rec.Code, rec.Body)
 	}
@@ -293,7 +288,7 @@ func TestAdminAddAndListUsers(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &added); err != nil {
 		t.Fatal(err)
 	}
-	if added.FirebaseUid != "uid-new" || added.Role != api.AdminUserRole("member") || added.CreatedAt == nil {
+	if added.Username != "new-person" || !added.MustChangePassword || added.Role != api.AdminUserRole("member") || added.CreatedAt == nil {
 		t.Fatalf("added = %+v", added)
 	}
 
@@ -304,7 +299,7 @@ func TestAdminAddAndListUsers(t *testing.T) {
 	}
 	found := false
 	for _, u := range out.Items {
-		found = found || u.FirebaseUid == "uid-new"
+		found = found || u.Username == "new-person"
 	}
 	if !found {
 		t.Fatalf("list lacks the new user: %s", list.Body)
@@ -319,19 +314,21 @@ func TestAdminAddAndListUsers(t *testing.T) {
 		t.Fatalf("seeded categories = %d, %v", cats, err)
 	}
 
-	wantError(t, a.call("POST", "/v1/admin/users", tokAdmin, addUserBody("uid-new")), 409, api.ErrorErrorCodeUserExists)
+	wantError(t, a.call("POST", "/v1/admin/users", tokAdmin, addUserBody("NEW-Person")), 409, api.ErrorErrorCodeUserExists)
 }
 
 func TestAdminAddUserValidation(t *testing.T) {
 	a := newTestAPI(t)
 	for _, body := range []string{
-		`{"firebase_uid":"  "}`,
-		`{"firebase_uid":"u1","role":"owner"}`,
-		`{"firebase_uid":"u1","email":"not-an-email"}`,
+		`{"username":"  ","password":"` + testPassword + `"}`,
+		`{"username":"u1","password":"` + testPassword + `","role":"owner"}`,
+		`{"username":"u1","password":"` + testPassword + `","email":"not-an-email"}`,
 	} {
 		wantError(t, a.call("POST", "/v1/admin/users", tokAdmin, body), 400, api.ErrorErrorCodeInvalidRequest)
 	}
-	rec := a.call("POST", "/v1/admin/users", tokAdmin, `{"firebase_uid":"u2","role":"admin"}`)
+	wantError(t, a.call("POST", "/v1/admin/users", tokAdmin, `{"username":"u1","password":"short"}`), 400, api.ErrorErrorCodeWeakPassword)
+	wantError(t, a.call("POST", "/v1/admin/users", tokAdmin, `{"username":"u1"}`), 400, api.ErrorErrorCodeWeakPassword)
+	rec := a.call("POST", "/v1/admin/users", tokAdmin, `{"username":"u2","password":"`+testPassword+`","role":"admin"}`)
 	if rec.Code != 201 || !strings.Contains(rec.Body.String(), `"role":"admin"`) {
 		t.Fatalf("admin role = %d %s", rec.Code, rec.Body)
 	}

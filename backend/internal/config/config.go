@@ -16,14 +16,9 @@ type Config struct {
 	LogLevel string
 	Version  string
 
-	// FirebaseProjectID is required to run the server (checked in main).
-	FirebaseProjectID string
-
-	// AuthEmulatorHost is FIREBASE_AUTH_EMULATOR_HOST. The Firebase Admin SDK
-	// reads it itself and then accepts unsigned emulator tokens, so it is only
-	// allowed with a "demo-" project id (Firebase's emulator-only projects).
-	// The end-to-end suite in /e2e is the only thing that sets it.
-	AuthEmulatorHost string
+	// TestMode is APP_TEST_MODE=1, set only by the e2e stack. It is the one
+	// switch that allows plain HTTP to the backup bucket.
+	TestMode bool
 
 	// RateLimitPerIP and RateLimitPerUser override the API's default rate
 	// limits (RATE_LIMIT_PER_IP / RATE_LIMIT_PER_USER, "requests-per-second/burst",
@@ -49,7 +44,7 @@ type Backup struct {
 	AccessKey string
 	SecretKey string
 	// Insecure uses plain HTTP to the endpoint (BACKUP_S3_INSECURE=1). It is for
-	// local test buckets only, so Load allows it only with a "demo-" project.
+	// local test buckets only, so Load allows it only with APP_TEST_MODE=1.
 	Insecure bool
 }
 
@@ -85,11 +80,7 @@ func Load(getenv func(string) string) (Config, error) {
 		}
 		c.Port = p
 	}
-	c.FirebaseProjectID = getenv("FIREBASE_PROJECT_ID")
-	c.AuthEmulatorHost = getenv("FIREBASE_AUTH_EMULATOR_HOST")
-	if c.AuthEmulatorHost != "" && !strings.HasPrefix(c.FirebaseProjectID, "demo-") {
-		return c, fmt.Errorf("FIREBASE_AUTH_EMULATOR_HOST is set, but FIREBASE_PROJECT_ID %q is not a demo- project; refusing to accept emulator tokens", c.FirebaseProjectID)
-	}
+	c.TestMode = getenv("APP_TEST_MODE") == "1"
 	c.Backup = Backup{
 		Recipient: getenv("BACKUP_AGE_RECIPIENT"),
 		Endpoint:  getenv("BACKUP_S3_ENDPOINT"),
@@ -104,8 +95,8 @@ func Load(getenv func(string) string) (Config, error) {
 	}
 	// Everything leaving the server is encrypted in transit (AGENTS.md section 8).
 	// Snapshots are age-encrypted anyway, but the bucket credentials are not.
-	if c.Backup.Insecure && !strings.HasPrefix(c.FirebaseProjectID, "demo-") {
-		return c, fmt.Errorf("BACKUP_S3_INSECURE is set, but FIREBASE_PROJECT_ID %q is not a demo- project; refusing plain HTTP to the backup bucket", c.FirebaseProjectID)
+	if c.Backup.Insecure && !c.TestMode {
+		return c, fmt.Errorf("BACKUP_S3_INSECURE is set, but APP_TEST_MODE is not; refusing plain HTTP to the backup bucket")
 	}
 	if v := getenv("DB_PATH"); v != "" {
 		c.DBPath = v

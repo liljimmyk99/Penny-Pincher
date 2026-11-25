@@ -36,6 +36,9 @@ type Limits struct {
 	PerUser ratelimit.Rule
 	// Expensive applies per user, on top of PerUser, to expensiveRoute.
 	Expensive ratelimit.Rule
+	// Login applies per username (lowercased, known or not) to POST
+	// /v1/auth/login, on top of PerIP. A zero Burst uses DefaultLimits.Login.
+	Login ratelimit.Rule
 }
 
 // DefaultLimits leave room for a page that fires a dozen queries at once.
@@ -43,20 +46,26 @@ var DefaultLimits = Limits{
 	PerIP:     ratelimit.Rule{Rate: 20, Burst: 40},
 	PerUser:   ratelimit.Rule{Rate: 10, Burst: 60},
 	Expensive: ratelimit.Rule{Rate: 1.0 / 10, Burst: 5},
+	Login:     ratelimit.Rule{Rate: 1.0 / 12, Burst: 8},
 }
 
 const limiterIdle = 10 * time.Minute
 
 type limiters struct {
-	ip, user, expensive *ratelimit.Limiter
-	now                 func() time.Time
+	ip, user, expensive, login *ratelimit.Limiter
+	now                        func() time.Time
 }
 
 func newLimiters(l *Limits, now func() time.Time) *limiters {
 	if l == nil {
 		return nil
 	}
+	loginRule := l.Login
+	if loginRule.Burst == 0 {
+		loginRule = DefaultLimits.Login
+	}
 	return &limiters{
+		login:     ratelimit.New(loginRule, limiterIdle),
 		ip:        ratelimit.New(l.PerIP, limiterIdle),
 		user:      ratelimit.New(l.PerUser, limiterIdle),
 		expensive: ratelimit.New(l.Expensive, limiterIdle),
@@ -68,10 +77,11 @@ func isImportUpload(r *http.Request) bool {
 	return r.Method == http.MethodPost && r.URL.Path == "/v1/imports"
 }
 
-// expensiveRoute: back up now, add a user, import upload and export.
+// expensiveRoute: back up now, add a user, reset a password, import upload and export.
 func expensiveRoute(r *http.Request) bool {
 	return isImportUpload(r) ||
-		(r.Method == http.MethodPost && (r.URL.Path == "/v1/admin/backups" || r.URL.Path == "/v1/admin/users")) ||
+		(r.Method == http.MethodPost && (r.URL.Path == "/v1/admin/backups" || r.URL.Path == "/v1/admin/users" ||
+			(strings.HasPrefix(r.URL.Path, "/v1/admin/users/") && strings.HasSuffix(r.URL.Path, "/password")))) ||
 		(r.Method == http.MethodGet && r.URL.Path == "/v1/export")
 }
 

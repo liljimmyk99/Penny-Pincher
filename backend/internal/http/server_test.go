@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -15,10 +16,13 @@ import (
 	"github.com/liljimmyk99/penny-pincher/backend/internal/store"
 )
 
+// testPassword is the password of both seeded users.
+const testPassword = "correct horse battery"
+
 const (
 	tokAdmin  = "tok-admin"
 	tokMember = "tok-member"
-	tokStray  = "tok-not-in-users" // valid Firebase token, uid not allowlisted
+	tokStray  = "tok-not-in-sessions" // never issued
 )
 
 // testAPI is a router over a fresh database with an admin and a member,
@@ -36,15 +40,25 @@ func newTestAPI(t *testing.T) *testAPI { return newTestAPIWith(t, nil) }
 func newTestAPIWith(t *testing.T, tweak func(*sql.DB, *Deps)) *testAPI {
 	t.Helper()
 	db := store.NewTestDB(t)
-	for _, u := range [][2]string{{"uid-admin", "admin"}, {"uid-member", "member"}} {
-		if _, err := store.AddUser(context.Background(), db, store.NewUser{
-			FirebaseUID: u[0], Email: u[1] + "@example.com", DisplayName: "Test " + u[1], Role: u[1],
-		}); err != nil {
+	hasher := auth.NewHasher(auth.TestParams, 2)
+	hash, err := hasher.Hash(testPassword)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range []struct{ name, token string }{{"admin", tokAdmin}, {"member", tokMember}} {
+		id, err := store.AddUser(context.Background(), db, store.NewUser{
+			Username: u.name, PasswordHash: hash, Email: u.name + "@example.com", DisplayName: "Test " + u.name, Role: u.name,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		// A session with a known token, so tests can send it as the bearer.
+		sum := sha256.Sum256([]byte(u.token))
+		if _, err := db.Exec(`INSERT INTO sessions (user_id, token_hash) VALUES (?, ?)`, id, sum[:]); err != nil {
 			t.Fatal(err)
 		}
 	}
-	v := auth.FakeVerifier{tokAdmin: "uid-admin", tokMember: "uid-member", tokStray: "uid-stray"}
-	deps := Deps{Version: "test", Data: db, Now: time.Now, Authn: auth.Middleware(v, store.Users{DB: db}, auth.MaxSessionAge, time.Now)}
+	deps := Deps{Version: "test", Data: db, Now: time.Now, Hasher: hasher, Authn: auth.Middleware(store.Sessions{DB: db})}
 	if tweak != nil {
 		tweak(db, &deps)
 	}
@@ -93,9 +107,9 @@ func TestMissingOrInvalidTokenIs401(t *testing.T) {
 	wantError(t, do(t, "GET", "/v1/admin/status", ""), http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated)
 }
 
-func TestUnknownUidIs403(t *testing.T) {
-	wantError(t, do(t, "GET", "/v1/me", tokStray), http.StatusForbidden, api.ErrorErrorCodeNotAllowlisted)
-	wantError(t, do(t, "GET", "/v1/categories", tokStray), http.StatusForbidden, api.ErrorErrorCodeNotAllowlisted)
+func TestUnknownTokenIs401(t *testing.T) {
+	wantError(t, do(t, "GET", "/v1/me", tokStray), http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated)
+	wantError(t, do(t, "GET", "/v1/categories", tokStray), http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated)
 }
 
 func TestMemberOnAdminRouteIs403(t *testing.T) {

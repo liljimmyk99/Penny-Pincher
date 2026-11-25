@@ -140,7 +140,7 @@ func TestMonthActionsNeedAuth(t *testing.T) {
 		if rec := a.call(c.method, c.path, "", ""); rec.Code != http.StatusUnauthorized {
 			t.Fatalf("%s %s = %d", c.method, c.path, rec.Code)
 		}
-		if rec := a.call(c.method, c.path, tokStray, ""); rec.Code != http.StatusForbidden {
+		if rec := a.call(c.method, c.path, tokStray, ""); rec.Code != http.StatusUnauthorized {
 			t.Fatalf("%s %s stray = %d", c.method, c.path, rec.Code)
 		}
 	}

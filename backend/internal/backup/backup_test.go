@@ -65,7 +65,7 @@ func newService(t *testing.T) (*Service, *memBucket, *age.X25519Identity, *time.
 	if err := store.Migrate(context.Background(), db); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`INSERT INTO users (firebase_uid, role) VALUES ('uid-1', 'member')`); err != nil {
+	if _, err := db.Exec(`INSERT INTO users (username, password_hash, role) VALUES ('user-1', 'h', 'member')`); err != nil {
 		t.Fatal(err)
 	}
 	id, err := age.GenerateX25519Identity()
@@ -107,7 +107,7 @@ func TestSnapshotRestoresToSameData(t *testing.T) {
 	defer rdb.Close()
 	var uid string
 	var cats int
-	if err := rdb.QueryRow(`SELECT firebase_uid FROM users`).Scan(&uid); err != nil || uid != "uid-1" {
+	if err := rdb.QueryRow(`SELECT username FROM users`).Scan(&uid); err != nil || uid != "user-1" {
 		t.Fatalf("uid %q, %v", uid, err)
 	}
 	if err := rdb.QueryRow(`SELECT count(*) FROM categories`).Scan(&cats); err != nil || cats == 0 {

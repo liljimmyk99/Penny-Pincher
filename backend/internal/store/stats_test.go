@@ -59,8 +59,8 @@ func TestCategoryStats(t *testing.T) {
 func TestIncomeSourceStats(t *testing.T) {
 	db := NewTestDB(t)
 	ctx := context.Background()
-	a, _ := AddUser(ctx, db, NewUser{FirebaseUID: "uid-a", Role: RoleMember})
-	b, _ := AddUser(ctx, db, NewUser{FirebaseUID: "uid-b", Role: RoleMember})
+	a, _ := AddUser(ctx, db, NewUser{Username: "uid-a", PasswordHash: "h", Role: RoleMember})
+	b, _ := AddUser(ctx, db, NewUser{Username: "uid-b", PasswordHash: "h", Role: RoleMember})
 	s := IncomeSources{DB: db}
 	job, err := s.Create(ctx, a, "Job")
 	if err != nil {

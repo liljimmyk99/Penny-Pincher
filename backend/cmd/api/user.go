@@ -1,56 +1,68 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"strings"
 
+	"github.com/liljimmyk99/penny-pincher/backend/internal/auth"
 	"github.com/liljimmyk99/penny-pincher/backend/internal/store"
 )
 
-const userUsage = "usage: api user add --uid <firebase-uid> [--email <email>] [--name <display name>] [--role admin|member]\n       api user revoke --uid <firebase-uid>"
+const userUsage = `usage: api user add --username <name> [--email <email>] [--name <display name>] [--role admin|member] [--must-change]
+       api user set-password --username <name> [--must-change]
+       api user revoke --username <name>
+The password is read from the first line of standard input (never from a flag,
+so it stays out of the process list and shell history).`
 
-// sessionRevoker signs a Firebase account out everywhere (auth.RevokeSessions).
-type sessionRevoker func(ctx context.Context, uid string) error
-
-// runUserRevoke handles `api user revoke`: it revokes the account's refresh
-// tokens, so it must sign in again (docs/security.md, "Lock someone out now").
-func runUserRevoke(ctx context.Context, revoke sessionRevoker, args []string, out io.Writer) error {
-	fs := flag.NewFlagSet("user revoke", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	uid := fs.String("uid", "", "Firebase uid (required)")
-	if err := fs.Parse(args); err != nil {
-		return fmt.Errorf("%w\n%s", err, userUsage)
+// readPassword reads one line from in and checks it against the password rules.
+func readPassword(in io.Reader) (string, error) {
+	line, err := bufio.NewReader(in).ReadString('\n')
+	if err != nil && !(errors.Is(err, io.EOF) && line != "") {
+		return "", errors.New("no password on standard input")
 	}
-	if *uid == "" {
-		return errors.New("--uid is required\n" + userUsage)
+	pw := strings.TrimRight(line, "\r\n")
+	if issue := auth.CheckPasswordRules(pw); issue != "" {
+		return "", fmt.Errorf("password %s", issue)
 	}
-	if err := revoke(ctx, *uid); err != nil {
-		return fmt.Errorf("revoke sessions: %w", err)
-	}
-	fmt.Fprintf(out, "revoked the sessions of %s; the API refuses its current tokens within 5 minutes\n", *uid)
-	return nil
+	return pw, nil
 }
 
-// runUser handles `api user add`. It is the v1 admin-only way to add accounts
-// (after creating them in the Firebase console).
-func runUser(ctx context.Context, dbPath string, args []string, out io.Writer) error {
-	if len(args) == 0 || args[0] != "add" {
+// runUser handles `api user add`, `set-password` and `revoke`: the way to
+// create the first admin and to reset or lock out an account from the server.
+func runUser(ctx context.Context, dbPath string, args []string, in io.Reader, out io.Writer) error {
+	if len(args) == 0 || (args[0] != "add" && args[0] != "set-password" && args[0] != "revoke") {
 		return errors.New(userUsage)
 	}
-	fs := flag.NewFlagSet("user add", flag.ContinueOnError)
+	cmd := args[0]
+	fs := flag.NewFlagSet("user "+cmd, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	uid := fs.String("uid", "", "Firebase uid (required)")
+	username := fs.String("username", "", "username (required)")
 	email := fs.String("email", "", "email address")
 	name := fs.String("name", "", "display name")
 	role := fs.String("role", store.RoleMember, "admin or member")
+	must := fs.Bool("must-change", false, "make the person choose their own password at next sign-in")
 	if err := fs.Parse(args[1:]); err != nil {
 		return fmt.Errorf("%w\n%s", err, userUsage)
 	}
-	if *uid == "" {
-		return errors.New("--uid is required\n" + userUsage)
+	if strings.TrimSpace(*username) == "" {
+		return errors.New("--username is required\n" + userUsage)
+	}
+
+	var hash string
+	if cmd != "revoke" {
+		pw, err := readPassword(in)
+		if err != nil {
+			return err
+		}
+		hash, err = auth.NewDefaultHasher().Hash(pw)
+		if err != nil {
+			return err
+		}
 	}
 
 	db, err := store.Open(dbPath)
@@ -61,10 +73,41 @@ func runUser(ctx context.Context, dbPath string, args []string, out io.Writer) e
 	if err := store.Migrate(ctx, db); err != nil {
 		return err
 	}
-	id, err := store.AddUser(ctx, db, store.NewUser{FirebaseUID: *uid, Email: *email, DisplayName: *name, Role: *role})
-	if err != nil {
-		return err
+	switch cmd {
+	case "add":
+		id, err := store.AddUser(ctx, db, store.NewUser{Username: *username, PasswordHash: hash, MustChangePassword: *must,
+			Email: *email, DisplayName: *name, Role: *role})
+		if errors.Is(err, store.ErrUserExists) {
+			return fmt.Errorf("username %q is already taken", *username)
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(out, "added user %d (%s) with role %s\n", id, strings.TrimSpace(*username), *role)
+	case "set-password":
+		u, err := store.FindUserByUsername(ctx, db, *username)
+		if errors.Is(err, store.ErrNoUser) {
+			return fmt.Errorf("no user named %q", *username)
+		}
+		if err != nil {
+			return err
+		}
+		if err := store.SetPassword(ctx, db, u.ID, hash, *must); err != nil {
+			return err
+		}
+		fmt.Fprintf(out, "set the password of %s and signed them out everywhere\n", u.Username)
+	case "revoke":
+		u, err := store.FindUserByUsername(ctx, db, *username)
+		if errors.Is(err, store.ErrNoUser) {
+			return fmt.Errorf("no user named %q", *username)
+		}
+		if err != nil {
+			return err
+		}
+		if err := (store.Sessions{DB: db}).RevokeAllForUser(ctx, u.ID); err != nil {
+			return err
+		}
+		fmt.Fprintf(out, "signed %s out everywhere; their tokens stop working at once\n", u.Username)
 	}
-	fmt.Fprintf(out, "added user %d (%s) with role %s\n", id, *uid, *role)
 	return nil
 }

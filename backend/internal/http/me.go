@@ -15,10 +15,16 @@ func (s *Server) GetMe(ctx context.Context, _ api.GetMeRequestObject) (api.GetMe
 		return api.GetMe401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse(
 			newError(api.ErrorErrorCodeUnauthenticated, "Missing, expired or invalid token."))}, nil
 	}
-	return api.GetMe200JSONResponse{
-		Id:          id.ID,
-		Email:       nullableOf(id.Email),
-		DisplayName: nullableOf(id.DisplayName),
-		Role:        api.MeRole(id.Role),
-	}, nil
+	return api.GetMe200JSONResponse(toMe(id)), nil
+}
+
+func toMe(id auth.Identity) api.Me {
+	return api.Me{
+		Id:                 id.ID,
+		Username:           id.Username,
+		Email:              nullableOf(id.Email),
+		DisplayName:        nullableOf(id.DisplayName),
+		Role:               api.MeRole(id.Role),
+		MustChangePassword: id.MustChangePassword,
+	}
 }

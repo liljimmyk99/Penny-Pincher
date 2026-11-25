@@ -46,19 +46,6 @@ func TestRateLimitOverrides(t *testing.T) {
 	}
 }
 
-func TestAuthEmulatorOnlyForDemoProjects(t *testing.T) {
-	c, err := Load(env(map[string]string{"FIREBASE_PROJECT_ID": "demo-e2e", "FIREBASE_AUTH_EMULATOR_HOST": "auth:9099"}))
-	if err != nil || c.AuthEmulatorHost != "auth:9099" {
-		t.Fatalf("demo project: got %+v, %v", c, err)
-	}
-	if _, err := Load(env(map[string]string{"FIREBASE_PROJECT_ID": "real-project", "FIREBASE_AUTH_EMULATOR_HOST": "auth:9099"})); err == nil {
-		t.Fatal("expected an error for the emulator with a real project")
-	}
-	if _, err := Load(env(map[string]string{"FIREBASE_AUTH_EMULATOR_HOST": "auth:9099"})); err == nil {
-		t.Fatal("expected an error for the emulator with no project")
-	}
-}
-
 func TestBackupConfig(t *testing.T) {
 	c, err := Load(env(nil))
 	if err != nil || c.Backup.Enabled() {
@@ -76,22 +63,17 @@ func TestBackupConfig(t *testing.T) {
 	}
 }
 
-func TestBackupInsecureOnlyForDemoProjects(t *testing.T) {
+func TestBackupInsecureOnlyInTestMode(t *testing.T) {
 	m := map[string]string{
 		"BACKUP_AGE_RECIPIENT": "age1x", "BACKUP_S3_ENDPOINT": "minio:9000", "BACKUP_S3_BUCKET": "b",
 		"BACKUP_S3_ACCESS_KEY": "k", "BACKUP_S3_SECRET_KEY": "s", "BACKUP_S3_INSECURE": "1",
 	}
-	m["FIREBASE_PROJECT_ID"] = "demo-e2e"
+	if _, err := Load(env(m)); err == nil {
+		t.Fatal("expected an error for plain HTTP to the bucket outside test mode")
+	}
+	m["APP_TEST_MODE"] = "1"
 	c, err := Load(env(m))
-	if err != nil || !c.Backup.Insecure {
-		t.Fatalf("demo project: got %+v, %v", c.Backup, err)
-	}
-	m["FIREBASE_PROJECT_ID"] = "real-project"
-	if _, err := Load(env(m)); err == nil {
-		t.Fatal("expected an error for plain HTTP to the bucket with a real project")
-	}
-	delete(m, "FIREBASE_PROJECT_ID")
-	if _, err := Load(env(m)); err == nil {
-		t.Fatal("expected an error for plain HTTP to the bucket with no project")
+	if err != nil || !c.Backup.Insecure || !c.TestMode {
+		t.Fatalf("test mode: got %+v, %v", c.Backup, err)
 	}
 }

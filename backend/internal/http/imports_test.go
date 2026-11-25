@@ -354,7 +354,7 @@ func TestImportTenancy(t *testing.T) {
 		t.Fatalf("owner get = %d", rec.Code)
 	}
 	// A member's own upload cannot match the admin's category by id or name.
-	if _, err := a.db.Exec(`UPDATE categories SET name = 'AdminOnly' WHERE name = 'Housing' AND user_id = (SELECT id FROM users WHERE firebase_uid = 'uid-admin')`); err != nil {
+	if _, err := a.db.Exec(`UPDATE categories SET name = 'AdminOnly' WHERE name = 'Housing' AND user_id = (SELECT id FROM users WHERE username = 'admin')`); err != nil {
 		t.Fatal(err)
 	}
 	got := a.uploadOK(tokMember, "m.xlsx", xlsx(t, [][]any{{"2019-03-05", "AdminOnly", "Shop", "1"}}, nil))

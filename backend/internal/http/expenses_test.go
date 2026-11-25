@@ -287,6 +287,6 @@ func TestExpensesNeedAuth(t *testing.T) {
 	a := newTestAPI(t)
 	for _, r := range [][2]string{{"GET", "/v1/expenses"}, {"POST", "/v1/expenses/batch"}, {"GET", "/v1/merchants"}} {
 		wantError(t, a.call(r[0], r[1], "", ""), http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated)
-		wantError(t, a.call(r[0], r[1], tokStray, ""), http.StatusForbidden, api.ErrorErrorCodeNotAllowlisted)
+		wantError(t, a.call(r[0], r[1], tokStray, ""), http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated)
 	}
 }

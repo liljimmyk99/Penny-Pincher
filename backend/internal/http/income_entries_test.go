@@ -325,6 +325,6 @@ func TestIncomeEntriesNeedAuth(t *testing.T) {
 		{"DELETE", "/v1/income-entries/1"},
 	} {
 		wantError(t, a.call(r[0], r[1], "", "{}"), http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated)
-		wantError(t, a.call(r[0], r[1], tokStray, "{}"), http.StatusForbidden, api.ErrorErrorCodeNotAllowlisted)
+		wantError(t, a.call(r[0], r[1], tokStray, "{}"), http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated)
 	}
 }

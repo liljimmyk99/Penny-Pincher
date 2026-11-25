@@ -10,13 +10,17 @@ const (
 	RoleMember Role = "member"
 )
 
-// Identity is the authenticated, allowlisted user for a request. The token
-// verification middleware (added with Firebase auth) will put it in the context.
+// Identity is the authenticated user for a request. The session middleware
+// puts it in the context.
 type Identity struct {
-	ID          string
-	Email       *string
-	DisplayName *string
-	Role        Role
+	ID                 string
+	Username           string
+	Email              *string
+	DisplayName        *string
+	Role               Role
+	MustChangePassword bool
+	// SessionID is the sessions row the request's token belongs to.
+	SessionID int64
 }
 
 type ctxKey struct{}

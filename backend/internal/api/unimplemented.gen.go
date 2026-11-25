@@ -44,6 +44,22 @@ func (Unimplemented) AddUser(context.Context, AddUserRequestObject) (AddUserResp
 	return nil, ErrNotImplemented
 }
 
+func (Unimplemented) ResetUserPassword(context.Context, ResetUserPasswordRequestObject) (ResetUserPasswordResponseObject, error) {
+	return nil, ErrNotImplemented
+}
+
+func (Unimplemented) Login(context.Context, LoginRequestObject) (LoginResponseObject, error) {
+	return nil, ErrNotImplemented
+}
+
+func (Unimplemented) Logout(context.Context, LogoutRequestObject) (LogoutResponseObject, error) {
+	return nil, ErrNotImplemented
+}
+
+func (Unimplemented) ChangePassword(context.Context, ChangePasswordRequestObject) (ChangePasswordResponseObject, error) {
+	return nil, ErrNotImplemented
+}
+
 func (Unimplemented) ListCategories(context.Context, ListCategoriesRequestObject) (ListCategoriesResponseObject, error) {
 	return nil, ErrNotImplemented
 }

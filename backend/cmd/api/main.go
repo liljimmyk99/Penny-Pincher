@@ -41,17 +41,8 @@ func run() error {
 	// redacting JSON logger too.
 	slog.SetDefault(log)
 
-	if len(os.Args) > 2 && os.Args[1] == "user" && os.Args[2] == "revoke" {
-		if cfg.FirebaseProjectID == "" {
-			return errors.New("FIREBASE_PROJECT_ID is required")
-		}
-		revoke := func(ctx context.Context, uid string) error {
-			return auth.RevokeSessions(ctx, cfg.FirebaseProjectID, uid)
-		}
-		return runUserRevoke(context.Background(), revoke, os.Args[3:], os.Stdout)
-	}
 	if len(os.Args) > 1 && os.Args[1] == "user" {
-		return runUser(context.Background(), cfg.DBPath, os.Args[2:], os.Stdout)
+		return runUser(context.Background(), cfg.DBPath, os.Args[2:], os.Stdin, os.Stdout)
 	}
 
 	if len(os.Args) > 1 && os.Args[1] == "backup" {
@@ -83,14 +74,7 @@ func run() error {
 	if err := store.Migrate(context.Background(), db); err != nil {
 		return err
 	}
-	if cfg.FirebaseProjectID == "" {
-		return errors.New("FIREBASE_PROJECT_ID is required")
-	}
-	verifier, err := auth.NewFirebaseVerifier(context.Background(), cfg.FirebaseProjectID)
-	if err != nil {
-		return err
-	}
-	authn := auth.Middleware(verifier, store.Users{DB: db}, auth.MaxSessionAge, time.Now)
+	authn := auth.Middleware(store.Sessions{DB: db})
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -105,17 +89,15 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	deps := apihttp.Deps{Version: cfg.Version, DB: db, Data: db, Now: time.Now, Authn: authn, AuthCheck: auth.ProbeProvider, Limits: limits(cfg),
+	deps := apihttp.Deps{Version: cfg.Version, DB: db, Data: db, Now: time.Now, Authn: authn, Limits: limits(cfg),
 		ImportRunner: importrun.New(ctx, db, importrun.Options{})}
-	if cfg.AuthEmulatorHost != "" {
-		deps.AuthCheck = nil // the emulator is local; there is no remote provider to probe
-	}
 	if bsvc != nil {
 		deps.Backups = bsvc // only when set: a nil *Service in the interface would not be nil
 		go bsvc.RunScheduled(ctx, 15*time.Minute, log)
 	} else {
 		log.Warn("backups are not configured; set BACKUP_AGE_RECIPIENT and BACKUP_S3_*")
 	}
+	go sweepSessions(ctx, store.Sessions{DB: db}, time.Hour, log)
 	go sweepImports(ctx, store.Imports{DB: db}, 15*time.Minute, log)
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.Port),
@@ -178,6 +160,23 @@ func sweepImports(ctx context.Context, imports store.Imports, every time.Duratio
 	for {
 		if _, err := imports.ExpireAllStale(ctx, time.Now()); err != nil && ctx.Err() == nil {
 			log.Error("import expiry failed", "err_type", fmt.Sprintf("%T", err))
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+	}
+}
+
+// sweepSessions deletes sessions past their 30-day life. Lookups already refuse
+// them; this only keeps the table small.
+func sweepSessions(ctx context.Context, sessions store.Sessions, every time.Duration, log *slog.Logger) {
+	t := time.NewTicker(every)
+	defer t.Stop()
+	for {
+		if _, err := sessions.DeleteExpired(ctx); err != nil && ctx.Err() == nil {
+			log.Error("session expiry failed", "err_type", fmt.Sprintf("%T", err))
 		}
 		select {
 		case <-ctx.Done():

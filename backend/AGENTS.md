@@ -24,7 +24,7 @@ migrations/       numbered SQL migrations
 - **Money** is `int64` cents. Never use float types for amounts.
 - **Dates** are calendar dates stored as `YYYY-MM-DD` text, with no time zone. Months are derived from them.
 - **Tenancy:** every query in `internal/store` takes the authenticated `user_id` and filters on it. A handler must never be able to read or write another user's rows. Add a test for this on every new query.
-- **Auth:** verify the Firebase ID token on every route except `/healthz`, keeping the verifier behind an interface in `internal/auth`. A valid token is not enough: the Firebase uid must match a row in the local users table, otherwise return 403. This is the allowlist, so people who sign up through Firebase get no access.
+- **Auth:** username and password sign-in (§10, #182). `POST /v1/auth/login` checks the password (argon2id, `internal/auth/password.go`) and issues an opaque session token; `internal/auth.Middleware` looks it up in the `sessions` table on every route except `/healthz` and login (401 `unauthenticated` / `session_expired`; 403 `password_change_required` while the user must change their password). Only the token's SHA-256 is stored. Never log or return a password, hash or token.
 - **Roles:** users are `admin` or `member`. Admin routes (`/v1/admin/...`) require `admin` and return 403 otherwise. Provide an admin-only way outside the HTTP API to add a user row (for example a `cmd/` CLI subcommand), since v1 has no in-app account management.
 - **Schema:** `migrations/0001_init.sql` defines every table, index, trigger and view. Read its header comment before writing store code.
   - Composite foreign keys `(x_id, user_id)` stop a row from referencing another user's category, merchant, income source or template. The store must still filter every query on `user_id`.
@@ -118,7 +118,7 @@ migrations/       numbered SQL migrations
 - Import (last, with export): template download, upload and check, start, progress stream, cancel, undo, problem rows, history
 - Export (last)
 
-**Not in v1:** any user or account management endpoints (list users, create, invite, reset password, disable). Those stay in the Firebase console until v2.
+**Not in v1:** invites and email, disable/enable, editing or removing users. Admins add users and reset passwords (`POST /v1/admin/users`, `POST /v1/admin/users/{id}/password`) or use `api user add|set-password|revoke`.
 
 ## Generated API code
 
@@ -132,4 +132,4 @@ migrations/       numbered SQL migrations
 - `internal/backup` takes `VACUUM INTO` snapshots, encrypts them to the age public key in `BACKUP_AGE_RECIPIENT`, and uploads to the S3 bucket (`BACKUP_S3_*`). The API never decrypts; only `api backup restore` does, with a private key file.
 - The admin API (`internal/http/admin.go`) uses `Service.Start` (background manual run, `ErrBusy` → 409 `backup_in_progress`), `Runs` (stored snapshots of every kind plus this process's running or failed run), `LastRun` (status tile) and `Open` (streams the still-encrypted object; only keys the listing shows). Snapshot ids are the base64url of the bucket key; running/failed runs have `run-` ids and answer download with 409 `backup_not_ready`. Failed runs show a fixed message, never error text. Without backup config the list is empty and "Back up now" answers 501.
 - Never log snapshot contents or error text; log the error type only. Runbook: `/docs/backups.md`.
-- The plaintext snapshot is written under `os.TempDir()`, which Compose mounts as `tmpfs` so it never touches disk; don't move it to `/data` or another disk path. `BACKUP_S3_INSECURE=1` (plain HTTP to the bucket) is refused unless `FIREBASE_PROJECT_ID` starts with `demo-`. See `/docs/encryption.md`.
+- The plaintext snapshot is written under `os.TempDir()`, which Compose mounts as `tmpfs` so it never touches disk; don't move it to `/data` or another disk path. `BACKUP_S3_INSECURE=1` (plain HTTP to the bucket) is refused unless `APP_TEST_MODE=1`. See `/docs/encryption.md`.

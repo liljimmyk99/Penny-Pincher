@@ -144,7 +144,7 @@ func TestExportRangeAndValidationHTTP(t *testing.T) {
 	wantError(t, a.call("GET", "/v1/export?format=pdf", tokMember, ""), http.StatusBadRequest, api.ErrorErrorCodeInvalidRequest)
 	wantError(t, a.call("GET", "/v1/export", tokMember, ""), http.StatusBadRequest, api.ErrorErrorCodeInvalidRequest)
 	wantError(t, a.call("GET", "/v1/export?format=csv", "", ""), http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated)
-	wantError(t, a.call("GET", "/v1/export?format=csv", tokStray, ""), http.StatusForbidden, api.ErrorErrorCodeNotAllowlisted)
+	wantError(t, a.call("GET", "/v1/export?format=csv", tokStray, ""), http.StatusUnauthorized, api.ErrorErrorCodeUnauthenticated)
 }
 
 func TestFormatCents(t *testing.T) {
