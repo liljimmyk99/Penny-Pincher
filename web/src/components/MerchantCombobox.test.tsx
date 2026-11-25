@@ -86,11 +86,22 @@ describe("MerchantCombobox", () => {
     expect(input()).not.toHaveAttribute("aria-activedescendant");
   });
 
-  it("offers no Create for an existing name in another case", async () => {
-    const { user } = renderCombo();
+  it("offers an existing name typed in another case, without Create", async () => {
+    const { user, onPick } = renderCombo();
     await user.type(input(), "corner store");
-    // The only suggestion is the name already typed, so the list stays closed.
-    await waitFor(() => expect(input()).toHaveAttribute("aria-expanded", "false"));
+    expect(await optionNames()).toEqual(["Corner Store"]);
+    await user.click(within(await list()).getByRole("option", { name: "Corner Store" }));
+    expect(onPick).toHaveBeenCalledWith(merchants[1]);
+    expect(input()).toHaveValue("Corner Store");
+  });
+
+  it("stays closed once the field shows the only suggestion as spelled", async () => {
+    const { user } = renderCombo();
+    await user.type(input(), "Corner Store");
+    // Wait for the search to answer, then check the list never opened.
+    await waitFor(() => expect(screen.queryByText("Create “Corner Store”")).not.toBeInTheDocument());
+    await new Promise((r) => setTimeout(r, 50));
+    expect(input()).toHaveAttribute("aria-expanded", "false");
     noList();
   });
 

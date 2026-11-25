@@ -58,8 +58,10 @@ export function MerchantCombobox({
   const search = useMerchantSearch(open ? value : "");
   const found = search.data ?? [];
   const exact = exactMerchant(found, value);
-  // Hide the list once the field already holds exactly the only suggestion.
-  const options = found.length === 1 && exact ? [] : found;
+  // Hide the list once the field already shows the only suggestion, spelled
+  // the same way. A different case still offers it ("rent" → "Rent"), so the
+  // user can take the existing spelling; it just gets no "Create".
+  const options = found.length === 1 && found[0].name === value.trim() ? [] : found;
   // Offer "Create" only once the search has answered, so it doesn't flash
   // up for a name that turns out to exist.
   const createName = !exact && search.isSuccess && value.trim() ? value.trim() : null;
