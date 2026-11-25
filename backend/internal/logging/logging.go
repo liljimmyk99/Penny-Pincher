@@ -80,6 +80,9 @@ const (
 	// ReasonInvalidCredentials is a failed sign-in or a wrong current
 	// password. Never logged with the username or password.
 	ReasonInvalidCredentials = "invalid_credentials"
+	// ReasonRateLimited is a sign-in refused by the per-IP or per-username
+	// limit or the lock-out. Never logged with the username.
+	ReasonRateLimited = "rate_limited"
 	// ReasonPasswordChangeRequired is a request refused because the user must
 	// choose a new password first.
 	ReasonPasswordChangeRequired = "password_change_required"

@@ -35,8 +35,8 @@ func TestRateLimitOverrides(t *testing.T) {
 	if err != nil || c.RateLimitPerIP != (ratelimit.Rule{}) || c.RateLimitPerUser != (ratelimit.Rule{}) {
 		t.Fatalf("defaults: got %+v, %v", c, err)
 	}
-	c, err = Load(env(map[string]string{"RATE_LIMIT_PER_IP": "200/400", "RATE_LIMIT_PER_USER": "0.5/3"}))
-	if err != nil || c.RateLimitPerIP != (ratelimit.Rule{Rate: 200, Burst: 400}) || c.RateLimitPerUser != (ratelimit.Rule{Rate: 0.5, Burst: 3}) {
+	c, err = Load(env(map[string]string{"RATE_LIMIT_PER_IP": "200/400", "RATE_LIMIT_PER_USER": "0.5/3", "RATE_LIMIT_LOGIN": "100/200"}))
+	if err != nil || c.RateLimitPerIP != (ratelimit.Rule{Rate: 200, Burst: 400}) || c.RateLimitPerUser != (ratelimit.Rule{Rate: 0.5, Burst: 3}) || c.RateLimitLogin != (ratelimit.Rule{Rate: 100, Burst: 200}) {
 		t.Fatalf("overrides: got %+v, %v", c, err)
 	}
 	for _, v := range []string{"20", "x/40", "20/x", "0/40", "20/0", "-1/4"} {

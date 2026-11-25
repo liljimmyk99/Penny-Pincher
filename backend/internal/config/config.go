@@ -26,6 +26,8 @@ type Config struct {
 	// every test reaches the API from one IP; production leaves them unset.
 	RateLimitPerIP   ratelimit.Rule
 	RateLimitPerUser ratelimit.Rule
+	// RateLimitLogin overrides the per-username sign-in limit (RATE_LIMIT_LOGIN).
+	RateLimitLogin ratelimit.Rule
 
 	// Backup settings. Backups are enabled only when BackupRecipient is set;
 	// then the S3 settings are required too (see Backup.Validate).
@@ -101,7 +103,7 @@ func Load(getenv func(string) string) (Config, error) {
 	if v := getenv("DB_PATH"); v != "" {
 		c.DBPath = v
 	}
-	for name, dst := range map[string]*ratelimit.Rule{"RATE_LIMIT_PER_IP": &c.RateLimitPerIP, "RATE_LIMIT_PER_USER": &c.RateLimitPerUser} {
+	for name, dst := range map[string]*ratelimit.Rule{"RATE_LIMIT_PER_IP": &c.RateLimitPerIP, "RATE_LIMIT_PER_USER": &c.RateLimitPerUser, "RATE_LIMIT_LOGIN": &c.RateLimitLogin} {
 		if v := getenv(name); v != "" {
 			r, err := parseRule(v)
 			if err != nil {
