@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Signed in to Firebase, but the API couldn't be reached.
+/// Signed in with a saved session, but loading the account (`/v1/me`) failed for a reason other than the session.
 struct AccountUnavailableView: View {
     let message: String
     let onSignOut: () -> Void
