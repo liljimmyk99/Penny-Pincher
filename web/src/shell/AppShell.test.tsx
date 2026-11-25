@@ -1,5 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { ApiProvider, createApiClient, meQueryKey, type Schemas } from "../api";
@@ -118,6 +118,7 @@ describe("collapsing the sidebar", () => {
 
     remount();
     expect(screen.getByRole("button", { name: "Expand sidebar" })).toBeInTheDocument();
+    expect(document.cookie).toBe(""); // the preference is in localStorage, per user; no cookie
 
     await user.click(screen.getByRole("button", { name: "Expand sidebar" }));
     remount();
@@ -135,12 +136,58 @@ describe("collapsing the sidebar", () => {
   });
 });
 
+describe("phone width", () => {
+  const desktop = window.matchMedia;
+  beforeEach(() => {
+    window.matchMedia = (query: string) =>
+      ({
+        matches: query === "(max-width: 767px)",
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }) as unknown as MediaQueryList;
+  });
+  afterEach(() => {
+    window.matchMedia = desktop;
+  });
+
+  // The sheet hides the rest of the page from assistive tech while open, hence `hidden`.
+  const openButton = () => screen.getByRole("button", { name: "Open navigation", hidden: true });
+
+  it("opens the navigation in a sheet and closes it after picking a page", async () => {
+    const { user } = renderShell({ path: "/summary" });
+    expect(screen.queryByRole("navigation", { name: "Main" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /collapse sidebar/i })).not.toBeInTheDocument();
+    expect(openButton()).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(openButton());
+    const sheet = await screen.findByRole("dialog", { name: "Navigation" });
+    expect(openButton()).toHaveAttribute("aria-expanded", "true");
+    expect(within(nav()).getAllByRole("link").map((link) => link.textContent)).toEqual(NAV_ORDER);
+    expect(within(sheet).getByRole("button", { name: /member/i })).toBeInTheDocument();
+
+    await user.click(within(nav()).getByRole("link", { name: "Transactions" }));
+    expect(heading()).toHaveTextContent("Transactions");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await waitFor(() => expect(heading()).toHaveFocus());
+  });
+
+  it("closes with Escape and returns focus to the menu button", async () => {
+    const { user } = renderShell();
+    await user.click(openButton());
+    await screen.findByRole("dialog", { name: "Navigation" });
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await waitFor(() => expect(openButton()).toHaveFocus());
+  });
+});
+
 describe("account menu", () => {
   it("shows who is signed in and the member's items", async () => {
     const { user } = renderShell();
     const menu = await openAccountMenu(user);
 
-    expect(menu).toHaveTextContent("Signed in · sam");
+    expect(within(menu).getAllByText("sam")).toHaveLength(1); // no display name: the username once
     const items = within(menu).getAllByRole("menuitem").map((item) => item.textContent);
     expect(items).toEqual([
       expect.stringContaining("Settings"),
@@ -156,6 +203,8 @@ describe("account menu", () => {
     const { user } = renderShell({ me: admin });
     expect(accountButton()).toHaveTextContent("Alex Admin");
     const menu = await openAccountMenu(user);
+    expect(within(menu).getByText("Alex Admin")).toBeInTheDocument();
+    expect(within(menu).getByText("alex")).toBeInTheDocument(); // the username
 
     await user.click(within(menu).getByRole("menuitem", { name: "Admin dashboard" }));
     expect(heading()).toHaveTextContent("Admin dashboard");

@@ -244,7 +244,7 @@ Rules:
 
 - **Web routing and menus** (decided 2026-11-05)
   - **Routing: React Router (`react-router`, declarative `<Routes>`).** Screens render inside the app shell (sidebar + account menu). Unknown addresses show a "Page not found" page; admin-only pages show it to members too.
-  - **Menus: `@radix-ui/react-dropdown-menu`** (unstyled, per the Radix rule above; reached through shadcn's `DropdownMenu` once #172 lands) for the account menu's keyboard and focus behaviour.
+  - **Menus: `@radix-ui/react-dropdown-menu`** (unstyled, per the Radix rule above; reached through shadcn's `DropdownMenu` since #172) for the account menu's keyboard and focus behaviour.
 
 - **Categories & sources stats** (decided 2026-11-05)
   - The Categories & sources screen reads `GET /v1/categories/stats?year=` and `GET /v1/income-sources/stats?year=`: one zero-filled row per category or source, aggregated in SQL.

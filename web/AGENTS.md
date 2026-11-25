@@ -42,6 +42,12 @@ Read the root `AGENTS.md` first. This file adds rules specific to the React web 
     - **Progress:** `role="progressbar"` with the percent as `aria-valuenow`; give it an `aria-label` and a text alternative through `getValueLabel` (`aria-valuetext`). The import banner uses it.
     - **Skeleton** is `aria-hidden`; **`LoadingSection`** (`src/components/LoadingSection.tsx`) wraps skeletons in an `aria-busy` section named "Loading <what>" with the same words as hidden text.
     - **Tooltip:** sidebar fill, 13px, at most 260px, above the old dialogs. One `TooltipProvider` per screen; the trigger keeps its own name and the tooltip describes it. Categories & sources uses it.
+  - **App shell (#172):** `sidebar`, `sheet`, `dropdown-menu` and `avatar` in `src/components/ui/`, plus `src/hooks/use-mobile.ts`, adapted app-wide (each edit has a comment):
+    - **Sidebar:** no cookie and no ⌘B shortcut; `AppShell` controls `open` from `shell/sidebarPreference.ts`. 232px, a 76px icon rail (`collapsible="icon"`), 44px menu buttons. Below 768px (`useIsMobile`, Tailwind's `md`) it is a `Sheet` titled "Navigation", opened by the top bar's `SidebarTrigger` ("Open navigation", `aria-expanded`). Closing the sheet after picking a page leaves focus on the new page's `h1`; Esc returns it to the trigger.
+    - **DropdownMenu:** items at least 44px, 8px radius; the menu is a 14px-radius popover card.
+    - **Avatar:** the initial on `primary`, decorative (`aria-hidden`); the name is always beside it.
+    - **Import banner** is an `Alert` (`info` running with a `Progress` along its foot, `success` finished, `destructive` stopped) with ghost-button actions and an icon Dismiss.
+    - Since preflight is still off, `src/index.css` also resets the shell's list and trigger slots.
 - **No charting library**, and shadcn's `chart` component (Recharts) is not used. The approved charts (root §6.11) are hand-built React components, the same way the design canvas draws them:
   - ranked, paired, diverging and sparkline bars are elements sized as a percentage of the largest value (HTML or SVG)
   - the donut is a CSS `conic-gradient` ring (or SVG arcs)
@@ -136,9 +142,10 @@ The domain values are v1's, re-checked against the Zinc neutrals in #167. Change
 
 ## Layout and navigation
 
-- Left sidebar, 232px wide, dark background. Items in this order: Summary, Add entries, Transactions, Yearly, Trends, Templates, Categories & sources, Import. The current page is highlighted (white pill) and marked `aria-current="page"`.
+- Left sidebar, 232px wide, dark background. Items in this order: Summary, Add entries, Transactions, Yearly, Trends, Templates, Categories & sources, Import. The current page is highlighted (the `sidebar-accent` pill, V2) and marked `aria-current="page"`.
 - **Collapsible sidebar:** a chevron button next to the logo collapses it to a ~76px icon-only rail (logo, icons, avatar) and the content widens. Links keep their accessible names when collapsed. Remember the choice per user (a UI preference, safe to store locally).
-- Account button at the bottom of the sidebar opens a menu: name and username, Appearance (Light / Dark / System), Settings (⌘,), Import transactions, Export data, Admin dashboard (admins only), **Change password**, Sign out. Change password opens the Change password dialog (below).
+- **Phone width (below 768px):** a dark top bar with a menu button and the logo; the sidebar opens from it as a sheet (focus trapped, Esc closes) and closes when a page is picked.
+- Account button at the bottom of the sidebar opens a menu: name and username (the username once if there is no display name), Appearance (Light / Dark / System), Settings (⌘,), Import transactions, Export data, Admin dashboard (admins only), **Change password**, Sign out. Change password opens the Change password dialog (below).
 - Main content is fluid; cards and tables wrap or scroll horizontally inside their card on narrow windows. No horizontal page scroll.
 
 ## Screens
