@@ -134,7 +134,7 @@ test.describe("under the Content-Security-Policy", () => {
 
       // The Google Fonts stylesheet and font files loaded (style-src and font-src).
       await page.waitForFunction(() =>
-        [...document.fonts].some((f) => f.family.replace(/["']/g, "") === "Manrope" && f.status === "loaded"),
+        [...document.fonts].some((f) => f.family.replace(/["']/g, "") === "Geist" && f.status === "loaded"),
       );
 
       // Charts and dialogs: Radix menus and dialogs add their own styles while open.

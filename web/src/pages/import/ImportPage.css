@@ -27,7 +27,7 @@
 }
 .import-steps__step--current .import-steps__num {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--primary-foreground);
 }
 .import-steps__step--done .import-steps__num {
   background: var(--color-success-bg);

@@ -8,5 +8,7 @@
     if (stored === "light" || stored === "dark" || stored === "system") pref = stored;
   } catch (e) {}
   var dark = pref === "dark" || (pref === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  var root = document.documentElement;
+  root.classList.toggle("dark", dark); // shadcn/ui and Tailwind's dark: variant
+  root.dataset.theme = dark ? "dark" : "light";
 })();

@@ -41,7 +41,7 @@ input {
 
 .btn--primary {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--primary-foreground);
 }
 
 .btn--primary:hover:not(:disabled) {
@@ -177,7 +177,7 @@ input {
 
 .btn--danger {
   background: var(--color-danger);
-  color: #fff;
+  color: var(--destructive-foreground);
 }
 
 .btn--danger:hover:not(:disabled) {
@@ -335,7 +335,7 @@ input {
 
 .btn--income {
   background: var(--color-income-btn);
-  color: #fff;
+  color: var(--success-foreground);
 }
 
 .btn--income:hover:not(:disabled) {
