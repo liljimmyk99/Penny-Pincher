@@ -1,6 +1,7 @@
-import * as Dialog from "@radix-ui/react-dialog";
 import { useState } from "react";
 import { CheckIcon, CopyIcon } from "../../components/icons";
+import { Button } from "../../components/ui/button";
+import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 
 interface Props {
   title: string;
@@ -27,12 +28,10 @@ export function SignInDetails({ title, message, username, password, mustChange, 
 
   return (
     <>
-      <div className="dialog__head">
-        <div className="dialog__text">
-          <Dialog.Title className="dialog__title">{title}</Dialog.Title>
-          <Dialog.Description className="dialog__body">{message}</Dialog.Description>
-        </div>
-      </div>
+      <DialogHeader>
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription>{message}</DialogDescription>
+      </DialogHeader>
       <dl className="admin-users__details">
         <dt>Username</dt>
         <dd className="admin-users__mono">{username}</dd>
@@ -46,15 +45,15 @@ export function SignInDetails({ title, message, username, password, mustChange, 
         )}
       </dl>
       <p className="admin__desc">This is the only time the password is shown. Pass it on now; there is no email.</p>
-      <div className="dialog__actions">
-        <button type="button" className="btn btn--ghost" onClick={() => void copy()}>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={() => void copy()}>
           {copied ? <CheckIcon width={16} height={16} /> : <CopyIcon width={16} height={16} />}
           {copied ? "Copied" : "Copy sign-in details"}
-        </button>
-        <button type="button" className="btn btn--primary" onClick={onDone}>
+        </Button>
+        <Button type="button" onClick={onDone}>
           Done
-        </button>
-      </div>
+        </Button>
+      </DialogFooter>
     </>
   );
 }

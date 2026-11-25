@@ -1,10 +1,18 @@
-import * as Dialog from "@radix-ui/react-dialog";
 import { useId, useState, type FormEvent } from "react";
 import { ApiError, errorMessage, fieldErrors, useAddUser, type Schemas } from "../../api";
-import { AlertIcon, CloseIcon } from "../../components/icons";
+import { AlertIcon } from "../../components/icons";
 import { MIN_PASSWORD_LENGTH } from "../../auth/ChangePasswordForm";
 import { PasswordField } from "./PasswordField";
 import { SignInDetails } from "./SignInDetails";
+import { Button } from "../../components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
 
 type Role = Schemas["AdminUser"]["role"];
 
@@ -91,72 +99,64 @@ export function AddUserDialog({ onClose, onAdded }: Props) {
   );
 
   return (
-    <Dialog.Root open onOpenChange={(next) => !next && !add.isPending && (created ? onAdded() : onClose())}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="dialog-backdrop" />
-        <Dialog.Content className="dialog" aria-modal="true">
-          {created ? (
-            <SignInDetails
-              title="Sign-in details"
-              message="User added. Pass these details on."
-              {...created}
-              onDone={onAdded}
-            />
-          ) : (
-            <>
-              <div className="dialog__head">
-                <div className="dialog__text">
-                  <Dialog.Title className="dialog__title">Add user</Dialog.Title>
-                  <Dialog.Description className="dialog__body">
-                    Set their username and an initial password, then pass them on. There is no email.
-                  </Dialog.Description>
-                </div>
-                <Dialog.Close className="icon-btn" aria-label="Close" disabled={add.isPending}>
-                  <CloseIcon />
-                </Dialog.Close>
-              </div>
-              <form className="admin-users__form" noValidate onSubmit={(e) => void submit(e)}>
-                {field("username", "Username", username, setUsername, "3–32 letters, numbers, dots, dashes or underscores.")}
-                {field("display_name", "Display name (optional)", name, setName)}
-                {field("email", "Email (optional)", email, setEmail)}
-                <div>
-                  <label className="field-label" htmlFor={`${uid}-role`}>
-                    Role
-                  </label>
-                  <select
-                    id={`${uid}-role`}
-                    className="field"
-                    value={role}
-                    onChange={(e) => setRole(e.target.value as Role)}
-                  >
-                    <option value="member">Member</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
-                <PasswordField label="Initial password" value={password} onChange={setPassword} error={errors.password} />
-                <label className="admin-users__check">
-                  <input type="checkbox" checked={mustChange} onChange={(e) => setMustChange(e.target.checked)} />
-                  Ask them to choose their own password
+    <Dialog open onOpenChange={(next) => !next && !add.isPending && (created ? onAdded() : onClose())}>
+      <DialogContent>
+        {created ? (
+          <SignInDetails
+            title="Sign-in details"
+            message="User added. Pass these details on."
+            {...created}
+            onDone={onAdded}
+          />
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle>Add user</DialogTitle>
+              <DialogDescription>
+                Set their username and an initial password, then pass them on. There is no email.
+              </DialogDescription>
+            </DialogHeader>
+            <form className="admin-users__form" noValidate onSubmit={(e) => void submit(e)}>
+              {field("username", "Username", username, setUsername, "3–32 letters, numbers, dots, dashes or underscores.")}
+              {field("display_name", "Display name (optional)", name, setName)}
+              {field("email", "Email (optional)", email, setEmail)}
+              <div>
+                <label className="field-label" htmlFor={`${uid}-role`}>
+                  Role
                 </label>
-                {alert && (
-                  <p className="alert alert--danger" role="alert">
-                    <AlertIcon width={18} height={18} />
-                    {alert}
-                  </p>
-                )}
-                <div className="dialog__actions">
-                  <button type="button" className="btn btn--ghost" disabled={add.isPending} onClick={onClose}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn--primary" disabled={add.isPending}>
-                    {add.isPending ? "Adding…" : "Add user"}
-                  </button>
-                </div>
-              </form>
-            </>
-          )}
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+                <select
+                  id={`${uid}-role`}
+                  className="field"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value as Role)}
+                >
+                  <option value="member">Member</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <PasswordField label="Initial password" value={password} onChange={setPassword} error={errors.password} />
+              <label className="admin-users__check">
+                <input type="checkbox" checked={mustChange} onChange={(e) => setMustChange(e.target.checked)} />
+                Ask them to choose their own password
+              </label>
+              {alert && (
+                <p className="alert alert--danger" role="alert">
+                  <AlertIcon width={18} height={18} />
+                  {alert}
+                </p>
+              )}
+              <DialogFooter>
+                <Button type="button" variant="outline" disabled={add.isPending} onClick={onClose}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={add.isPending}>
+                  {add.isPending ? "Adding…" : "Add user"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

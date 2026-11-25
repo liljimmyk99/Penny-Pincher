@@ -1,10 +1,18 @@
-import * as Dialog from "@radix-ui/react-dialog";
 import { useState, type FormEvent } from "react";
 import { ApiError, errorMessage, fieldErrors, useResetUserPassword, type Schemas } from "../../api";
-import { AlertIcon, CloseIcon } from "../../components/icons";
+import { AlertIcon } from "../../components/icons";
 import { MIN_PASSWORD_LENGTH } from "../../auth/ChangePasswordForm";
 import { PasswordField } from "./PasswordField";
 import { SignInDetails } from "./SignInDetails";
+import { Button } from "../../components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
 
 interface Props {
   user: Schemas["AdminUser"];
@@ -40,56 +48,48 @@ export function ResetPasswordDialog({ user, onClose }: Props) {
   }
 
   return (
-    <Dialog.Root open onOpenChange={(next) => !next && !reset.isPending && onClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="dialog-backdrop" />
-        <Dialog.Content className="dialog" aria-modal="true">
-          {done ? (
-            <SignInDetails
-              title="Sign-in details"
-              message={`Password reset. ${user.username} was signed out everywhere.`}
-              username={user.username}
-              {...done}
-              onDone={onClose}
-            />
-          ) : (
-            <>
-              <div className="dialog__head">
-                <div className="dialog__text">
-                  <Dialog.Title className="dialog__title">Set a new password for {who}</Dialog.Title>
-                  <Dialog.Description className="dialog__body">
-                    They will be signed out on every device. Their entries are not touched.
-                  </Dialog.Description>
-                </div>
-                <Dialog.Close className="icon-btn" aria-label="Close" disabled={reset.isPending}>
-                  <CloseIcon />
-                </Dialog.Close>
-              </div>
-              <form className="admin-users__form" noValidate onSubmit={(e) => void submit(e)}>
-                <PasswordField label="New password" value={password} onChange={setPassword} error={error} />
-                <label className="admin-users__check">
-                  <input type="checkbox" checked={mustChange} onChange={(e) => setMustChange(e.target.checked)} />
-                  Ask them to choose their own password
-                </label>
-                {alert && (
-                  <p className="alert alert--danger" role="alert">
-                    <AlertIcon width={18} height={18} />
-                    {alert}
-                  </p>
-                )}
-                <div className="dialog__actions">
-                  <button type="button" className="btn btn--ghost" disabled={reset.isPending} onClick={onClose}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn--primary" disabled={reset.isPending}>
-                    {reset.isPending ? "Saving…" : "Reset password"}
-                  </button>
-                </div>
-              </form>
-            </>
-          )}
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <Dialog open onOpenChange={(next) => !next && !reset.isPending && onClose()}>
+      <DialogContent>
+        {done ? (
+          <SignInDetails
+            title="Sign-in details"
+            message={`Password reset. ${user.username} was signed out everywhere.`}
+            username={user.username}
+            {...done}
+            onDone={onClose}
+          />
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle>Set a new password for {who}</DialogTitle>
+              <DialogDescription>
+                They will be signed out on every device. Their entries are not touched.
+              </DialogDescription>
+            </DialogHeader>
+            <form className="admin-users__form" noValidate onSubmit={(e) => void submit(e)}>
+              <PasswordField label="New password" value={password} onChange={setPassword} error={error} />
+              <label className="admin-users__check">
+                <input type="checkbox" checked={mustChange} onChange={(e) => setMustChange(e.target.checked)} />
+                Ask them to choose their own password
+              </label>
+              {alert && (
+                <p className="alert alert--danger" role="alert">
+                  <AlertIcon width={18} height={18} />
+                  {alert}
+                </p>
+              )}
+              <DialogFooter>
+                <Button type="button" variant="outline" disabled={reset.isPending} onClick={onClose}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={reset.isPending}>
+                  {reset.isPending ? "Saving…" : "Reset password"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
