@@ -1,11 +1,14 @@
 import { fileURLToPath } from "node:url";
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   resolve: {
     alias: [
+      // `@/…` is `src/…` (shadcn/ui's import paths; also in tsconfig.json).
+      { find: /^@\//, replacement: fileURLToPath(new URL("./src/", import.meta.url)) },
       // Radix's scroll lock without inline <style> elements, so the CSP can keep
       // style-src strict (see the file's comment).
       {

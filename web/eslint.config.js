@@ -16,4 +16,10 @@ export default tseslint.config(
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
     },
   },
+  {
+    // shadcn/ui primitives export their variants (e.g. `buttonVariants`) beside
+    // the component; allowed here only, not app-wide.
+    files: ["src/components/ui/**/*.tsx"],
+    rules: { "react-refresh/only-export-components": "off" },
+  },
 );
