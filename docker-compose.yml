@@ -82,7 +82,7 @@ services:
       - /config # Caddy's autosaved config; certificates live in /data
     mem_limit: 256m
     pids_limit: 256
-    image: caddy:2.11@sha256:9c1b76fb701c1f77383d3124d9f626e38bcf83bc1255ed47475d4f2420701d03
+    image: caddy:2.11@sha256:4851e54a46b206517c574821bb5cc67f170d2156041e9fbc4c9193b45e84a75b
     environment:
       DOMAIN: localhost
     ports:
@@ -108,7 +108,7 @@ services:
       - /config # Caddy's autosaved config; certificates live in /data
     mem_limit: 256m
     pids_limit: 256
-    image: caddy:2.11@sha256:9c1b76fb701c1f77383d3124d9f626e38bcf83bc1255ed47475d4f2420701d03
+    image: caddy:2.11@sha256:4851e54a46b206517c574821bb5cc67f170d2156041e9fbc4c9193b45e84a75b
     environment:
       DOMAIN: ${DOMAIN:-}
       ACME_EMAIL: ${ACME_EMAIL:-}
