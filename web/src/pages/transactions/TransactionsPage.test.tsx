@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { ApiProvider, createApiClient, type Schemas } from "../../api";
 import { TransactionsPage } from "./TransactionsPage";
+import { Toaster } from "../../components/ui/sonner";
 
 const MONTH = "2020-03";
 const stamp = "2020-01-01T00:00:00Z";
@@ -187,6 +188,7 @@ function renderPage(path = `/transactions?month=${MONTH}`, setup?: (state: State
           />
         </Routes>
       </MemoryRouter>
+      <Toaster />
     </ApiProvider>,
   );
   return { backend, user: userEvent.setup() };
@@ -538,7 +540,7 @@ describe("TransactionsPage: refunds", () => {
     expect(screen.getByText("Partly refunded · −$30.00 on Mar 25 · net $20.00")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Dismiss" }));
-    expect(screen.queryByText(/Refund linked/)).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText(/Refund linked/)).not.toBeInTheDocument());
   });
 
   it("searches the linking dialog and lets the user pick another expense", async () => {

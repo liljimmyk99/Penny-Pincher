@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
 import {
   errorMessage,
@@ -13,7 +13,7 @@ import {
 import { DeleteDialog } from "../../components/DeleteDialog";
 import { AlertIcon, CheckIcon, CopyIcon, LinkIcon, PencilIcon, PlusIcon, SearchIcon, TrashIcon } from "../../components/icons";
 import { MonthSwitcher } from "../../components/MonthSwitcher";
-import { Toast } from "../../components/Toast";
+import { toast } from "../../lib/toast";
 import { formatShortDate, monthName, monthOf } from "../../lib/dates";
 import { formatCents } from "../../lib/money";
 import { formatTaxRate } from "../../lib/taxRate";
@@ -70,8 +70,6 @@ export function TransactionsPage() {
   const [editing, setEditing] = useState<Target | null>(null);
   const [deleting, setDeleting] = useState<Target | null>(null);
   const [linking, setLinking] = useState<Schemas["Expense"] | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-  const dismissToast = useCallback(() => setToast(null), []);
   const [monthDialog, setMonthDialog] = useState<"apply" | "save" | null>(null);
   // Months the user chose to start blank (this visit only; it's not data).
   const [blank, setBlank] = useState<ReadonlySet<string>>(() => new Set());
@@ -87,7 +85,7 @@ export function TransactionsPage() {
   const onApplied = (r: Schemas["TemplateApplyResult"]) => {
     setMonthDialog(null);
     const n = r.created_expense_count + r.created_income_entry_count;
-    setToast(`Copied ${plural(n, "item", "items")} into ${monthName(month)}`);
+    toast(`Copied ${plural(n, "item", "items")} into ${monthName(month)}`);
   };
 
   /** Per-row Confirm: marks one template copy as checked, as-is. */
@@ -138,7 +136,7 @@ export function TransactionsPage() {
         </>
       }
     >
-      <UnconfirmedBanner month={month} onDone={setToast} />
+      <UnconfirmedBanner month={month} />
       {confirmError && (
         <p role="alert" className="alert alert--danger">
           <AlertIcon width={18} height={18} />
@@ -181,7 +179,7 @@ export function TransactionsPage() {
           onClose={() => setLinking(null)}
           onLinked={(original) => {
             setLinking(null);
-            setToast(`Refund linked to ${original.merchant.name} · ${formatShortDate(original.date)}`);
+            toast(`Refund linked to ${original.merchant.name} · ${formatShortDate(original.date)}`);
           }}
         />
       )}
@@ -200,11 +198,10 @@ export function TransactionsPage() {
           onClose={() => setMonthDialog(null)}
           onSaved={(t) => {
             setMonthDialog(null);
-            setToast(`Saved ${monthName(month)} as the template “${t.name}”`);
+            toast(`Saved ${monthName(month)} as the template “${t.name}”`);
           }}
         />
       )}
-      <Toast message={toast} onDismiss={dismissToast} />
     </Page>
   );
 }

@@ -292,8 +292,6 @@
   --color-selected-text: var(--selected-foreground);
   --color-selected-line: var(--primary);
   --color-backdrop: var(--backdrop);
-  --color-toast-bg: var(--toast);
-  --color-toast-text: var(--toast-foreground);
   --radius-card: var(--radius-xl);
   --radius-control: var(--radius-md);
 }

@@ -1,11 +1,11 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
 import { errorMessage, useMonthlySummary, type Schemas } from "../../api";
 import { Donut } from "../../charts/Donut";
 import { RankedBars, type RankedBar } from "../../charts/RankedBars";
 import { AlertIcon, PlusIcon } from "../../components/icons";
 import { MonthSwitcher } from "../../components/MonthSwitcher";
-import { Toast } from "../../components/Toast";
+import { toast } from "../../lib/toast";
 import { formatMonth, monthName, monthOf, todayISO } from "../../lib/dates";
 import { changeWords } from "../../lib/change";
 import { formatCents } from "../../lib/money";
@@ -33,8 +33,6 @@ const plural = (n: number, one: string, many: string) => `${count.format(n)} ${n
 export function SummaryPage() {
   const [month, setMonth] = useMonthParam();
   const summary = useMonthlySummary(month);
-  const [toast, setToast] = useState<string | null>(null);
-  const dismissToast = useCallback(() => setToast(null), []);
   // Months the user chose to start blank (this visit only; it's not data).
   const [blank, setBlank] = useState<ReadonlySet<string>>(() => new Set());
 
@@ -56,14 +54,14 @@ export function SummaryPage() {
     body = (
       <>
         {summary.data.is_empty && month === monthOf(todayISO()) && <Welcome hasEntries={false} />}
-        <UnconfirmedBanner month={month} showReview onDone={setToast} />
+        <UnconfirmedBanner month={month} showReview />
         {summary.data.is_empty && !blank.has(month) && (
           <NewMonthOffer
             key={month}
             month={month}
             onStartBlank={() => setBlank((b) => new Set(b).add(month))}
             onApplied={(r) =>
-              setToast(`Copied ${plural(r.created_expense_count + r.created_income_entry_count, "item", "items")} into ${monthName(month)}`)
+              toast(`Copied ${plural(r.created_expense_count + r.created_income_entry_count, "item", "items")} into ${monthName(month)}`)
             }
           />
         )}
@@ -86,7 +84,6 @@ export function SummaryPage() {
       }
     >
       {body}
-      <Toast message={toast} onDismiss={dismissToast} />
     </Page>
   );
 }

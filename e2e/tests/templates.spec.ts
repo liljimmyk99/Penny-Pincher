@@ -379,7 +379,7 @@ test("AT-14 Undo removes only the 7 unconfirmed copies; Electric and a manual ex
   await page.reload();
 
   await banner(page).getByRole("button", { name: /^Undo copying/ }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Undone · removed 7 copied items" })).toBeVisible();
+  await expect(page.getByRole("region", { name: /^Notifications/ }).getByText("Undone · removed 7 copied items")).toBeVisible();
   const { expenses, income } = await monthEntries(api, "2027-04");
   expect(expenses.map((e) => e.merchant.name).sort()).toEqual(["Corner Cafe", "Electric"]);
   expect(income).toHaveLength(0);
@@ -394,7 +394,7 @@ test("AT-15 Confirm all as-is leaves nothing unconfirmed, and Undo then removes 
   await expect(expenseRow(page, "Rent")).not.toHaveClass(/is-unconfirmed/);
 
   await banner(page).getByRole("button", { name: "Confirm all as-is" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Confirmed 7 items in July" })).toBeVisible();
+  await expect(page.getByRole("region", { name: /^Notifications/ }).getByText("Confirmed 7 items in July")).toBeVisible();
   await expect(banner(page)).toHaveCount(0);
   await expect(page.locator("tr.is-unconfirmed")).toHaveCount(0);
   const { all } = await monthEntries(api, "2027-07");
@@ -442,7 +442,7 @@ test("AT-17 confirming the reset replaces all of April with 8 fresh copies; Marc
   await openMonth(page, "2027-04");
   await (await openApplyDialog(page, "April")).getByRole("button", { name: "Copy into April" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Delete all and copy template" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Copied 8 items into April" })).toBeVisible();
+  await expect(page.getByRole("region", { name: /^Notifications/ }).getByText("Copied 8 items into April")).toBeVisible();
 
   const { expenses, all } = await monthEntries(api, "2027-04");
   expect(all).toHaveLength(8);
@@ -470,7 +470,7 @@ test("AT-18 + AT-19 a reset unlinks (keeps) a refund elsewhere; Undo right after
 
   // AT-19
   await banner(page).getByRole("button", { name: /^Undo copying/ }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Undone · removed 8 copied items" })).toBeVisible();
+  await expect(page.getByRole("region", { name: /^Notifications/ }).getByText("Undone · removed 8 copied items")).toBeVisible();
   expect((await monthEntries(api, "2027-05")).all).toHaveLength(0);
   expect((await api.raw("GET", `/v1/expenses/${original.id}`)).status()).toBe(404);
 
