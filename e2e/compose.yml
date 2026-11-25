@@ -53,6 +53,8 @@ services:
       # what request-limits.spec.ts checks; backend tests cover the rest.
       RATE_LIMIT_PER_IP: "500/1000"
       RATE_LIMIT_PER_USER: "500/1000"
+      # Tests sign in as the same few users again and again.
+      RATE_LIMIT_LOGIN: "500/1000"
     expose:
       - "8080"
     depends_on:

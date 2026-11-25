@@ -68,28 +68,45 @@ func (s *Server) Login(ctx context.Context, req api.LoginRequestObject) (api.Log
 		return api.Login400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse(
 			validationError(&store.ValidationError{Field: "username", Issue: "and password are required"}))}, nil
 	}
+	key := strings.ToLower(username)
 	if s.lim != nil {
-		if ok, wait := s.lim.login.Allow(strings.ToLower(username), s.now()); !ok {
+		locked, wait := s.lim.lockout.Locked(key, s.now())
+		if !locked {
+			var ok bool
+			ok, wait = s.lim.login.Allow(key, s.now())
+			locked = !ok
+		}
+		if locked {
 			secs := max(1, int(wait.Seconds()+0.999))
-			logAuthFailure(ctx, logging.ReasonInvalidCredentials, http.StatusTooManyRequests)
+			logAuthFailure(ctx, logging.ReasonRateLimited, http.StatusTooManyRequests)
 			return api.Login429JSONResponse{TooManyRequestsJSONResponse: api.TooManyRequestsJSONResponse{
 				Body:    newError(api.ErrorErrorCodeRateLimited, "Too many attempts. Try again in a moment."),
 				Headers: api.TooManyRequestsResponseHeaders{RetryAfter: &secs},
 			}}, nil
 		}
 	}
+	fail := func() {
+		if s.lim != nil {
+			s.lim.lockout.Fail(key, s.now())
+		}
+	}
 	u, err := store.FindUserByUsername(ctx, s.admin.DB, username)
 	switch {
 	case errors.Is(err, store.ErrNoUser):
 		s.hasher.DummyVerify(password)
+		fail()
 		logAuthFailure(ctx, logging.ReasonInvalidCredentials, http.StatusUnauthorized)
 		return api.Login401JSONResponse(invalidCredentials()), nil
 	case err != nil:
 		return nil, err
 	}
 	if !s.hasher.Verify(password, u.PasswordHash) {
+		fail()
 		logAuthFailure(ctx, logging.ReasonInvalidCredentials, http.StatusUnauthorized, "user_id", u.ID)
 		return api.Login401JSONResponse(invalidCredentials()), nil
+	}
+	if s.lim != nil {
+		s.lim.lockout.Reset(key)
 	}
 	res, err := s.loginResult(ctx, u)
 	if err != nil {

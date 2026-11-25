@@ -11,6 +11,7 @@ import (
 	"github.com/liljimmyk99/penny-pincher/backend/internal/api"
 	"github.com/liljimmyk99/penny-pincher/backend/internal/auth"
 	"github.com/liljimmyk99/penny-pincher/backend/internal/clientip"
+	"github.com/liljimmyk99/penny-pincher/backend/internal/logging"
 	"github.com/liljimmyk99/penny-pincher/backend/internal/ratelimit"
 )
 
@@ -39,6 +40,10 @@ type Limits struct {
 	// Login applies per username (lowercased, known or not) to POST
 	// /v1/auth/login, on top of PerIP. A zero Burst uses DefaultLimits.Login.
 	Login ratelimit.Rule
+	// Lockout locks a username (known or not) after Threshold failed sign-ins
+	// in a row, until Duration passes; a success resets the count. A zero
+	// Threshold uses DefaultLimits.Lockout.
+	Lockout ratelimit.LockoutRule
 }
 
 // DefaultLimits leave room for a page that fires a dozen queries at once.
@@ -47,12 +52,14 @@ var DefaultLimits = Limits{
 	PerUser:   ratelimit.Rule{Rate: 10, Burst: 60},
 	Expensive: ratelimit.Rule{Rate: 1.0 / 10, Burst: 5},
 	Login:     ratelimit.Rule{Rate: 1.0 / 12, Burst: 8},
+	Lockout:   ratelimit.LockoutRule{Threshold: 10, Duration: 15 * time.Minute},
 }
 
 const limiterIdle = 10 * time.Minute
 
 type limiters struct {
 	ip, user, expensive, login *ratelimit.Limiter
+	lockout                    *ratelimit.Lockout
 	now                        func() time.Time
 }
 
@@ -64,7 +71,12 @@ func newLimiters(l *Limits, now func() time.Time) *limiters {
 	if loginRule.Burst == 0 {
 		loginRule = DefaultLimits.Login
 	}
+	lockRule := l.Lockout
+	if lockRule.Threshold == 0 {
+		lockRule = DefaultLimits.Lockout
+	}
 	return &limiters{
+		lockout:   ratelimit.NewLockout(lockRule),
 		login:     ratelimit.New(loginRule, limiterIdle),
 		ip:        ratelimit.New(l.PerIP, limiterIdle),
 		user:      ratelimit.New(l.PerUser, limiterIdle),
@@ -111,7 +123,7 @@ func (l *limiters) edge(next http.Handler) http.Handler {
 			return
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, limit)
-		if l != nil && !l.allow(w, l.ip, clientip.From(r)) {
+		if l != nil && !l.allow(w, r, l.ip, clientip.From(r)) {
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -125,10 +137,10 @@ func (l *limiters) perUser(next http.Handler) http.Handler {
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if id, ok := auth.FromContext(r.Context()); ok {
-			if !l.allow(w, l.user, id.ID) {
+			if !l.allow(w, r, l.user, id.ID) {
 				return
 			}
-			if expensiveRoute(r) && !l.allow(w, l.expensive, id.ID) {
+			if expensiveRoute(r) && !l.allow(w, r, l.expensive, id.ID) {
 				return
 			}
 		}
@@ -137,13 +149,17 @@ func (l *limiters) perUser(next http.Handler) http.Handler {
 }
 
 // allow takes a token or answers 429 with Retry-After in whole seconds.
-func (l *limiters) allow(w http.ResponseWriter, lim *ratelimit.Limiter, key string) bool {
+func (l *limiters) allow(w http.ResponseWriter, r *http.Request, lim *ratelimit.Limiter, key string) bool {
 	ok, wait := lim.Allow(key, l.now())
 	if ok {
 		return true
 	}
 	secs := max(1, int(math.Ceil(wait.Seconds())))
 	w.Header().Set("Retry-After", strconv.Itoa(secs))
+	if r.Method == http.MethodPost && r.URL.Path == "/v1/auth/login" {
+		// Only sign-in attempts are logged; other 429s would be noise.
+		auth.LogFailure(r, logging.ReasonRateLimited, http.StatusTooManyRequests)
+	}
 	writeError(w, http.StatusTooManyRequests, api.ErrorErrorCodeRateLimited, "Too many requests. Try again in a moment.")
 	return false
 }

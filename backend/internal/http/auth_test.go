@@ -246,3 +246,79 @@ func TestNoSecretsInResponsesOrLogs(t *testing.T) {
 		t.Error("the stored hash leaked")
 	}
 }
+
+func bigLimits() Limits {
+	big := ratelimit.Rule{Rate: 1000, Burst: 1000}
+	return Limits{PerIP: big, PerUser: big, Expensive: big, Login: big,
+		Lockout: ratelimit.LockoutRule{Threshold: 3, Duration: 15 * time.Minute}}
+}
+
+func TestLoginLockoutAfterRepeatedFailures(t *testing.T) {
+	a, clock := newLimitedAPI(t, bigLimits())
+	for range 3 {
+		wantError(t, a.call("POST", "/v1/auth/login", "", loginBody("member", "wrong")), 401, api.ErrorErrorCodeInvalidCredentials)
+	}
+	// Locked: even the right password is refused, and an unknown name behaves the same.
+	rec := a.call("POST", "/v1/auth/login", "", loginBody("Member", testPassword))
+	wantError(t, rec, 429, api.ErrorErrorCodeRateLimited)
+	if rec.Header().Get("Retry-After") != "900" {
+		t.Errorf("Retry-After = %q", rec.Header().Get("Retry-After"))
+	}
+	for range 3 {
+		a.call("POST", "/v1/auth/login", "", loginBody("nobody", "wrong"))
+	}
+	unknown := a.call("POST", "/v1/auth/login", "", loginBody("nobody", "wrong"))
+	wantError(t, unknown, 429, api.ErrorErrorCodeRateLimited)
+	if unknown.Body.String() != rec.Body.String() || unknown.Header().Get("Retry-After") != rec.Header().Get("Retry-After") {
+		t.Fatalf("locked known and unknown users differ:\n%s\n%s", rec.Body, unknown.Body)
+	}
+	clock.Add(15 * time.Minute)
+	if rec := a.call("POST", "/v1/auth/login", "", loginBody("member", testPassword)); rec.Code != 200 {
+		t.Fatalf("after the lock-out = %d", rec.Code)
+	}
+}
+
+func TestLoginSuccessResetsFailureCount(t *testing.T) {
+	a, _ := newLimitedAPI(t, bigLimits())
+	for range 2 {
+		a.call("POST", "/v1/auth/login", "", loginBody("member", "wrong"))
+	}
+	if rec := a.call("POST", "/v1/auth/login", "", loginBody("member", testPassword)); rec.Code != 200 {
+		t.Fatalf("login = %d", rec.Code)
+	}
+	for range 2 {
+		wantError(t, a.call("POST", "/v1/auth/login", "", loginBody("member", "wrong")), 401, api.ErrorErrorCodeInvalidCredentials)
+	}
+}
+
+func TestLoginIsLimitedPerIP(t *testing.T) {
+	l := bigLimits()
+	l.PerIP = ratelimit.Rule{Rate: 0.001, Burst: 2}
+	a, _ := newLimitedAPI(t, l)
+	for range 2 {
+		a.send("POST", "/v1/auth/login", "", "203.0.113.9", strings.NewReader(loginBody("a", "b")), 0)
+	}
+	wantRateLimited(t, a.send("POST", "/v1/auth/login", "", "203.0.113.9", strings.NewReader(loginBody("c", "d")), 0), "1000")
+}
+
+func TestLoginFailureLogsLeakNothing(t *testing.T) {
+	logs := captureLogs(t)
+	a, _ := newLimitedAPI(t, bigLimits())
+	a.call("POST", "/v1/auth/login", "", loginBody("secretname", "hunter2hunter2"))
+	a.call("POST", "/v1/auth/login", "", loginBody("member", "hunter2hunter2"))
+	for range 3 {
+		a.call("POST", "/v1/auth/login", "", loginBody("member", "hunter2hunter2"))
+	}
+	got := events(t, logs, "auth_failure")
+	if len(got) < 5 {
+		t.Fatalf("got %d auth_failure events", len(got))
+	}
+	if reasons := logs.String(); !strings.Contains(reasons, `"reason":"rate_limited"`) {
+		t.Errorf("no rate_limited event:\n%s", reasons)
+	}
+	for _, s := range []string{"secretname", "hunter2hunter2"} {
+		if strings.Contains(logs.String(), s) {
+			t.Errorf("log leaks %q", s)
+		}
+	}
+}

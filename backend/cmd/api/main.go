@@ -149,6 +149,9 @@ func limits(cfg config.Config) *apihttp.Limits {
 	if cfg.RateLimitPerUser.Rate > 0 {
 		l.PerUser = cfg.RateLimitPerUser
 	}
+	if cfg.RateLimitLogin.Rate > 0 {
+		l.Login = cfg.RateLimitLogin
+	}
 	return &l
 }
 
