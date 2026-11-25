@@ -251,18 +251,6 @@ input:where(:not([data-slot])) {
   color: var(--color-saving-text);
 }
 
-.tooltip {
-  max-width: 260px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: var(--color-sidebar);
-  color: var(--color-on-sidebar);
-  font-size: 13px;
-  line-height: 1.4;
-  box-shadow: var(--shadow-menu);
-  z-index: 60;
-}
-
 /* Modal dialogs (Radix Dialog / AlertDialog). */
 .dialog-backdrop {
   position: fixed;

@@ -44,15 +44,3 @@
   gap: var(--space-2);
 }
 
-.import-banner__line {
-  height: 4px;
-  border-radius: var(--radius-pill);
-  background: var(--color-info-border);
-  overflow: hidden;
-}
-
-.import-banner__fill {
-  height: 100%;
-  background: var(--color-primary);
-  transition: width 0.3s;
-}

@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { Progress } from "@/components/ui/progress";
 import { IMPORT_PATH } from "../navigation";
 import { useImportBanner } from "./useImportBanner";
 import "./ImportBanner.css";
@@ -35,16 +36,12 @@ export function ImportBanner() {
             View progress
           </Link>
         </div>
-        <div
-          className="import-banner__line"
-          role="progressbar"
+        <Progress
+          className="h-1 bg-info-alert-border"
           aria-label="Import progress"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={percent}
-        >
-          <div className="import-banner__fill" style={{ width: `${percent}%` }} />
-        </div>
+          value={percent}
+          getValueLabel={(value) => (p ? `${value}%, ${p.rows_done.toLocaleString()} of ${entries(p.rows_total)}` : `${value}%`)}
+        />
       </section>
     );
   }

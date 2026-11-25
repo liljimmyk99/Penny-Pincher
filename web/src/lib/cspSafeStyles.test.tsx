@@ -5,7 +5,22 @@
  */
 import { act, render, screen } from "@testing-library/react";
 import { Command } from "cmdk";
-import { AlertDialog, Checkbox, Dialog, DropdownMenu, Label, Popover, ScrollArea, Select, Separator, Tooltip } from "radix-ui";
+import {
+  AlertDialog,
+  Checkbox,
+  Dialog,
+  DropdownMenu,
+  Label,
+  Popover,
+  Progress,
+  ScrollArea,
+  Select,
+  Separator,
+  Tabs,
+  Toggle,
+  ToggleGroup,
+  Tooltip,
+} from "radix-ui";
 import type { ReactElement } from "react";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
 
@@ -170,6 +185,30 @@ const overlays: [string, () => ReactElement, string][] = [
         <Label.Root htmlFor="confirm">Confirmed</Label.Root>
         <Separator.Root />
       </form>
+    ),
+    "",
+  ],
+  [
+    // New Radix primitives (#170); Progress moves its fill with React's style prop.
+    "Tabs, Toggle, ToggleGroup and Progress",
+    () => (
+      <>
+        <Tabs.Root defaultValue="custom">
+          <Tabs.List aria-label="Trend views">
+            <Tabs.Trigger value="custom">Custom trends</Tabs.Trigger>
+            <Tabs.Trigger value="category">By category</Tabs.Trigger>
+          </Tabs.List>
+          <Tabs.Content value="custom">Chart</Tabs.Content>
+        </Tabs.Root>
+        <Toggle.Root aria-label="Food">Food</Toggle.Root>
+        <ToggleGroup.Root type="single" defaultValue="bars" aria-label="Chart">
+          <ToggleGroup.Item value="bars">Bars</ToggleGroup.Item>
+          <ToggleGroup.Item value="donut">Donut</ToggleGroup.Item>
+        </ToggleGroup.Root>
+        <Progress.Root value={40} aria-label="Import progress">
+          <Progress.Indicator style={{ transform: "translateX(-60%)" }} />
+        </Progress.Root>
+      </>
     ),
     "",
   ],
