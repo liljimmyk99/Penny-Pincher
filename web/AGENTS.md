@@ -41,7 +41,8 @@ Read the root `AGENTS.md` first. This file adds rules specific to the React web 
 - **Content-Security-Policy** (set by the proxy in `deploy/Caddyfile`; `docs/security.md`): no inline `<script>`, no inline `<style>` elements, no `eval`.
   - Code that must run before first paint goes in a file in `public/` (as `theme-init.js` does).
   - Style with CSS files or React's `style` prop, which the CSP allows.
-  - A dependency that injects `<style>` elements needs a stand-in like `src/lib/cspStyleSingleton.ts`, or its own CSS file imported instead. The shadcn dependencies (Sonner, cmdk, Radix) are reviewed in #168.
+  - A dependency that injects `<style>` elements has its CSS adopted as a constructed stylesheet instead: an alias to a stand-in (`src/lib/cspStyleSingleton.ts` for Radix's scroll lock) or a rewrite in `plugins/cspSafeStyles.ts` to `src/lib/cspAdoptedStyles.ts` (Sonner, Radix Select and ScrollArea). The audit of the shadcn dependencies is in `docs/security.md` (#168). A new dependency, or a new Radix primitive, gets a case in `src/lib/cspSafeStyles.test.tsx`.
+  - Never set a `style` attribute with `setAttribute` or HTML markup; the CSP blocks it.
   - Loading anything from a new origin (scripts, fonts, frames, API calls) means updating the policy in the same change.
 
 ## Design reference
