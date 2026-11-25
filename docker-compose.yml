@@ -33,7 +33,6 @@ services:
     pids_limit: 256
     volumes:
       - api-data:/data # SQLite file lives here (DB_PATH=/data/spend.db)
-      - ./secrets/firebase-sa.json:/run/secrets/firebase-sa.json:ro
     # Memory-only /tmp: backups write a plaintext VACUUM INTO copy here before
     # encrypting it, and it must never touch disk (docs/encryption.md).
     tmpfs:
@@ -41,8 +40,6 @@ services:
     environment:
       PORT: "8080"
       DB_PATH: ${DB_PATH:-/data/spend.db}
-      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:?set FIREBASE_PROJECT_ID in .env}
-      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-sa.json
       # Encrypted off-server backups (docs/backups.md). Unset = disabled.
       BACKUP_AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:-}
       BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
@@ -88,8 +85,6 @@ services:
     image: caddy:2.11@sha256:9c1b76fb701c1f77383d3124d9f626e38bcf83bc1255ed47475d4f2420701d03
     environment:
       DOMAIN: localhost
-      # The Content-Security-Policy allows the Firebase auth domain's iframe.
-      FIREBASE_AUTH_DOMAIN: ${FIREBASE_AUTH_DOMAIN:-${FIREBASE_PROJECT_ID}.firebaseapp.com}
     ports:
       - "8080:80"
       - "8443:443"
@@ -117,13 +112,13 @@ services:
     environment:
       DOMAIN: ${DOMAIN:-}
       ACME_EMAIL: ${ACME_EMAIL:-}
-      FIREBASE_AUTH_DOMAIN: ${FIREBASE_AUTH_DOMAIN:-${FIREBASE_PROJECT_ID}.firebaseapp.com}
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data # keeps certificates across restarts
+      - ${TLS_DIR:-./deploy/no-certs}:/certs:ro # tailnet certificate files, if any (docs/tailscale.md)
     depends_on:
       api:
         condition: service_healthy

@@ -20,7 +20,7 @@
 }
 
 # localhost gets a certificate from Caddy's internal CA automatically;
-# a real domain gets one from Let's Encrypt.
+# a real domain gets one from Let's Encrypt; a tailnet name uses `tailscale cert`.
 {$DOMAIN} {
 	# HSTS: once a browser has seen this, it refuses plain HTTP to the host for
 	# a year, so a first visit can't be downgraded. Not sent for localhost (dev
@@ -46,31 +46,37 @@
 	@hsts not host localhost
 	header @hsts Strict-Transport-Security "max-age=31536000"
 
+	# Certificate. By default Caddy's automatic HTTPS is in charge: its internal
+	# CA for localhost, Let's Encrypt for a public DOMAIN. On a tailnet-only host
+	# (no open port 80, so no public challenge) the folder mounted at /certs holds
+	# the files `tailscale cert` wrote plus a tls.caddy that names them
+	# (docs/tailscale.md). An empty folder matches nothing and is ignored.
+	import /certs/*.caddy
+
+	# Who is the client: the API reads the rightmost X-Forwarded-For entry, which
+	# Caddy sets (reverse_proxy below). It trusts nothing else, and ignores any
+	# Tailscale-User-* header: the app login identifies people, never the tailnet.
 	# Browser security headers on every response (docs/security.md). Deferred,
 	# so they are applied as the response is written, after the upstreams' own
 	# headers. Server and Via (which name Caddy) are removed.
 	#
 	# Content-Security-Policy, one directive per concern:
-	#   script-src   our bundle and theme-init.js; apis.google.com is the loader
-	#                the Firebase Auth popup uses (no inline script, no eval)
-	#   connect-src  the API (same origin) and Firebase Auth's token endpoints
-	#   frame-src    the Firebase auth domain's hidden iframe for the popup
+	#   script-src   our bundle and theme-init.js only (no inline script, no eval)
+	#   connect-src  the API, which is the same origin
 	#   style-src    our CSS and the Google Fonts stylesheet; font-src its files
 	#   frame-ancestors 'none'  no other site may frame the app (clickjacking)
-	# FIREBASE_AUTH_DOMAIN is <project>.firebaseapp.com unless .env overrides it.
-	# FIREBASE_AUTH_EMULATOR_URL is set by the e2e stack only (e2e/compose.yml)
-	# and is empty everywhere else.
+	# Nothing calls Google, Firebase or any other identity provider.
 	header {
 		defer
-		Content-Security-Policy "default-src 'self'; script-src 'self' https://apis.google.com; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com {$FIREBASE_AUTH_EMULATOR_URL}; frame-src https://{$FIREBASE_AUTH_DOMAIN} {$FIREBASE_AUTH_EMULATOR_URL}; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; connect-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 		# frame-ancestors for browsers that predate it.
 		X-Frame-Options "DENY"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
-		# Isolates the window from cross-origin openers, but keeps the opener
-		# link to popups we open, which the Google sign-in popup needs.
-		Cross-Origin-Opener-Policy "same-origin-allow-popups"
+		# Isolates the window from cross-origin openers. There are no sign-in
+		# popups any more, so nothing needs the opener link.
+		Cross-Origin-Opener-Policy "same-origin"
 		-Server
 		-Via
 	}
