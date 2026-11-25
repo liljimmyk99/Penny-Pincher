@@ -16,6 +16,33 @@
 @import "tailwindcss/utilities.css" layer(utilities);
 @import "tw-animate-css";
 
+/*
+ * Until preflight is added (#180), a small reset for the shadcn/ui controls only
+ * (#169), so they don't show the browser's own button and field chrome. It is in
+ * the base layer, so every utility on the component still wins, and it matches
+ * nothing the old styles use.
+ */
+@layer base {
+  :where(
+      [data-slot="button"],
+      [data-slot="input"],
+      [data-slot="textarea"],
+      [data-slot="select-trigger"],
+      [data-slot="checkbox"]
+    ) {
+    margin: 0;
+    border: 0 solid;
+    background-color: transparent;
+    font: inherit;
+    color: inherit;
+    appearance: none;
+  }
+
+  :where([data-slot="input"], [data-slot="textarea"])::placeholder {
+    opacity: 1;
+  }
+}
+
 /* dark: utilities follow the `dark` class on <html> (src/theme), not the OS setting. */
 @custom-variant dark (&:where(.dark, .dark *));
 

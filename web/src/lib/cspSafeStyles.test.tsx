@@ -5,7 +5,7 @@
  */
 import { act, render, screen } from "@testing-library/react";
 import { Command } from "cmdk";
-import { AlertDialog, Dialog, DropdownMenu, Popover, ScrollArea, Select, Tooltip } from "radix-ui";
+import { AlertDialog, Checkbox, Dialog, DropdownMenu, Label, Popover, ScrollArea, Select, Separator, Tooltip } from "radix-ui";
 import type { ReactElement } from "react";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
 
@@ -158,6 +158,20 @@ const overlays: [string, () => ReactElement, string][] = [
       </Command.Dialog>
     ),
     "overflow: hidden",
+  ],
+  [
+    // Not an overlay, but a new Radix primitive (#169): its hidden form input is styled with React's style prop.
+    "Checkbox, Label and Separator in a form",
+    () => (
+      <form>
+        <Checkbox.Root id="confirm" name="confirm" defaultChecked>
+          <Checkbox.Indicator />
+        </Checkbox.Root>
+        <Label.Root htmlFor="confirm">Confirmed</Label.Root>
+        <Separator.Root />
+      </form>
+    ),
+    "",
   ],
   [
     "Tooltip",
