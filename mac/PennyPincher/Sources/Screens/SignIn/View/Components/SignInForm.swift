@@ -1,13 +1,11 @@
 import SwiftUI
 
-/// Google, or email and password.
+/// Username and password.
 struct SignInForm: View {
     @Bindable var viewModel: SignInViewModel
     var focus: FocusState<SignInField?>.Binding
-    let onGoogle: () -> Void
-    let onEmailSubmit: () -> Void
+    let onUsernameSubmit: () -> Void
     let onSignIn: () -> Void
-    let onForgotPassword: () -> Void
 
     var body: some View {
         SignInHeading(title: "signIn.title", detail: "signIn.detail")
@@ -19,17 +17,11 @@ struct SignInForm: View {
             ErrorBanner(message: message)
         }
 
-        if viewModel.supportsGoogle {
-            GoogleSignInButton(title: viewModel.googleButtonTitle, action: onGoogle)
-            EmailDivider()
-        }
-
         VStack(alignment: .leading, spacing: 10) {
-            EmailField(email: $viewModel.email, invalid: viewModel.isEmailInvalid, focus: focus, onSubmit: onEmailSubmit)
-            PasswordField(password: $viewModel.password, invalid: viewModel.isPasswordInvalid, focus: focus, onSubmit: onSignIn)
-            Button("signIn.forgot", action: onForgotPassword)
-                .buttonStyle(.link)
-                .font(.callout)
+            UsernameField(username: $viewModel.username, focus: focus, onSubmit: onUsernameSubmit)
+            PasswordField(title: "signIn.password", password: $viewModel.password,
+                          invalid: viewModel.isPasswordInvalid, contentType: .password,
+                          focus: focus, field: SignInField.password, onSubmit: onSignIn)
         }
 
         ActionButton(
@@ -39,8 +31,9 @@ struct SignInForm: View {
             action: onSignIn
         )
 
-        Text("signIn.newHere")
+        Text("signIn.askAdmin")
             .font(.callout)
             .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }

@@ -50,9 +50,14 @@ struct APIError: Error, Equatable, Sendable {
     }
 
     /// The API refused this session, so the app signs out and says why:
-    /// `unauthenticated` (still 401 after a token refresh), `session_expired`
-    /// (the sign-in is over 30 days old) or `not_allowlisted` (403).
+    /// `unauthenticated` (token unknown or revoked) or `session_expired`
+    /// (the sign-in is over 30 days old).
     var isSessionError: Bool {
-        code == "unauthenticated" || code == "session_expired" || code == "not_allowlisted"
+        code == "unauthenticated" || code == "session_expired"
+    }
+
+    /// An admin set or reset the password: the app shows Change password.
+    var isPasswordChangeRequired: Bool {
+        code == "password_change_required"
     }
 }

@@ -10,6 +10,7 @@ final class RootViewModel {
     /// One sign-in form per signed-out stretch, so typing survives re-renders
     /// and a later sign-out starts with a clean form.
     @ObservationIgnored private var signIn: SignInViewModel?
+    @ObservationIgnored private var changePassword: ChangePasswordViewModel?
 
     init(setup: AppSetup, appearance: AppearanceService) {
         self.setup = setup
@@ -23,10 +24,12 @@ final class RootViewModel {
         case .ready(let session, let main):
             if case .signedOut = session.phase { return .signedOut(signInViewModel(session)) }
             signIn = nil
+            if case .passwordChangeRequired = session.phase { return .changePassword(changePasswordViewModel(session)) }
+            changePassword = nil
             switch session.phase {
-            case .restoring, .signedOut: return .restoring
+            case .restoring, .signedOut, .passwordChangeRequired: return .restoring
             case .loadingAccount: return .loadingAccount
-            case .accountUnavailable(_, let message): return .accountUnavailable(message)
+            case .accountUnavailable(let message): return .accountUnavailable(message)
             case .signedIn: return .signedIn(main)
             }
         }
@@ -45,11 +48,6 @@ final class RootViewModel {
         session?.signOut()
     }
 
-    /// A URL opened the app (the Google sign-in redirect).
-    func open(_ url: URL) {
-        session?.handle(url: url)
-    }
-
     private var session: SessionService? {
         if case .ready(let session, _) = setup { session } else { nil }
     }
@@ -58,6 +56,13 @@ final class RootViewModel {
         if let signIn { return signIn }
         let created = SignInViewModel(session: session)
         signIn = created
+        return created
+    }
+
+    private func changePasswordViewModel(_ session: SessionService) -> ChangePasswordViewModel {
+        if let changePassword { return changePassword }
+        let created = ChangePasswordViewModel(session: session, mode: .forced)
+        changePassword = created
         return created
     }
 }

@@ -13,7 +13,7 @@ struct RootViewModelTests {
 
     init() {
         session = SessionService(auth: auth, api: api)
-        session.start()
+        auth.hasStoredSession = true
         main = MainViewModel(session: session, api: FakeLedgerAPI(), adminURL: URL(string: "https://spend.example.test/admin")!,
                              defaults: makeTestDefaults(), openURL: { _ in })
         root = RootViewModel(setup: .ready(session: session, main: main),
@@ -32,7 +32,7 @@ struct RootViewModelTests {
     func phases() async throws {
         guard case .restoring = root.content else { throw Unexpected(root.content) }
 
-        auth.emit(.test)
+        session.start()
         guard case .loadingAccount = root.content else { throw Unexpected(root.content) }
 
         await settle()
@@ -40,28 +40,42 @@ struct RootViewModelTests {
         #expect(shown === main)
     }
 
+    @Test("Shows Change password when an admin set the password")
+    func changePassword() async throws {
+        var account = Account.member
+        account.mustChangePassword = true
+        api.result = .success(account)
+        session.start()
+        await settle()
+        guard case .changePassword(let first) = root.content, case .changePassword(let again) = root.content else {
+            throw Unexpected(root.content)
+        }
+        #expect(first === again)
+        #expect(first.mode == .forced)
+    }
+
     @Test("Keeps one sign-in form while signed out; a later sign-out starts fresh")
     func oneSignInForm() async throws {
-        auth.emit(nil)
+        auth.hasStoredSession = false
+        session.start()
         guard case .signedOut(let first) = root.content, case .signedOut(let again) = root.content else {
             throw Unexpected(root.content)
         }
         #expect(first === again)
 
-        first.email = "typed@example.test"
-        auth.emit(.test)
-        await settle()
+        first.username = "typed"
+        try await session.signIn(username: "typed", password: "test-password")
         _ = root.content
         root.signOut()
         guard case .signedOut(let next) = root.content else { throw Unexpected(root.content) }
         #expect(next !== first)
-        #expect(next.email.isEmpty)
+        #expect(next.username.isEmpty)
     }
 
     @Test("Retries when the server was unreachable")
     func retry() async throws {
         api.result = .failure(.network())
-        auth.emit(.test)
+        session.start()
         await settle()
         guard case .accountUnavailable(let message) = root.content else { throw Unexpected(root.content) }
         #expect(message == "Can't reach the server. Check your connection and try again.")

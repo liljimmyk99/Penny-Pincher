@@ -15,6 +15,8 @@ struct RootView: View {
                 ProgressStatusView(message: "root.loadingAccount")
             case .signedOut(let signIn):
                 SignInView(viewModel: signIn)
+            case .changePassword(let changePassword):
+                ChangePasswordView(viewModel: changePassword)
             case .accountUnavailable(let message):
                 AccountUnavailableView(message: message, onSignOut: signOut, onRetry: retry)
             case .signedIn(let main):
@@ -23,6 +25,5 @@ struct RootView: View {
         }
         .frame(minWidth: 720, minHeight: 480)
         .onAppear(perform: appeared)
-        .onOpenURL(perform: open)
     }
 }

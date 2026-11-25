@@ -24,13 +24,7 @@ struct APIClient: AccountAPI {
 
     func me() async throws(APIError) -> Account {
         try await perform {
-            let me = try await client.getMe().ok.body.json
-            return Account(
-                id: me.id,
-                email: me.email,
-                displayName: me.displayName,
-                role: me.role == .admin ? .admin : .member
-            )
+            Account(try await client.getMe().ok.body.json)
         }
     }
 
@@ -39,6 +33,10 @@ struct APIClient: AccountAPI {
     /// error; anything else (an undocumented success, a body that doesn't
     /// decode) is an unexpected response.
     func perform<T>(_ call: () async throws -> T) async throws(APIError) -> T {
+        try await Self.perform(call)
+    }
+
+    static func perform<T>(_ call: () async throws -> T) async throws(APIError) -> T {
         do {
             return try await call()
         } catch let error as ClientError {

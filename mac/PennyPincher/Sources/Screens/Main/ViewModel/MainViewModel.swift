@@ -21,6 +21,11 @@ final class MainViewModel {
     let adminURL: URL
     let exporter: ExportViewModel
     var showsExport = false
+    private(set) var passwordChanger: ChangePasswordViewModel?
+    var showsChangePassword: Bool {
+        get { passwordChanger != nil }
+        set { if !newValue { passwordChanger = nil } }
+    }
     let sidebarItems = SidebarItem.allCases
 
     var selection: SidebarItem? {
@@ -125,7 +130,7 @@ final class MainViewModel {
     }
 
     var signedInText: String? {
-        account?.email.map { String(localized: "account.signedIn \($0)") }
+        account.map { String(localized: "account.signedIn \($0.username)") }
     }
 
     var accountAccessibilityLabel: String {
@@ -178,6 +183,12 @@ final class MainViewModel {
     func openAdminDashboard() {
         guard isAdmin else { return }
         openURL(adminURL)
+    }
+
+    func openChangePassword() {
+        passwordChanger = ChangePasswordViewModel(session: session, mode: .sheet) { [weak self] in
+            self?.passwordChanger = nil
+        }
     }
 
     func signOut() {

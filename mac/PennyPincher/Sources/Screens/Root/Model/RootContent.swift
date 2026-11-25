@@ -5,6 +5,7 @@ enum RootContent {
     case restoring
     case loadingAccount
     case signedOut(SignInViewModel)
+    case changePassword(ChangePasswordViewModel)
     case accountUnavailable(String)
     case signedIn(MainViewModel)
 }

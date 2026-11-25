@@ -10,7 +10,7 @@ struct APIClientLedgerTests {
         let transport = ScriptedTransport(replies)
         let tokens = TokenLog()
         let client = APIClient(serverURL: URL(string: "https://spend.example.test")!,
-                               token: { tokens.token(forceRefresh: $0) }, onSessionError: { _ in },
+                               token: { tokens.token() }, onSessionError: { _ in },
                                transport: transport)
         return (client, transport)
     }
@@ -89,7 +89,7 @@ struct APIClientLedgerTests {
     @Test("Sends only the changed fields in a patch")
     func patch() async throws {
         let transport = BodyRecordingTransport(json: Self.expenseJSON("e1", cents: 1))
-        let client = APIClient(serverURL: URL(string: "https://spend.example.test")!, token: { _ in "t" },
+        let client = APIClient(serverURL: URL(string: "https://spend.example.test")!, token: { "t" },
                                onSessionError: { _ in }, transport: transport)
         _ = try await client.updateExpense(id: "e1", ExpenseChanges(note: ""))
         let body = try #require(transport.body)

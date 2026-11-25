@@ -1,13 +1,13 @@
 import Foundation
 
-/// Records which tokens were asked for.
+/// Counts token reads and hands out a fixed token.
 final class TokenLog: @unchecked Sendable {
     private let lock = NSLock()
-    private var _refreshes: [Bool] = []
-    var refreshes: [Bool] { lock.withLock { _refreshes } }
+    private var _count = 0
+    var count: Int { lock.withLock { _count } }
 
-    func token(forceRefresh: Bool) -> String {
-        lock.withLock { _refreshes.append(forceRefresh) }
-        return forceRefresh ? "fresh-token" : "cached-token"
+    func token() -> String {
+        lock.withLock { _count += 1 }
+        return "test-token"
     }
 }

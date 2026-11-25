@@ -2,12 +2,13 @@ import SwiftUI
 
 /// The signed-in person in the sidebar footer, and their menu: Settings,
 /// Import transactions, Export data, Admin dashboard (admins only, opens the
-/// web app) and Sign out.
+/// web app), Change password and Sign out.
 struct AccountMenu: View {
     let viewModel: MainViewModel
     let onImport: () -> Void
     let onExport: () -> Void
     let onAdminDashboard: () -> Void
+    let onChangePassword: () -> Void
     let onSignOut: () -> Void
 
     var body: some View {
@@ -26,6 +27,7 @@ struct AccountMenu: View {
                 Button("account.admin", systemImage: "shield", action: onAdminDashboard)
             }
             Divider()
+            Button("account.changePassword", systemImage: "key", action: onChangePassword)
             Button("account.signOut", systemImage: "rectangle.portrait.and.arrow.right", action: onSignOut)
         } label: {
             AccountMenuLabel(name: viewModel.accountName, initial: viewModel.accountInitial, role: viewModel.roleTitle)

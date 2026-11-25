@@ -10,11 +10,10 @@ Read the root `AGENTS.md` first. This file adds rules specific to the native mac
   - `Services/API/APIClient.swift` wraps the generated `Client` with `AuthMiddleware` (bearer token from the session, no refresh and no retry, session errors; a `403 password_change_required` moves the session to the change-password state) and `ErrorMiddleware` (every 4xx/5xx becomes an `APIError` with the server's `code`, `message` and `details`), and maps responses to app types in `Models/`. View models depend on the `CategoriesAPI`, `EntriesAPI`, `TemplatesAPI`, `SummariesAPI` and `TrendsAPI` protocols (`LedgerAPI` is all of them), never on generated types.
 - Auth is the app's own username and password sign-in (root `AGENTS.md` §10, #182), behind `AuthService`. There is no third-party auth SDK. `Services/Auth/APIAuthService.swift` calls the generated client's `auth/login`, `auth/logout` and `auth/password`, and `Services/Auth/SessionTokenStore.swift` is the only file that reads or writes the session token (the Keychain).
   - `SessionService` mirrors the web session: restoring, signed out (with an "expired" notice), loading the account from `/v1/me`, **password change required**, signed in.
-  - *(Until the implementation lands, `FirebaseAuthService` and the Firebase and `GoogleSignIn` packages remain in the code.)*
 - **Minimum macOS 26** (deployment target `26.0`; root `AGENTS.md` §10). Use current SwiftUI, Swift Charts and Observation APIs directly. Add an `#available` check only for an API newer than macOS 26.
 - **Project: Tuist.** `Project.swift` in this folder defines the app and test targets, packages, build settings, Info.plist keys and entitlements. Run `tuist generate` to create the Xcode project; the generated `.xcodeproj`/`.xcworkspace` are gitignored. The Tuist version is pinned in `.mise.toml` (`mise install`).
   - Packages use Xcode's own package integration (`packages:` in `Project.swift`). Tuist keeps the resolved versions in `.package.resolved`, which is committed.
-- **Config:** `Config/App.xcconfig` (committed defaults) includes the gitignored `Config/Local.xcconfig`, which holds the server address and your `DEVELOPMENT_TEAM`. Copy `Config/Local.example.xcconfig` to start. The values reach the app through Info.plist keys, and `Models/AppConfig.swift` checks them at launch: the server must be `https` (plain `http` only for `localhost`; a tailnet name such as `*.ts.net` is `https`). A bad config shows a setup screen. The Firebase, Google and emulator values are removed with #182.
+- **Config:** `Config/App.xcconfig` (committed defaults) includes the gitignored `Config/Local.xcconfig`, which holds the server address and your `DEVELOPMENT_TEAM`. Copy `Config/Local.example.xcconfig` to start. The values reach the app through Info.plist keys, and `Models/AppConfig.swift` checks them at launch: the server must be `https` (plain `http` only for `localhost`; a tailnet name such as `*.ts.net` is `https`). A bad config shows a setup screen.
 
 ## Rules
 
@@ -163,7 +162,7 @@ tuist generate                        # creates and opens PennyPincher.xcworkspa
   ```
 
   The committed default for `PP_SERVER_URL` is already `http://localhost:8080`; then sign in as that user. To check as another user, add a second one and sign out and in.
-- `SignInIntegrationTests` signs in for real against that setup. Its suite is disabled unless `TEST_RUNNER_PP_SERVER_URL`, `TEST_RUNNER_PP_TEST_USERNAME` and `TEST_RUNNER_PP_TEST_PASSWORD` are set on the `xcodebuild test` command. *(Today's equivalent, `EmulatorSignInTests`, is replaced with #182.)*
+- `SignInIntegrationTests` signs in for real against that setup. Its suite is disabled unless `TEST_RUNNER_PP_SERVER_URL`, `TEST_RUNNER_PP_TEST_USERNAME` and `TEST_RUNNER_PP_TEST_PASSWORD` are set on the `xcodebuild test` command.
 
 ## Quality
 

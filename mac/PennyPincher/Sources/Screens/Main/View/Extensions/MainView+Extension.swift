@@ -19,6 +19,10 @@ extension MainView {
         viewModel.openAdminDashboard()
     }
 
+    func openChangePassword() {
+        viewModel.openChangePassword()
+    }
+
     func signOut() {
         viewModel.signOut()
     }

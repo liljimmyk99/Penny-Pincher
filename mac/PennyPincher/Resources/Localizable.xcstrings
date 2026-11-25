@@ -581,102 +581,13 @@
         }
       }
     },
-    "auth.error.accountExists": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This email signs in with a password. Use email and password instead."
-          }
-        }
-      }
-    },
-    "auth.error.googleUnavailable": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Google sign-in isn't set up for this app yet. Use email and password instead."
-          }
-        }
-      }
-    },
     "auth.error.invalidCredentials": {
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "That email and password don't match. Check them and try again, or reset your password."
-          }
-        }
-      }
-    },
-    "auth.error.invalidEmail": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Enter a valid email address."
-          }
-        }
-      }
-    },
-    "auth.error.network": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Can't reach the sign-in service. Check your connection and try again."
-          }
-        }
-      }
-    },
-    "auth.error.noAccess": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This account isn't set up for Penny Pincher. Ask an admin to add you."
-          }
-        }
-      }
-    },
-    "auth.error.providerDisabled": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "That sign-in method isn't turned on. Ask an admin for help."
-          }
-        }
-      }
-    },
-    "auth.error.tooManyRequests": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Too many attempts. Wait a few minutes and try again, or reset your password."
-          }
-        }
-      }
-    },
-    "auth.error.unknown": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sign-in failed. Please try again."
-          }
-        }
-      }
-    },
-    "auth.error.userDisabled": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This account has been disabled. Ask an admin for help."
+            "value": "Wrong username or password. Check both and try again."
           }
         }
       }
@@ -1161,32 +1072,12 @@
         }
       }
     },
-    "config.problem.emulatorNeedsDemoProject": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "FIREBASE_AUTH_EMULATOR_HOST is set, but FIREBASE_PROJECT_ID does not start with \"demo-\". The emulator is for local testing only."
-          }
-        }
-      }
-    },
     "config.problem.insecureServerURL %@": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "PP_SERVER_URL (%@) must use https. Plain http is allowed only for localhost."
-          }
-        }
-      }
-    },
-    "config.problem.invalidEmulatorHost %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "FIREBASE_AUTH_EMULATOR_HOST (%@) must be host:port."
           }
         }
       }
@@ -1941,102 +1832,24 @@
         }
       }
     },
-    "signIn.back": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Back"
-          }
-        }
-      }
-    },
-    "signIn.backToSignIn": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Back to sign in"
-          }
-        }
-      }
-    },
     "signIn.detail": {
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Welcome back. Sign in to pick up where you left off."
-          }
-        }
-      }
-    },
-    "signIn.email": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Email"
-          }
-        }
-      }
-    },
-    "signIn.email.placeholder": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "you@example.com"
+            "value": "Sign in with your username and password."
           }
         }
       }
     },
     "signIn.footer": {
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sign-in secured by Firebase Authentication"
-          }
-        }
-      }
-    },
-    "signIn.forgot": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Forgot password?"
-          }
-        }
-      }
-    },
-    "signIn.google": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Continue with Google"
-          }
-        }
-      }
-    },
-    "signIn.google.opening": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Opening Google…"
-          }
-        }
-      }
-    },
-    "signIn.newHere": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New here? Accounts are created by an admin."
+            "value": "Your data stays on your own server"
           }
         }
       }
@@ -2051,122 +1864,12 @@
         }
       }
     },
-    "signIn.notice.noAccess %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No access. %@ isn't set up for Penny Pincher. Ask an admin to add you, or sign in with a different account."
-          }
-        }
-      }
-    },
-    "signIn.notice.thisAccount": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This account"
-          }
-        }
-      }
-    },
-    "signIn.orEmail": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "or sign in with email"
-          }
-        }
-      }
-    },
     "signIn.password": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Password"
-          }
-        }
-      }
-    },
-    "signIn.password.placeholder": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Password"
-          }
-        }
-      }
-    },
-    "signIn.reset.detail": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Enter your account email and we'll send you a link to choose a new password."
-          }
-        }
-      }
-    },
-    "signIn.reset.submit": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Send reset link"
-          }
-        }
-      }
-    },
-    "signIn.reset.submit.busy": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sending…"
-          }
-        }
-      }
-    },
-    "signIn.reset.title": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reset your password"
-          }
-        }
-      }
-    },
-    "signIn.sent.detail": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Didn't get it? Check spam, or try again in a minute."
-          }
-        }
-      }
-    },
-    "signIn.sent.message": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "**Check your email.** If an account exists for that address, a reset link is on its way. It expires in 1 hour."
-          }
-        }
-      }
-    },
-    "signIn.sent.title": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reset link sent"
           }
         }
       }
@@ -5527,6 +5230,266 @@
           "stringUnit": {
             "state": "translated",
             "value": "Year"
+          }
+        }
+      }
+    },
+    "account.changePassword": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change password…"
+          }
+        }
+      }
+    },
+    "auth.error.passwordChangeRequired": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You need to choose a new password before you can continue."
+          }
+        }
+      }
+    },
+    "auth.error.rateLimited": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Too many attempts. Try again in a minute."
+          }
+        }
+      }
+    },
+    "auth.error.sessionExpired": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your session has expired. Please sign in again."
+          }
+        }
+      }
+    },
+    "auth.error.weakPassword": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That password is too weak. Use at least 12 characters."
+          }
+        }
+      }
+    },
+    "changePassword.current": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current password"
+          }
+        }
+      }
+    },
+    "changePassword.detail": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a new password for your account."
+          }
+        }
+      }
+    },
+    "changePassword.error.current": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That isn’t your current password."
+          }
+        }
+      }
+    },
+    "changePassword.forced.detail": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An admin set your password. Choose your own to continue."
+          }
+        }
+      }
+    },
+    "changePassword.forced.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a new password"
+          }
+        }
+      }
+    },
+    "changePassword.new": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New password"
+          }
+        }
+      }
+    },
+    "changePassword.note": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changing your password signs you out on your other devices."
+          }
+        }
+      }
+    },
+    "changePassword.repeat": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repeat new password"
+          }
+        }
+      }
+    },
+    "changePassword.rule.different": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Different from the current password"
+          }
+        }
+      }
+    },
+    "changePassword.rule.length": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "At least 12 characters"
+          }
+        }
+      }
+    },
+    "changePassword.rule.match": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Both new passwords match"
+          }
+        }
+      }
+    },
+    "changePassword.rule.met": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        }
+      }
+    },
+    "changePassword.rule.unmet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not yet"
+          }
+        }
+      }
+    },
+    "changePassword.submit": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change password"
+          }
+        }
+      }
+    },
+    "changePassword.submit.busy": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saving…"
+          }
+        }
+      }
+    },
+    "changePassword.temporary": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Temporary password"
+          }
+        }
+      }
+    },
+    "changePassword.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change password"
+          }
+        }
+      }
+    },
+    "password.hide": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide"
+          }
+        }
+      }
+    },
+    "password.show": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show"
+          }
+        }
+      }
+    },
+    "signIn.askAdmin": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An admin creates accounts and resets forgotten passwords. Ask them if you can’t sign in."
+          }
+        }
+      }
+    },
+    "signIn.username": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Username"
           }
         }
       }

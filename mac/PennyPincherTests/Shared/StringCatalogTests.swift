@@ -25,8 +25,6 @@ struct StringCatalogTests {
     @Test("Formats fill in their arguments")
     func formats() {
         #expect(String(localized: "account.accessibility \("Sam") \("Admin")") == "Account: Sam, Admin")
-        #expect(String(localized: "signIn.notice.noAccess \("sam@example.test")")
-            == "No access. sam@example.test isn't set up for Penny Pincher. Ask an admin to add you, or sign in with a different account.")
     }
 
     @Test("The app name is localized in InfoPlist.xcstrings")

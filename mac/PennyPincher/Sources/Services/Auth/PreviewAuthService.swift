@@ -5,59 +5,29 @@ import Foundation
 /// Signs in instantly, or fails with `failure`.
 @MainActor
 final class PreviewAuthService: AuthService {
-    /// What Firebase reports when the preview starts.
-    enum Start {
-        /// Never reports, so the window stays on "Restoring your session…".
-        case restoring
-        case signedOut
-        case signedIn
-    }
+    let hasStoredSession: Bool
+    private let account: Account
+    private let failure: APIError?
 
-    private let start: Start
-    private let user: AuthUser
-    private let failure: AuthError?
-    private var onChange: (@MainActor (AuthUser?) -> Void)?
-    let supportsGoogle: Bool
-
-    init(start: Start, user: AuthUser, supportsGoogle: Bool = true, failure: AuthError? = nil) {
-        self.start = start
-        self.user = user
-        self.supportsGoogle = supportsGoogle
+    init(hasStoredSession: Bool, account: Account, failure: APIError? = nil) {
+        self.hasStoredSession = hasStoredSession
+        self.account = account
         self.failure = failure
     }
 
-    func observeUser(_ onChange: @escaping @MainActor (AuthUser?) -> Void) {
-        self.onChange = onChange
-        switch start {
-        case .restoring: break
-        case .signedOut: onChange(nil)
-        case .signedIn: onChange(user)
-        }
-    }
-
-    func signInWithGoogle() async throws(AuthError) {
-        try signIn()
-    }
-
-    func signInWithEmail(_ email: String, password: String) async throws(AuthError) {
-        try signIn()
-    }
-
-    func sendPasswordReset(email: String) async throws(AuthError) {
+    func signIn(username: String, password: String) async throws(APIError) -> Account {
         if let failure { throw failure }
+        return account
     }
 
-    func signOut() {
-        onChange?(nil)
-    }
-
-    func idToken(forceRefresh: Bool) async throws -> String? { "preview-token" }
-
-    func handle(url: URL) -> Bool { false }
-
-    private func signIn() throws(AuthError) {
+    func changePassword(current: String, new: String) async throws(APIError) -> Account {
         if let failure { throw failure }
-        onChange?(user)
+        var changed = account
+        changed.mustChangePassword = false
+        return changed
     }
+
+    func signOut() async {}
+    func clearToken() {}
 }
 #endif

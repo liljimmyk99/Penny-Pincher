@@ -21,23 +21,24 @@ final class AppContainer {
         if case .ready(_, let main) = setup { main } else { nil }
     }
 
-    /// Unit tests run inside the app: they must not start Firebase.
+    /// Unit tests run inside the app: they must not touch the Keychain.
     nonisolated static var isRunningTests: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
-    /// The real app: Firebase sign-in and the API at the configured server.
+    /// The real app: username and password sign-in and the API at the configured server.
     static func live(info: [String: Any] = Bundle.main.infoDictionary ?? [:]) -> AppContainer {
         let appearance = AppearanceService()
         switch AppConfig.load(from: info) {
         case .failure(let problem):
             return AppContainer(setup: .misconfigured(problem), appearance: appearance)
         case .success(let config):
-            let auth = FirebaseAuthService(config: config.firebase)
+            let store = SessionTokenStore()
+            let auth = APIAuthService(serverURL: config.serverURL, store: store)
             let relay = SessionErrorRelay()
             let api = APIClient(
                 serverURL: config.serverURL,
-                token: { forceRefresh in try await auth.idToken(forceRefresh: forceRefresh) },
+                token: { store.token },
                 onSessionError: { error in relay.send(error) }
             )
             let session = SessionService(auth: auth, api: api)
@@ -45,7 +46,7 @@ final class AppContainer {
             session.start()
             let events = ImportEventStream(
                 serverURL: config.serverURL,
-                token: { forceRefresh in try await auth.idToken(forceRefresh: forceRefresh) },
+                token: { store.token },
                 onSessionError: { error in relay.send(error) }
             )
             let main = MainViewModel(session: session, api: api, adminURL: config.adminURL,

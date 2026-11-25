@@ -14,6 +14,7 @@ struct MainView: View {
                         onImport: importTransactions,
                         onExport: openExport,
                         onAdminDashboard: openAdminDashboard,
+                        onChangePassword: openChangePassword,
                         onSignOut: signOut
                     )
                     .padding(10)
@@ -30,6 +31,11 @@ struct MainView: View {
         }
         .sheet(isPresented: $viewModel.showsExport) {
             ExportSheet(viewModel: viewModel.exporter, onExport: export, onCancel: closeExport)
+        }
+        .sheet(isPresented: $viewModel.showsChangePassword) {
+            if let changer = viewModel.passwordChanger {
+                ChangePasswordView(viewModel: changer)
+            }
         }
     }
 }
