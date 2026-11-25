@@ -2,7 +2,7 @@
 
 Policy: AGENTS.md §4 (tenancy), §8 (non-functional requirements) and §10 (decisions). This page lists the security measures in the project, what is still planned, and the risks we accept. Encryption is covered in more depth in `docs/encryption.md`, and backups in `docs/backups.md`.
 
-Last audit: 2026-11-06, a code and configuration review against a widely used list of 100 common web vulnerabilities (scorecard below). It is not a penetration test. The scorecard is updated as M6 issues close (so far: #105, #106, #107, #108, #109, #110). Server and Firebase console settings live outside the repo, so they are checked through the runbooks and checklists, not the code.
+Last audit: 2026-11-06, a code and configuration review against a widely used list of 100 common web vulnerabilities (scorecard below). It is not a penetration test. The scorecard is updated as M6 issues close (so far: #105, #106, #107, #108, #109, #110). Server settings live outside the repo, so they are checked through the runbooks below, not the code. Sign-in moved from Firebase to the app's own username and password in M10 (#182); the rows below describe the new model.
 
 Remaining work is tracked in the **M6 · Cyber Security** milestone, which must be done before the first deployment (#42).
 
@@ -34,8 +34,9 @@ The design doesn't try to protect a running, unlocked server from someone who al
 | Routes not built yet return `501`, but only after authentication, so unfinished routes are never open. | `backend/internal/http/server.go` |
 | `BACKUP_S3_INSECURE=1` and other test-only relaxations need `APP_TEST_MODE=1`, which only the e2e stack sets. | `backend/internal/config/config.go` |
 | **Mac app tokens (#44, #191):** the session token is stored only by `SessionTokenStore`, in the data-protection Keychain under the app's own keychain access group (which is why the app is signed with a development team). Nothing else stores, caches or logs a token, and passwords are never kept after the call returns. There is no refresh and no retry: a `401 unauthenticated` or `session_expired` signs the app out and forgets the token, and a `403 password_change_required` shows Change password. | `mac/PennyPincher/Sources/Services/Auth/SessionTokenStore.swift`, `mac/PennyPincher/Sources/Services/API/AuthMiddleware.swift` |
+| **Web app tokens (#189):** the session token is kept in `localStorage`, read and written only by `web/src/auth/api.ts`, and removed on sign-out and on any `401 unauthenticated` or `session_expired`. Passwords are never stored. A script running in the page could read the token, so the strict Content-Security-Policy (below) and React's escaping are what protect it; the token still expires 30 days after sign-in and dies with a password change or reset. | `web/src/auth/api.ts`, `web/src/auth/session.ts` |
 | **No CSRF exposure:** auth is a bearer header, not a cookie, so another site can't make the browser send authenticated requests. No CORS headers are sent, so other origins can't read API responses. | — |
-| **No account enumeration in the UI:** a wrong email and a wrong password show the same message, and "Forgot password" never reveals whether an account exists. | `web/src/auth/errors.ts`, `web/src/auth/firebase.ts`, `mac/PennyPincher/Sources/Services/Auth/` |
+| **No account enumeration in the UI:** a wrong username and a wrong password show the same message (from the API's single `invalid_credentials`). There is no sign-up or "Forgot password" flow that could reveal whether an account exists; the sign-in screen says to ask an admin for a reset. | `web/src/auth/SignInScreen.tsx`, `mac/PennyPincher/Sources/Services/Auth/APIAuthService.swift` |
 
 ### Tenancy (one user can't reach another's data)
 
@@ -55,7 +56,7 @@ The design doesn't try to protect a running, unlocked server from someone who al
 | Server-side limits: names ≤ 100 characters, notes ≤ 500, trend text bounded, batches ≤ 200 items, pages ≤ 1000 rows. Pagination cursors are decoded and validated. | `backend/internal/store`, `backend/internal/http/expenses.go` |
 | Money is integer cents everywhere. Derived values (refund type, tax rate) are computed, never accepted from clients. | AGENTS.md §5 |
 | **No code-execution paths:** the backend doesn't use `os/exec`, server-side templates, XML, `gob` or redirects. JSON is decoded into typed structs only. The server never fetches a URL that came from a user (no SSRF). | `backend/` |
-| **XSS:** React escapes all output, and there is no `dangerouslySetInnerHTML`, `eval` or `postMessage`. `localStorage` holds only UI preferences (theme, sidebar, welcome dismissed), never financial data or tokens. The Content-Security-Policy (below) is a second layer if an escaping bug ever lands. | `web/src/` |
+| **XSS:** React escapes all output, and there is no `dangerouslySetInnerHTML`, `eval` or `postMessage`. `localStorage` holds UI preferences (theme, sidebar, welcome dismissed) and the session token (above), never financial data. The Content-Security-Policy (below) is a second layer if an escaping bug ever lands. | `web/src/` |
 
 ### Transport and data at rest
 
@@ -66,7 +67,7 @@ See `docs/encryption.md` for details and the server runbook.
 | HTTPS only through Caddy with automatic certificates. HTTP redirects to HTTPS. HSTS for one year (not for `localhost`). | `deploy/Caddyfile` |
 | `api` and `web` ports are only `expose`d on Docker's internal network. Only the proxy publishes 80/443. | `docker-compose.yml` |
 | Every outbound connection uses TLS (the backup bucket). Plain HTTP to the bucket is refused unless `APP_TEST_MODE=1`. | `backend/internal/config/config.go` |
-| **Mac app (#44):** the server address must be `https`; plain `http` is accepted only for `localhost` and loopback addresses, for development. App Transport Security enforces HTTPS too, with one exception, `NSAllowsLocalNetworking`, which allows plain HTTP only to local names (a dev API or the auth emulator). The app is sandboxed (outgoing network and files the user picks only) with the hardened runtime. | `mac/PennyPincher/Sources/Models/AppConfig.swift`, `mac/Project.swift`, `mac/PennyPincher/PennyPincher.entitlements` |
+| **Mac app (#44):** the server address must be `https`; plain `http` is accepted only for `localhost` and loopback addresses, for development. App Transport Security enforces HTTPS too, with one exception, `NSAllowsLocalNetworking`, which allows plain HTTP only to local names (a dev API on `localhost`). The app is sandboxed (outgoing network and files the user picks only) with the hardened runtime. | `mac/PennyPincher/Sources/Models/AppConfig.swift`, `mac/Project.swift`, `mac/PennyPincher/PennyPincher.entitlements` |
 | The database, Docker's data, `.env` and `secrets/` live on a LUKS2 volume that is unlocked by hand after each reboot. | `docs/encryption.md` |
 | Backups are `VACUUM INTO` copies in a memory-only `tmpfs`, encrypted with `age` to a public key before upload. The server can't decrypt its own backups, and admins can download only the encrypted file. | `backend/internal/backup`, `docs/backups.md` |
 
@@ -106,7 +107,7 @@ The public proxy adds these to every response, from the web app and the API alik
 |---|---|
 | **Dependabot** opens weekly update PRs (Mondays) for Go modules, npm packages (`web`, `e2e`), Dockerfile base images, the Caddy image in both compose files, and GitHub Actions. Minor and patch updates are grouped into one PR per ecosystem; majors come one at a time. | `.github/dependabot.yml` |
 | **`govulncheck`** fails CI when backend code reaches a known Go vulnerability. Vulnerable modules our code never calls are reported but don't fail the build. | `.github/workflows/ci.yml` (`security` job) |
-| **`npm audit --omit=dev --audit-level=high`** fails CI on high or critical advisories in the web app's runtime dependencies. Dev tools never ship, so they don't count. `@grpc/grpc-js` (pulled in by Firebase's Firestore, which we don't use) is overridden to a patched version. | `.github/workflows/ci.yml`, `web/package.json` |
+| **`npm audit --omit=dev --audit-level=high`** fails CI on high or critical advisories in the web app's runtime dependencies. Dev tools never ship, so they don't count. | `.github/workflows/ci.yml`, `web/package.json` |
 | **Trivy** scans the built `backend` and `web` images (OS packages and the Go binaries inside) and fails on HIGH or CRITICAL findings that have a fix. Accepted findings live in `.trivyignore.yaml`, each scoped to one binary and with an expiry date, so CI fails again if the fix hasn't landed by then. | `.github/workflows/ci.yml`, `.trivyignore.yaml` |
 | **No floating image tags:** every image is pinned by digest. Caddy (`caddy:2.11`, `caddy:2.11-alpine`), Node (`node:26.12-alpine`) and Go (`golang:1.27-alpine`) keep their minor-version tag next to the digest, so a rebuilt tag can't change what is pulled; the distroless runtime image is pinned by digest too. Dependabot proposes each bump, tag and digest together, so a deploy only gets an image CI has tested. The third-party Trivy action is pinned by commit SHA. | `docker-compose.yml`, `e2e/compose.yml`, `*/Dockerfile`, `.github/workflows/ci.yml` |
 | **Secret scanning with push protection** is on for the repository (GitHub settings, not in the repo). A push containing a recognised secret is blocked, and any secret already committed raises an alert. | GitHub → Settings → Code security |
@@ -122,7 +123,7 @@ The public proxy adds these to every response, from the web app and the API alik
 
 | Measure | Where |
 |---|---|
-| Secrets live in `.env` and `secrets/`, both git-ignored. The Firebase web API key is public by design and grants no data access on its own. The Mac app's server and signing values live in the git-ignored `mac/Config/Local.xcconfig`. | `.gitignore`, `.env.example`, `mac/Config/Local.example.xcconfig` |
+| Secrets live in `.env` and `secrets/`, both git-ignored. No identity-provider key or service account is needed any more (#182). The Mac app's server and signing values live in the git-ignored `mac/Config/Local.xcconfig`. | `.gitignore`, `.env.example`, `mac/Config/Local.example.xcconfig` |
 | Logs are JSON through a **redacting handler** that blanks any attribute whose key looks like money, a merchant, a note, a token or a secret. Handlers log only error *types*, never error text. It is also slog's default logger, so nothing in the API logs around it. | `backend/internal/logging`, `backend/cmd/api/main.go` |
 | **Security events (#110):** every refused request logs one `"event":"auth_failure"` line with a `reason` (`missing_token`, `invalid_token`, `session_expired`, `admin_required`, `invalid_credentials`, `password_change_required`), the status, client IP, method and path (never the query string or the token), and the local `user_id` once it is known (never the submitted username or password, and never for a token that failed lookup). Starting and downloading a backup, adding a user and resetting a password each log one `"event":"admin_action"` line with the `action`, the admin's `user_id` and the `backup_id`. Tests check that no token, query string, amount, merchant or note reaches these lines. | `backend/internal/auth/middleware.go`, `backend/internal/http/admin.go` |
 | **Proxy access logs (#110):** Caddy writes one JSON line per request to stdout with the query string cut from the URI (the trends `?text=` filter matches note text), and the `Authorization`, `Cookie`, `Referer` (the full previous URL on same-origin requests) and `Set-Cookie` headers removed. | `deploy/Caddyfile` |
@@ -145,7 +146,7 @@ The public proxy adds these to every response, from the web app and the API alik
 
 ## Planned: M6 · Cyber Security
 
-Every M6 issue is done in the code. Before the first deployment (#42), complete the [Firebase and Google Cloud console checklist](#firebase-and-google-cloud-console-checklist) and set up [alerting](#alerting) on the server. When a later issue closes a scorecard item, update its row below.
+Every M6 issue is done in the code. Before the first deployment (#42), set up [alerting](#alerting) on the server. When a later issue closes a scorecard item, update its row below.
 
 **Excel import (M8)** brings file uploads into scope. `.xlsx` files are zipped XML, so the library chosen in #93 must cap the unzipped size and the XML size (for example excelize's `UnzipSizeLimit` and `UnzipXMLSizeLimit`), on top of the 10 MB / 50,000-row limits in AGENTS.md §10. This covers audit items 39 and 65.
 
@@ -160,12 +161,12 @@ Use this when an account is compromised, a device is lost, or someone should no 
    docker compose exec api /api user revoke --username <username>
    ```
    Signing in again still works.
-2. **Compromised password:** set a new one, which also signs them out everywhere (the password is read from standard input, never from a flag):
+2. **Compromised password:** set a new one, which also signs them out everywhere (it prompts for the password without echo; it is never taken from a flag):
    ```bash
-   docker compose exec -T api /api user set-password --username <username> --must-change
+   docker compose exec api /api user set-password --username <username> --must-change
    ```
    Or use **Reset password** in the admin panel's Users tab.
-3. Existing accounts migrated from Firebase were given the placeholder username `user-<id>` and no usable password. Nobody can sign in as them until you run `set-password` for each one (the first admin included).
+3. Accounts that existed before the move from Firebase have the placeholder username `user-<id>` and no usable password until `set-password` is run for them; see [Moving from Firebase to passwords](#moving-from-firebase-to-passwords-one-time).
 4. Check afterwards that the account is being refused:
    ```bash
    docker compose logs --since 1h api | grep '"event":"auth_failure"'
@@ -184,18 +185,37 @@ Chosen in #110: two checks, both of which notify the admin without any new servi
 
 To read the events by hand: `docker compose logs --since 24h api | grep '"event"'`.
 
-### Firebase and Google Cloud console checklist
+### Moving from Firebase to passwords (one time)
 
-These settings live in the consoles, not the repo. Check each one before the first deployment (#42) and again after any change to the Firebase project, and record the date here.
+For a server that ran a release from before #182, when users signed in with Firebase. Migration `0003` keeps every user and all their data, but gives each user the username `user-<id>` (ids start at 1, so the owner is usually `user-1`) and a password that never matches. Nobody can sign in until step 4. Usernames can't be changed in v1, so the placeholder stays. On the server in `/srv/pp/app`:
 
-| Setting | Where | Should be | Checked |
-|---|---|---|---|
-| Email enumeration protection | Firebase console → Authentication → Settings → User actions | On | not yet |
-| User sign-up | Firebase console → Authentication → Settings → User actions → "Enable create (sign-up)" | Off; accounts are made only by an admin | not yet |
-| Authorized domains | Firebase console → Authentication → Settings → Authorized domains | Only the production domain, the project's own `<project>.firebaseapp.com` (used by the sign-in popup), and `localhost` only if this project is also used for development | not yet |
-| Web API key restrictions | Google Cloud console → APIs & Services → Credentials → the "Browser key" | Application restriction: HTTP referrers, `https://<domain>/*` (and the `firebaseapp.com` domain above). API restriction: Identity Toolkit API and Token Service API only | not yet |
-| Password policy (#108) | Firebase console → Authentication → Settings → Password policy | Minimum length 12, **enforced** (not just notify) | not yet |
-| Service account role | Google Cloud console → IAM & Admin → IAM | The key in `secrets/firebase-sa.json` belongs to a service account with only **Firebase Authentication Admin** (`roles/firebaseauth.admin`), not the default `firebase-adminsdk` account, which has broad access to every Firebase product. The API needs it: it reads accounts for the revocation check (#108) and `api user revoke` signs users out. Delete any other keys on that account | not yet |
+1. **Back up first**, and keep the file until the new release is verified. Rollback needs it, because `0003` rebuilds the `users` table and the old release can't read the new one:
+   ```bash
+   docker compose exec api /api backup now
+   ```
+   Then download that snapshot from the bucket (`manual/` prefix) to your own machine.
+2. **Deploy:**
+   ```bash
+   git pull && docker compose up -d --build --wait
+   ```
+   Migrations run on start, before the API listens; if one fails the API stops, so `--wait` reports it. `.env` no longer needs any `FIREBASE_*` value, and the API ignores them if present.
+3. **Set a password for each existing user** (it prompts twice, without echo; at least 12 characters):
+   ```bash
+   docker compose exec api /api user set-password --username user-1 --must-change
+   ```
+   For another user, change the id. A user who doesn't exist answers `no user named "user-…"`.
+4. **Sign in** on the web as `user-1` with that password. `--must-change` sends you to the Change password screen first: choose your own. Then sign in on the Mac app. For anyone else, pass the username and password on to them; they choose their own at first sign-in.
+5. **Clean up:** remove `secrets/firebase-sa.json` and any `FIREBASE_*` lines from `.env`.
+
+**Rolling back** (only before anyone has made changes worth keeping, since they would be lost):
+
+1. `docker compose down`, then `git checkout <previous release>`.
+2. Restore the snapshot from step 1 over `spend.db` with the API stopped ([docs/backups.md](backups.md), "Replacing production").
+3. Put `secrets/firebase-sa.json` and the `FIREBASE_*` values back, and `docker compose up -d --build --wait`.
+
+### Retiring Firebase
+
+Once the new release is verified (everyone has signed in with a password, on web and Mac), Firebase has no part in the app. Delete the Firebase project in the Firebase console (or at least its Authentication users), delete the service account and every key on it in the Google Cloud console (IAM & Admin → Service accounts), and delete `secrets/firebase-sa.json` from the server and from wherever else you kept a copy. Keep them until then, because the rollback above needs them.
 
 ## Server hardening (one-time setup)
 
@@ -260,7 +280,7 @@ sudo ufw enable
 COMMIT
 ```
 
-Then `sudo ufw reload`. Traffic between containers and the containers' own outbound connections (Firebase, the backup bucket) don't come in on `eth0` as new connections, so they are untouched. This relies on Docker's default iptables firewall backend; don't switch Docker to its nftables backend without redoing this step. Docker networks here are IPv4-only, so no IPv6 rule is needed; `ufw` already applies its defaults to IPv6.
+Then `sudo ufw reload`. Traffic between containers and the containers' own outbound connections (the backup bucket, Tailscale) don't come in on `eth0` as new connections, so they are untouched. This relies on Docker's default iptables firewall backend; don't switch Docker to its nftables backend without redoing this step. Docker networks here are IPv4-only, so no IPv6 rule is needed; `ufw` already applies its defaults to IPv6.
 
 If the provider has its own cloud firewall, mirror the same rule there (22, 80, 443 in; everything else dropped) as a second layer.
 
@@ -315,7 +335,7 @@ Run these after setup and after any server change, and record the date in #42.
 
 ## Accepted risks
 
-- **No in-app MFA in v1 (item 21).** A reused or phished password still gives access to that user's data. The 12-character password policy and Google sign-in with 2-Step Verification reduce the risk; in-app TOTP is v2 (AGENTS.md §10).
+- **No in-app MFA in v1 (item 21).** A reused or phished password still gives access to that user's data. The 12-character minimum, argon2id hashing, login rate limits and lock-out, and the server being reachable only over Tailscale reduce the risk; in-app TOTP is v2 (AGENTS.md §10).
 
 - **DDoS (item 61).** One server with no CDN. A large network flood will take the app down. At this scale that is acceptable, and the data stays safe.
 - **`/healthz` is public** and shows the version and uptime, because the admin status and container health checks read it (AGENTS.md §6.12). It shows no data.
@@ -349,10 +369,10 @@ Run these after setup and after any server change, and record the date in #42.
 | 15 | Brute force | ✅ | Per-IP and per-username login limits, plus per-IP API limits (#106, #185) |
 | 16 | Session hijacking | ✅ | HTTPS/HSTS and CSP, revocation at once, 30-day sessions, only token hashes stored (#185) |
 | 17 | Password cracking | ✅ | argon2id with per-password salt (#185) |
-| 18 | Weak password storage | ✅ | No passwords stored by the app |
-| 19 | Insecure authentication | ✅ | Token on every request + allowlist |
+| 18 | Weak password storage | ✅ | argon2id hashes only, never returned or logged (#185) |
+| 19 | Insecure authentication | ✅ | Session token checked on every request; accounts only created by an admin (#185) |
 | 20 | Cookie theft | ✅ | No auth cookies |
-| 21 | Credential reuse | ⚠️ | 12-character password policy (#108); MFA is v2, an accepted risk |
+| 21 | Credential reuse | ⚠️ | 12-character minimum enforced by the API (#185); MFA is v2, an accepted risk |
 | **Sensitive data exposure** ||||
 | 22 | Inadequate encryption | ✅ | TLS, LUKS, `age` |
 | 23 | IDOR | ✅ | `user_id` scoping + composite FKs + tests |
@@ -413,7 +433,7 @@ Run these after setup and after any server change, and record the date in #42.
 | 69 | File inclusion | ✅ | Migrations embedded; static root only |
 | 70 | Security header bypass | ✅ | Set by the proxy after the upstreams, on every response (#105) |
 | 71 | Clickjacking (repeat) | ✅ | See 59 |
-| 72 | Inadequate session timeout | ✅ | 30 days from sign-in, enforced by the API (#108); idle sign-out is v2 |
+| 72 | Inadequate session timeout | ✅ | 30 days from sign-in, enforced by the API (#108, #185); idle sign-out is v2 |
 | 73 | Insufficient logging and monitoring | ✅ | Auth-failure and admin-action logs, access logs, rotation, uptime and hourly alerts (#110) |
 | 74 | Business logic | ✅ | Triggers + transactions + tests |
 | 75 | API abuse | ✅ | Allowlist plus per-user rate limits (#106) |
@@ -425,7 +445,7 @@ Run these after setup and after any server change, and record the date in #42.
 | **IoT and Web of Things** ||||
 | 80–84 | IoT device management, weak IoT auth, IoT device bugs, smart-home access, IoT data privacy | — | |
 | **Authentication bypass** ||||
-| 85 | Insecure "remember me" | ✅ | Sessions end 30 days after sign-in and can be revoked (#108) |
+| 85 | Insecure "remember me" | ✅ | Sessions end 30 days after sign-in and are revoked at once on sign-out or a password change (#185) |
 | 86 | CAPTCHA bypass | — | No public sign-up |
 | **SSRF** ||||
 | 87 | Blind SSRF | ✅ | |

@@ -223,7 +223,7 @@ Rules:
   - **Types: `openapi-typescript`**, generated from `api/openapi.yaml` into `web/src/api/schema.gen.ts` (committed; `npm run gen:api`, and `npm run check:api` fails if it is out of date). **Client: `openapi-fetch`** (tiny, typed by those generated paths).
   - **Server state: TanStack Query**, in memory only (nothing persisted). Queries and mutations use `networkMode: "always"` so offline requests fail visibly instead of pausing.
 
-- **Web auth: Firebase JS SDK** (decided 2026-11-05) *Superseded by username and password sign-in (#182); the code stays until the implementation lands.*
+- **Web auth: Firebase JS SDK** (decided 2026-11-05) *Superseded by username and password sign-in (#182); the Firebase code was removed in #189.*
   - The `firebase` package (modular v13), used only through `web/src/auth/firebase.ts`. Session persistence is Firebase's default (IndexedDB); it holds auth tokens only, no financial data.
   - Google sign-in uses a popup with the account chooser. The web config (API key, project id) is public and passed to the web build as `FIREBASE_WEB_API_KEY` / `FIREBASE_PROJECT_ID` in `.env`.
 
@@ -261,7 +261,7 @@ Rules:
   - **At rest: a LUKS2 volume on the Linux server**, holding Docker's `data-root` (so the `api-data` volume, container layers, logs and Caddy's TLS keys) and the app checkout with `.env` and `secrets/`. It is **unlocked by hand over SSH after each reboot** (an unlock script); it is not in `fstab`/`crypttab`, and Docker stays disabled at boot so nothing starts before it is unlocked. The app is down after a reboot until then; automatic reboots after updates are off. Swap is off or encrypted.
   - **Rejected:** SQLCipher (needs CGO, which reverses the `modernc.org/sqlite` decision, and its key would sit in `.env` on the same server); provider-managed volume encryption alone (the provider holds the key); encrypting columns in the app (breaks the SQL aggregations).
   - **Backup temp files:** the API's `/tmp` is a `tmpfs`, so the plaintext `VACUUM INTO` copy lives only in memory before `age` encrypts it.
-  - **In transit:** Caddy terminates TLS and sends `Strict-Transport-Security: max-age=31536000` (not for `localhost`, and without `includeSubDomains`). Caddy talks to `api` and `web` over plain HTTP on Docker's internal network; their ports are never published. The API refuses `BACKUP_S3_INSECURE=1` unless the project is a `demo-` one, the same rule as the auth emulator.
+  - **In transit:** Caddy terminates TLS and sends `Strict-Transport-Security: max-age=31536000` (not for `localhost`, and without `includeSubDomains`). Caddy talks to `api` and `web` over plain HTTP on Docker's internal network; their ports are never published. The API refuses `BACKUP_S3_INSECURE=1` unless `APP_TEST_MODE=1`, which only the e2e stack sets.
   - **Limits:** this protects data on a powered-off server or a detached disk or snapshot. It does not protect a running server from someone with root, or a VPS from its provider reading memory.
 
 - **Request limits and rate limiting** (decided 2026-11-07, #106; details in `docs/security.md`)
