@@ -1,11 +1,20 @@
-import * as Dialog from "@radix-ui/react-dialog";
 import { useId, useState, type FormEvent } from "react";
 import { errorMessage, useEntryMutations, useExpensesBetween, type Schemas } from "../../api";
-import { AlertIcon, CloseIcon, SearchIcon } from "../../components/icons";
+import { AlertIcon, SearchIcon } from "../../components/icons";
 import { addDays, formatShortDate, monthName, monthOf } from "../../lib/dates";
 import { formatCents } from "../../lib/money";
 import { suggestOriginal } from "./refunds";
 import { matchesSearch } from "./totals";
+import { Button } from "../../components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
 
 /** How far back the dialog looks for the original purchase. */
 export const LINK_WINDOW_DAYS = 90;
@@ -37,7 +46,8 @@ export function LinkRefundDialog({ refund, categoryName, onClose, onLinked }: Pr
   const suggested = suggestOriginal(refund, all);
   const selected = chosen ?? suggested?.id ?? null;
   const matching = all.filter((c) => matchesSearch(c, query));
-  const ordered = suggested && matching.includes(suggested) ? [suggested, ...matching.filter((c) => c !== suggested)] : matching;
+  const ordered =
+    suggested && matching.includes(suggested) ? [suggested, ...matching.filter((c) => c !== suggested)] : matching;
   const shown = ordered.slice(0, SHOWN);
 
   async function submit(e: FormEvent) {
@@ -121,57 +131,51 @@ export function LinkRefundDialog({ refund, categoryName, onClose, onLinked }: Pr
     );
 
   return (
-    <Dialog.Root open onOpenChange={(next) => !next && !pending && onClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="dialog-backdrop" />
-        <Dialog.Content className="dialog link-dialog" aria-modal="true">
-          <div className="link-dialog__head">
-            <div className="dialog__text">
-              <Dialog.Title className="dialog__title">Link refund to an expense</Dialog.Title>
-              <Dialog.Description className="dialog__body">{describe}</Dialog.Description>
-            </div>
-            <Dialog.Close className="icon-btn" aria-label="Close" disabled={pending}>
-              <CloseIcon />
-            </Dialog.Close>
-          </div>
-          <form className="link-dialog__form" noValidate onSubmit={(e) => void submit(e)}>
-            <label className="tx-search link-dialog__search">
-              <SearchIcon />
-              <span className="visually-hidden">Search expenses</span>
-              <input
-                type="search"
-                placeholder={`Search expenses from the last ${LINK_WINDOW_DAYS} days`}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </label>
-            {list}
-            {ordered.length > SHOWN && (
-              <p className="link-dialog__status">
-                Showing {SHOWN} of {ordered.length}. Search to narrow the list.
-              </p>
-            )}
-            <p className="link-dialog__note">
-              Linking is optional. An unlinked refund still lowers {categoryName(refund.category_id)} spending for{" "}
-              {monthName(monthOf(refund.date))}.
+    <Dialog open onOpenChange={(next) => !next && !pending && onClose()}>
+      <DialogContent className="w-[min(560px,calc(100vw-32px))]">
+        <DialogHeader>
+          <DialogTitle>Link refund to an expense</DialogTitle>
+          <DialogDescription>{describe}</DialogDescription>
+        </DialogHeader>
+        <form className="link-dialog__form" noValidate onSubmit={(e) => void submit(e)}>
+          <label className="tx-search link-dialog__search">
+            <SearchIcon />
+            <span className="visually-hidden">Search expenses</span>
+            <input
+              type="search"
+              placeholder={`Search expenses from the last ${LINK_WINDOW_DAYS} days`}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </label>
+          {list}
+          {ordered.length > SHOWN && (
+            <p className="link-dialog__status">
+              Showing {SHOWN} of {ordered.length}. Search to narrow the list.
             </p>
-            {alert && (
-              <p role="alert" className="alert alert--danger">
-                <AlertIcon width={18} height={18} />
-                {alert}
-              </p>
-            )}
-            <div className="dialog__actions">
-              <Dialog.Close className="btn btn--ghost" type="button" disabled={pending}>
+          )}
+          <p className="link-dialog__note">
+            Linking is optional. An unlinked refund still lowers {categoryName(refund.category_id)} spending for{" "}
+            {monthName(monthOf(refund.date))}.
+          </p>
+          {alert && (
+            <p role="alert" className="alert alert--danger">
+              <AlertIcon width={18} height={18} />
+              {alert}
+            </p>
+          )}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" type="button" disabled={pending}>
                 Cancel
-              </Dialog.Close>
-              <button type="submit" className="btn btn--primary" disabled={pending || !selected}>
-                {pending ? "Linking…" : "Link refund"}
-              </button>
-            </div>
-          </form>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+              </Button>
+            </DialogClose>
+            <Button type="submit" disabled={pending || !selected}>
+              {pending ? "Linking…" : "Link refund"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

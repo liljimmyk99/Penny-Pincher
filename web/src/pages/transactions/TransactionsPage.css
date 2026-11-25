@@ -479,10 +479,6 @@ button.cat-row:hover:not(.is-on) {
 
 /* ---- Edit dialogs --------------------------------------------------------- */
 
-.edit-dialog {
-  width: min(560px, calc(100vw - 32px));
-}
-
 .edit-form {
   display: flex;
   flex-direction: column;
@@ -541,21 +537,6 @@ select.field {
 }
 
 /* ---- Link refund dialog ---------------------------------------------------- */
-
-.link-dialog {
-  width: min(560px, calc(100vw - 32px));
-}
-
-.link-dialog__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.link-dialog__head .icon-btn {
-  margin: -8px -8px 0 0;
-}
 
 .link-dialog__form {
   display: flex;

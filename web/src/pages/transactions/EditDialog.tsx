@@ -1,6 +1,15 @@
-import * as Dialog from "@radix-ui/react-dialog";
 import type { FormEvent, ReactNode } from "react";
 import { AlertIcon } from "../../components/icons";
+import { Button } from "../../components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
 
 interface Props {
   open: boolean;
@@ -31,41 +40,40 @@ export function EditDialog({
   children,
 }: Props) {
   return (
-    <Dialog.Root open={open} onOpenChange={(next) => !next && !pending && onClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="dialog-backdrop" />
-        <Dialog.Content className="dialog edit-dialog" aria-modal="true">
-          <div className="dialog__text">
-            <Dialog.Title className="dialog__title">{title}</Dialog.Title>
-            <Dialog.Description className="dialog__body">{description}</Dialog.Description>
-          </div>
-          <form
-            className="edit-form"
-            noValidate
-            onSubmit={(e: FormEvent) => {
-              e.preventDefault();
-              onSubmit();
-            }}
-          >
-            {children}
-            {alert && (
-              <p role="alert" className="alert alert--danger">
-                <AlertIcon width={18} height={18} />
-                {alert}
-              </p>
-            )}
-            <div className="dialog__actions">
-              <Dialog.Close className="btn btn--ghost" type="button" disabled={pending}>
+    <Dialog open={open} onOpenChange={(next) => !next && !pending && onClose()}>
+      <DialogContent className="w-[min(560px,calc(100vw-32px))]">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <form
+          className="edit-form"
+          noValidate
+          onSubmit={(e: FormEvent) => {
+            e.preventDefault();
+            onSubmit();
+          }}
+        >
+          {children}
+          {alert && (
+            <p role="alert" className="alert alert--danger">
+              <AlertIcon width={18} height={18} />
+              {alert}
+            </p>
+          )}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" type="button" disabled={pending}>
                 Cancel
-              </Dialog.Close>
-              <button type="submit" className="btn btn--primary" disabled={pending}>
-                {pending ? "Saving…" : submitLabel}
-              </button>
-            </div>
-          </form>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+              </Button>
+            </DialogClose>
+            <Button type="submit" disabled={pending}>
+              {pending ? "Saving…" : submitLabel}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -256,17 +256,6 @@
 
 /* ---- Income dialog ---------------------------------------------------------------------- */
 
-.income-dialog {
-  width: min(720px, calc(100vw - 32px));
-}
-
-.income-dialog__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-
 .summary-table {
   width: 100%;
   border-collapse: collapse;
