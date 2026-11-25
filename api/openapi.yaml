@@ -18,11 +18,14 @@ info:
       An entry belongs to the month of its own date (refunds included).
     - **Timestamps** (`created_at`, `updated_at`, ...) are ISO-8601 UTC and read-only.
     - **IDs** are opaque strings. Clients must not parse them or assume they are numeric.
-    - **Auth:** every route except `/healthz` needs `Authorization: Bearer <Firebase ID token>`.
-      A valid token whose Firebase uid is not in the local users table gets `403 not_allowlisted`.
-      A token whose sign-in (`auth_time`) is more than 30 days old gets `401 session_expired`:
-      the user must sign in again. Revoking a user's sessions or disabling them in Firebase
-      makes their tokens get `401 unauthenticated` within 5 minutes.
+    - **Auth:** every route except `/healthz` and `POST /v1/auth/login` needs
+      `Authorization: Bearer <session token>`, the opaque token `login` returns. Clients never parse it.
+      A missing, unknown or revoked token gets `401 unauthenticated`. A session more than 30 days
+      old gets `401 session_expired`: the user must sign in again.
+      A user whose password was set or reset by an admin with `must_change_password` gets
+      `403 password_change_required` on every route except `POST /v1/auth/password`,
+      `POST /v1/auth/logout` and `GET /v1/me`, until they choose a new password.
+      No route ever returns a password or a password hash.
       All data is scoped to the authenticated user; `user_id` is never accepted from the client.
     - **Derived values are computed by clients:** tax rate, percent of income, month-over-month and
       year-over-year changes, and better/worse colours. The API returns the raw cent totals and the
@@ -52,11 +55,13 @@ servers:
         default: localhost:8080
         description: Host and port of the API.
 security:
-  - firebase: []
+  - bearerAuth: []
 
 tags:
   - name: system
     description: Health check. No auth.
+  - name: auth
+    description: Username and password sign-in, sign-out and password change.
   - name: me
     description: The signed-in user and their role.
   - name: categories
@@ -80,7 +85,7 @@ tags:
   - name: saved-trends
     description: Trends the user saved to reopen later.
   - name: admin
-    description: Admins only. Members get `403 admin_required`. The only user routes list users and add one to the app's database; nothing here creates or changes a Firebase account.
+    description: Admins only. Members get `403 admin_required`. The user routes list users, add one with an initial password, and reset a password. They return account details only, never entries or amounts.
   - name: imports
     description: Multi-year import from the Excel template, checked before anything is saved. Built with export, last in v1.
   - name: export
@@ -109,12 +114,81 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Health' }
 
+  /v1/auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: Sign in with a username and password
+      description: |
+        No bearer token. Returns a new session token; keep it and send it as the bearer token.
+        A wrong username and a wrong password get the same `401 invalid_credentials`.
+        Rate limited per client IP and per username (`429 rate_limited`).
+        When `must_change_password` is true the client sends the user to the Change password screen.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Signed in.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: Wrong username or password (`invalid_credentials`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example:
+                error:
+                  code: invalid_credentials
+                  message: Wrong username or password.
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /v1/auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: Sign out this device
+      description: Revokes the calling session only. Other devices stay signed in.
+      responses:
+        '204':
+          description: Signed out.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /v1/auth/password:
+    post:
+      tags: [auth]
+      operationId: changePassword
+      summary: Change your own password
+      description: |
+        Needs the current password. Revokes every other session of this user, clears
+        `must_change_password`, and returns a fresh token for this device (the old one stops working).
+        A new password under 12 characters gets `400 weak_password` with a `details` entry for `new_password`.
+        A wrong current password gets `401 invalid_credentials`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangePasswordRequest' }
+      responses:
+        '200':
+          description: Password changed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
   /v1/me:
     get:
       tags: [me]
       operationId: getMe
       summary: The signed-in user
-      description: Clients use `role` to decide whether to show the admin panel.
+      description: Clients use `role` to decide whether to show the admin panel. Also answered while `must_change_password` is true.
       responses:
         '200':
           description: OK
@@ -1361,11 +1435,13 @@ paths:
     post:
       tags: [admin]
       operationId: addUser
-      summary: Add a user to the database
+      summary: Add a user
       description: |
-        Adds the Firebase uid to the users table (the allowlist) and seeds the default categories,
-        the "Other" income source and an empty template. Database only: the Firebase account must
-        already exist, and Firebase is never called. `409 user_exists` for a uid already added.
+        Creates the account with a username and an initial password, and seeds the default
+        categories, the "Other" income source and an empty template (the same as the `api user add` CLI).
+        `must_change_password` defaults to true, so the person chooses their own at first sign-in.
+        `409 user_exists` for a taken username (compared case-insensitively);
+        `400 weak_password` for a password under 12 characters. The password is never returned.
       requestBody:
         required: true
         content:
@@ -1381,6 +1457,30 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '409': { $ref: '#/components/responses/Conflict' }
+
+  /v1/admin/users/{id}/password:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [admin]
+      operationId: resetUserPassword
+      summary: Reset a user's password
+      description: |
+        Sets a new password and revokes all of that user's sessions, so they are signed out
+        everywhere. `must_change_password` defaults to true. `400 weak_password` for a password
+        under 12 characters. The admin passes the new password on; it is never returned.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResetPasswordRequest' }
+      responses:
+        '204':
+          description: Password reset.
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   # ---------------------------------------------------------------------------
   # Import (multi-year Excel import; built with export, last in v1)
@@ -1710,13 +1810,13 @@ paths:
 # =============================================================================
 components:
   securitySchemes:
-    firebase:
+    bearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: JWT
+      bearerFormat: opaque
       description: |
-        A Firebase Authentication ID token. The backend verifies it on every request, then requires
-        the Firebase uid to exist in its own users table (the allowlist).
+        The opaque session token returned by `POST /v1/auth/login` or `POST /v1/auth/password`.
+        The backend looks up its hash on every request.
 
   parameters:
     Id:
@@ -1775,7 +1875,7 @@ components:
 
   responses:
     BadRequest:
-      description: Malformed JSON or a value that fails validation (`invalid_request`, `invalid_refund_link`, `invalid_import_file`).
+      description: Malformed JSON or a value that fails validation (`invalid_request`, `invalid_refund_link`, `invalid_import_file`, `weak_password`). `weak_password` carries a `details` entry for the password field.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
@@ -1788,14 +1888,16 @@ components:
                   issue: must be <= gross_cents
     Unauthorized:
       description: |
-        Missing, expired, invalid or revoked token (`unauthenticated`), or a sign-in more than
+        Missing, unknown or revoked token (`unauthenticated`), or a session more than
         30 days old (`session_expired`). Either way the client signs the user out.
+        `POST /v1/auth/password` also uses `invalid_credentials` for a wrong current password.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
     Forbidden:
       description: |
-        `not_allowlisted` (valid token, but no local user row) or `admin_required` (member on an admin route).
+        `admin_required` (member on an admin route) or `password_change_required` (the user must
+        choose a new password first; only `auth/password`, `auth/logout` and `me` still work).
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
@@ -2093,9 +2195,11 @@ components:
               enum:
                 - invalid_request
                 - invalid_refund_link
+                - weak_password
                 - unauthenticated
+                - invalid_credentials
                 - session_expired
-                - not_allowlisted
+                - password_change_required
                 - admin_required
                 - not_found
                 - protected_resource
@@ -2142,14 +2246,55 @@ components:
         uptime_seconds: { type: integer, minimum: 0 }
     Me:
       type: object
-      required: [id, role]
+      required: [id, username, email, display_name, role, must_change_password]
       properties:
         id: { $ref: '#/components/schemas/Id' }
+        username: { type: string }
         email: { type: [string, 'null'] }
         display_name: { type: [string, 'null'] }
         role:
           type: string
           enum: [admin, member]
+        must_change_password: { type: boolean }
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string, minLength: 1, maxLength: 64 }
+        password: { type: string, minLength: 1, maxLength: 256, format: password, writeOnly: true }
+    LoginResult:
+      type: object
+      required: [token, expires_at, user, must_change_password]
+      properties:
+        token:
+          type: string
+          description: Opaque session token. Send it as the bearer token. Never parse it.
+        expires_at:
+          $ref: '#/components/schemas/Timestamp'
+        user: { $ref: '#/components/schemas/Me' }
+        must_change_password: { type: boolean }
+    ChangePasswordRequest:
+      type: object
+      required: [current_password, new_password]
+      properties:
+        current_password: { type: string, minLength: 1, maxLength: 256, format: password, writeOnly: true }
+        new_password:
+          type: string
+          minLength: 12
+          maxLength: 256
+          format: password
+          writeOnly: true
+    ResetPasswordRequest:
+      type: object
+      required: [password]
+      properties:
+        password:
+          type: string
+          minLength: 12
+          maxLength: 256
+          format: password
+          writeOnly: true
+        must_change_password: { type: boolean, default: true }
 
     # ---- Categories ---------------------------------------------------------
     Category:
@@ -2829,34 +2974,46 @@ components:
           description: Short, safe reason when `status` is failed.
     AdminUser:
       type: object
-      required: [id, firebase_uid, email, display_name, role, created_at]
+      required: [id, username, email, display_name, role, must_change_password, created_at]
       properties:
         id: { $ref: '#/components/schemas/Id' }
-        firebase_uid: { type: string }
+        username: { type: string }
         email: { type: [string, 'null'] }
         display_name: { type: [string, 'null'] }
         role:
           type: string
           enum: [admin, member]
+        must_change_password: { type: boolean }
         created_at: { $ref: '#/components/schemas/Timestamp' }
     NewAdminUser:
       type: object
-      required: [firebase_uid]
+      required: [username, password]
       properties:
-        firebase_uid:
+        username:
           type: string
           minLength: 1
-          maxLength: 128
-          description: The uid of the account already created in the Firebase console.
+          maxLength: 64
+          description: Unique, compared case-insensitively.
+        password:
+          type: string
+          minLength: 12
+          maxLength: 256
+          format: password
+          writeOnly: true
+          description: The initial password. Never returned by any route.
         email: { type: [string, 'null'], maxLength: 254 }
         display_name: { type: [string, 'null'], maxLength: 100 }
         role:
           type: string
           enum: [admin, member]
           default: member
+        must_change_password:
+          type: boolean
+          default: true
+          description: When true the person must choose their own password at first sign-in.
     AdminStatus:
       type: object
-      required: [version, started_at, uptime_seconds, database, backups, auth_provider]
+      required: [version, started_at, uptime_seconds, database, backups]
       properties:
         version: { type: string }
         started_at: { $ref: '#/components/schemas/Timestamp' }
@@ -2889,11 +3046,3 @@ components:
                 - type: 'null'
             next_weekly_at: { type: string, format: date-time }
             next_monthly_at: { type: string, format: date-time }
-        auth_provider:
-          type: object
-          required: [status, checked_at]
-          properties:
-            status:
-              type: string
-              enum: [ok, unreachable]
-            checked_at: { type: string, format: date-time }

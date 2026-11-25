@@ -24,6 +24,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign in with a username and password
+         * @description No bearer token. Returns a new session token; keep it and send it as the bearer token.
+         *     A wrong username and a wrong password get the same `401 invalid_credentials`.
+         *     Rate limited per client IP and per username (`429 rate_limited`).
+         *     When `must_change_password` is true the client sends the user to the Change password screen.
+         */
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign out this device
+         * @description Revokes the calling session only. Other devices stay signed in.
+         */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change your own password
+         * @description Needs the current password. Revokes every other session of this user, clears
+         *     `must_change_password`, and returns a fresh token for this device (the old one stops working).
+         *     A new password under 12 characters gets `400 weak_password` with a `details` entry for `new_password`.
+         *     A wrong current password gets `401 invalid_credentials`.
+         */
+        post: operations["changePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me": {
         parameters: {
             query?: never;
@@ -33,7 +99,7 @@ export interface paths {
         };
         /**
          * The signed-in user
-         * @description Clients use `role` to decide whether to show the admin panel.
+         * @description Clients use `role` to decide whether to show the admin panel. Also answered while `must_change_password` is true.
          */
         get: operations["getMe"];
         put?: never;
@@ -827,12 +893,38 @@ export interface paths {
         get: operations["listUsers"];
         put?: never;
         /**
-         * Add a user to the database
-         * @description Adds the Firebase uid to the users table (the allowlist) and seeds the default categories,
-         *     the "Other" income source and an empty template. Database only: the Firebase account must
-         *     already exist, and Firebase is never called. `409 user_exists` for a uid already added.
+         * Add a user
+         * @description Creates the account with a username and an initial password, and seeds the default
+         *     categories, the "Other" income source and an empty template (the same as the `api user add` CLI).
+         *     `must_change_password` defaults to true, so the person chooses their own at first sign-in.
+         *     `409 user_exists` for a taken username (compared case-insensitively);
+         *     `400 weak_password` for a password under 12 characters. The password is never returned.
          */
         post: operations["addUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/users/{id}/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset a user's password
+         * @description Sets a new password and revokes all of that user's sessions, so they are signed out
+         *     everywhere. `must_change_password` defaults to true. `400 weak_password` for a password
+         *     under 12 characters. The admin passes the new password on; it is never returned.
+         */
+        post: operations["resetUserPassword"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1250,7 +1342,7 @@ export interface components {
                  * @description Stable, machine-readable. Clients branch on this, never on `message`.
                  * @enum {string}
                  */
-                code: "invalid_request" | "invalid_refund_link" | "unauthenticated" | "session_expired" | "not_allowlisted" | "admin_required" | "not_found" | "protected_resource" | "source_has_entries" | "name_taken" | "has_linked_refunds" | "month_not_empty" | "backup_in_progress" | "user_exists" | "backup_not_ready" | "invalid_import_file" | "file_too_large" | "import_in_progress" | "import_wrong_status" | "request_too_large" | "rate_limited" | "not_implemented" | "internal";
+                code: "invalid_request" | "invalid_refund_link" | "weak_password" | "unauthenticated" | "invalid_credentials" | "session_expired" | "password_change_required" | "admin_required" | "not_found" | "protected_resource" | "source_has_entries" | "name_taken" | "has_linked_refunds" | "month_not_empty" | "backup_in_progress" | "user_exists" | "backup_not_ready" | "invalid_import_file" | "file_too_large" | "import_in_progress" | "import_wrong_status" | "request_too_large" | "rate_limited" | "not_implemented" | "internal";
                 /** @description Human-readable; safe to show. Never contains internals. */
                 message: string;
                 details?: {
@@ -1269,10 +1361,36 @@ export interface components {
         };
         Me: {
             id: components["schemas"]["Id"];
-            email?: string | null;
-            display_name?: string | null;
+            username: string;
+            email: string | null;
+            display_name: string | null;
             /** @enum {string} */
             role: "admin" | "member";
+            must_change_password: boolean;
+        };
+        LoginRequest: {
+            username: string;
+            /** Format: password */
+            password: string;
+        };
+        LoginResult: {
+            /** @description Opaque session token. Send it as the bearer token. Never parse it. */
+            token: string;
+            expires_at: components["schemas"]["Timestamp"];
+            user: components["schemas"]["Me"];
+            must_change_password: boolean;
+        };
+        ChangePasswordRequest: {
+            /** Format: password */
+            current_password: string;
+            /** Format: password */
+            new_password: string;
+        };
+        ResetPasswordRequest: {
+            /** Format: password */
+            password: string;
+            /** @default true */
+            must_change_password: boolean;
         };
         Category: {
             id: components["schemas"]["Id"];
@@ -1695,16 +1813,22 @@ export interface components {
         };
         AdminUser: {
             id: components["schemas"]["Id"];
-            firebase_uid: string;
+            username: string;
             email: string | null;
             display_name: string | null;
             /** @enum {string} */
             role: "admin" | "member";
+            must_change_password: boolean;
             created_at: components["schemas"]["Timestamp"];
         };
         NewAdminUser: {
-            /** @description The uid of the account already created in the Firebase console. */
-            firebase_uid: string;
+            /** @description Unique, compared case-insensitively. */
+            username: string;
+            /**
+             * Format: password
+             * @description The initial password. Never returned by any route.
+             */
+            password: string;
             email?: string | null;
             display_name?: string | null;
             /**
@@ -1712,6 +1836,11 @@ export interface components {
              * @enum {string}
              */
             role: "admin" | "member";
+            /**
+             * @description When true the person must choose their own password at first sign-in.
+             * @default true
+             */
+            must_change_password: boolean;
         };
         AdminStatus: {
             version: string;
@@ -1741,16 +1870,10 @@ export interface components {
                 /** Format: date-time */
                 next_monthly_at: string;
             };
-            auth_provider: {
-                /** @enum {string} */
-                status: "ok" | "unreachable";
-                /** Format: date-time */
-                checked_at: string;
-            };
         };
     };
     responses: {
-        /** @description Malformed JSON or a value that fails validation (`invalid_request`, `invalid_refund_link`, `invalid_import_file`). */
+        /** @description Malformed JSON or a value that fails validation (`invalid_request`, `invalid_refund_link`, `invalid_import_file`, `weak_password`). `weak_password` carries a `details` entry for the password field. */
         BadRequest: {
             headers: {
                 [name: string]: unknown;
@@ -1774,8 +1897,9 @@ export interface components {
             };
         };
         /**
-         * @description Missing, expired, invalid or revoked token (`unauthenticated`), or a sign-in more than
+         * @description Missing, unknown or revoked token (`unauthenticated`), or a session more than
          *     30 days old (`session_expired`). Either way the client signs the user out.
+         *     `POST /v1/auth/password` also uses `invalid_credentials` for a wrong current password.
          */
         Unauthorized: {
             headers: {
@@ -1785,7 +1909,10 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description `not_allowlisted` (valid token, but no local user row) or `admin_required` (member on an admin route). */
+        /**
+         * @description `admin_required` (member on an admin route) or `password_change_required` (the user must
+         *     choose a new password first; only `auth/password`, `auth/logout` and `me` still work).
+         */
         Forbidden: {
             headers: {
                 [name: string]: unknown;
@@ -1908,6 +2035,94 @@ export interface operations {
                     "application/json": components["schemas"]["Health"];
                 };
             };
+        };
+    };
+    login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Signed in. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description Wrong username or password (`invalid_credentials`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "invalid_credentials",
+                     *         "message": "Wrong username or password."
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Signed out. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    changePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangePasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Password changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
         };
     };
     getMe: {
@@ -3453,6 +3668,34 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    resetUserPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Password reset. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     downloadImportTemplate: {
