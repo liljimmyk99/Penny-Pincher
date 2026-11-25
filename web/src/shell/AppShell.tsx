@@ -5,6 +5,7 @@ import { SETTINGS_PATH } from "./navigation";
 import { readSidebarCollapsed, writeSidebarCollapsed } from "./sidebarPreference";
 import { ImportBanner } from "./importBanner/ImportBanner";
 import { Sidebar } from "./Sidebar";
+import { Toaster } from "../components/ui/sonner";
 import "./AppShell.css";
 
 /** The frame every signed-in screen lives in: sidebar plus fluid main content. */
@@ -29,6 +30,7 @@ export function AppShell() {
         <ImportBanner />
         <Outlet />
       </main>
+      <Toaster />
     </div>
   );
 }

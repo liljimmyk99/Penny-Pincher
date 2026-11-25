@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { ApiProvider, createApiClient, type Schemas } from "../../api";
 import { TransactionsPage } from "../transactions/TransactionsPage";
+import { Toaster } from "../../components/ui/sonner";
 
 /**
  * The template-copy flow on Transactions (root AGENTS.md §6.9, web/AGENTS.md
@@ -261,6 +262,7 @@ function renderPage(setup?: (state: State) => void, month = MONTH) {
           <Route path="/transactions" element={<TransactionsPage />} />
         </Routes>
       </MemoryRouter>
+      <Toaster />
     </ApiProvider>,
   );
   return { backend, user: userEvent.setup() };

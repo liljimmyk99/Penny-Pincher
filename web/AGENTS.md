@@ -209,7 +209,7 @@ Shown in two ways, from the same form (design canvas: Change password):
   - One tag per refund: "Not linked"; else "From <Month>" (with the year when it differs) when the original is in an earlier month; else "Full refund" when the refund covers the original's whole amount, otherwise "Partial refund".
   - Originals read `refunded_total_cents` and `last_refund_date` (both computed by the API, never stored). Net = amount + refunded total; at or below zero it is "Refunded in full" and the amount is struck through.
   - The refund chips (All, Refunds, Not linked) are their own group, kept in `?show=refunds|unlinked`, and combine with the category chips ("All categories") and the search.
-  - The linking dialog lists expenses from the 90 days up to the refund's date (`GET /v1/expenses?from=&to=&type=expense`), searchable by merchant and note. **Suggested** is the closest expense on or before the refund in the same category whose net still covers the refund; it is preselected. Linking sends only `refunded_expense_id` (an unconfirmed refund stays unconfirmed) and confirms with a toast (`src/components/Toast.tsx`).
+  - The linking dialog lists expenses from the 90 days up to the refund's date (`GET /v1/expenses?from=&to=&type=expense`), searchable by merchant and note. **Suggested** is the closest expense on or before the refund in the same category whose net still covers the refund; it is preselected. Linking sends only `refunded_expense_id` (an unconfirmed refund stays unconfirmed) and confirms with a toast (`toast()` from `src/lib/toast.tsx`).
   - The tiles sit above Spending by category on every month: refunds (sum, count, how many linked), spent before refunds (expenses only) and spent after refunds.
 
 ### Templates
@@ -287,7 +287,7 @@ Reached from the account menu; hidden from members. **v1 builds app status, back
   - Layouts: the **Penny-Pincher Admin Users Screens** design canvas (https://claude.ai/artifact/Gs8CSyXZWKfrSFZ2Uhn6zh): Admin · Users, Add user, Reset password, Sign in, Account menu and Change password, each in light and dark.
 - **Not in v1 — do not build:** user counts, invites and email, Disable/Enable, editing a user's role or name, removing users. The earlier canvas's v2 direction applies (admins cannot disable or demote themselves; admins never see other users' entries).
 - As built (`src/pages/admin`, hooks in `src/api/admin.ts`):
-  - Reads `GET /v1/admin/status` and `GET /v1/admin/backups`; the list polls every 2s while any backup is `running`. "Back up now" posts to `/v1/admin/backups`, toasts "Backup started", and toasts "Backup finished" (or "Backup failed") when that backup leaves `running`.
+  - Reads `GET /v1/admin/status` and `GET /v1/admin/backups`; the list polls every 2s while any backup is `running`. "Back up now" posts to `/v1/admin/backups`, toasts "Backup started", and toasts "Backup finished" (or the error toast "Backup failed") when that backup leaves `running`.
   - Download fetches the encrypted archive through the API client (so the bearer token is sent) and saves it as a blob; it is offered only for succeeded backups.
   - Tabs ("Status & backups", "Users") are local state in `AdminPage`. `UsersSection` reads `GET /v1/admin/users`; `AddUserDialog` posts `POST /v1/admin/users` and `ResetPasswordDialog` posts `POST /v1/admin/users/{id}/password` (hooks `useAdminUsers`, `useAddUser`, `useResetUserPassword`). A blank field is caught client-side, other failures show `fieldErrors` inline or the `errorMessage` (e.g. `user_exists`) in an alert.
 
@@ -321,7 +321,7 @@ Root §6.14; API `imports` routes. One page with four stages and a step indicato
 ## Interaction patterns
 
 - Dialogs are real modal dialogs: focus trapped, Esc closes, `aria-modal`, labelled by their heading. Destructive ones use `role="alertdialog"` and a danger button that names the outcome (e.g. "Delete and move to Other").
-- Toasts confirm background actions (invite sent, backup finished, refund linked). Use `role="status"` and make them dismissible.
+- Toasts confirm background actions (backup finished, refund linked, user added). Feature code calls `toast(message)` from `src/lib/toast.tsx` (`toast.error` for failures, an optional `action` such as Undo) and never imports `sonner` itself; the one Sonner `<Toaster />` (`components/ui/sonner.tsx`, #173) is mounted in `AppShell`, bottom right. Its "Notifications" region is the polite live region; error toasts are `role="alert"`. Every toast has Dismiss and closes after 6 s, so a toast never holds the only copy of something the user needs: the screen shows it too. Tests that check a toast render `<Toaster />` beside the page.
 - Filter chips and on/off toggles expose `aria-pressed` (`Toggle`). One-of-N choices, segmented toggles included, are `role="radiogroup"`/`role="radio"` (`ToggleGroup type="single"`, #170); screens still on hand-built segmented buttons move in #175–#178.
 - Charts get a text alternative (an `aria-label` per bar or a data table nearby).
 

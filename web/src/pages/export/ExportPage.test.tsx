@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 import { ApiProvider, createApiClient } from "../../api";
 import { ExportPage } from "./ExportPage";
+import { Toaster } from "../../components/ui/sonner";
 
 function setup(response: Response) {
   const urls: string[] = [];
@@ -15,6 +16,7 @@ function setup(response: Response) {
   render(
     <ApiProvider client={api} queryClient={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <ExportPage />
+      <Toaster />
     </ApiProvider>,
   );
   return { urls, user: userEvent.setup() };

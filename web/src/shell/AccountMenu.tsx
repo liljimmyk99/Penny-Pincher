@@ -1,9 +1,9 @@
 import * as Menu from "@radix-ui/react-dropdown-menu";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
 import { useMe } from "../api";
 import { useSession } from "../auth";
-import { Toast } from "../components/Toast";
+import { toast } from "../lib/toast";
 import {
   ChevronUpIcon,
   DownloadIcon,
@@ -52,8 +52,6 @@ export function AccountMenu({ collapsed }: { collapsed: boolean }) {
   const name = displayName(me);
   const apple = isApplePlatform();
   const [changing, setChanging] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
-  const dismissToast = useCallback(() => setToast(null), []);
 
   return (
     <>
@@ -192,11 +190,10 @@ export function AccountMenu({ collapsed }: { collapsed: boolean }) {
           onClose={() => setChanging(false)}
           onChanged={() => {
             setChanging(false);
-            setToast("Password changed");
+            toast("Password changed");
           }}
         />
       )}
-      <Toast message={toast} onDismiss={dismissToast} />
     </>
   );
 }

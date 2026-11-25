@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   errorMessage,
   useAdminStatus,
@@ -8,7 +8,7 @@ import {
   type Schemas,
 } from "../../api";
 import { AlertIcon, DownloadIcon } from "../../components/icons";
-import { Toast } from "../../components/Toast";
+import { toast } from "../../lib/toast";
 import { Page } from "../Page";
 import { UsersSection } from "./UsersSection";
 import { formatBytes, formatDateTime, formatUptime } from "./format";
@@ -142,23 +142,24 @@ function BackupsSection() {
   const backups = useBackups();
   const start = useStartBackup();
   const download = useDownloadBackup();
-  const [toast, setToast] = useState<string | null>(null);
-  const dismissToast = useCallback(() => setToast(null), []);
   const [watching, setWatching] = useState<string | null>(null);
 
   // Confirm a manual backup with a toast once it finishes.
   const watched = watching ? backups.data?.find((b) => b.id === watching) : undefined;
-  if (watched && watched.status !== "running") {
-    setWatching(null);
-    setToast(watched.status === "succeeded" ? "Backup finished" : "Backup failed");
-  }
+  const finished = watched && watched.status !== "running" ? watched.status : null;
+  useEffect(() => {
+    // Fires once per watched backup: a finished status never changes again.
+    if (!finished) return;
+    if (finished === "succeeded") toast("Backup finished");
+    else toast.error("Backup failed");
+  }, [finished]);
 
   async function backUpNow() {
     download.reset();
     try {
       const started = await start.mutateAsync();
       setWatching(started.id);
-      setToast("Backup started");
+      toast("Backup started");
     } catch {
       // Shown below from start.error.
     }
@@ -240,7 +241,6 @@ function BackupsSection() {
           </table>
         </div>
       )}
-      <Toast message={toast} onDismiss={dismissToast} />
     </section>
   );
 }
