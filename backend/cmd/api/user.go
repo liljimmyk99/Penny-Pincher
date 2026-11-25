@@ -7,20 +7,52 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/liljimmyk99/penny-pincher/backend/internal/auth"
 	"github.com/liljimmyk99/penny-pincher/backend/internal/store"
+	"golang.org/x/term"
 )
 
 const userUsage = `usage: api user add --username <name> [--email <email>] [--name <display name>] [--role admin|member] [--must-change]
        api user set-password --username <name> [--must-change]
        api user revoke --username <name>
-The password is read from the first line of standard input (never from a flag,
-so it stays out of the process list and shell history).`
+The password is prompted for (without echo) on a terminal, or read from the first
+line of standard input when piped. It is never taken from a flag, so it stays out
+of the process list and shell history.`
 
-// readPassword reads one line from in and checks it against the password rules.
+// confirmPassword asks twice through read and returns the password if both
+// answers match and satisfy the password rules.
+func confirmPassword(read func(prompt string) (string, error)) (string, error) {
+	pw, err := read("Password: ")
+	if err != nil {
+		return "", err
+	}
+	again, err := read("Repeat password: ")
+	if err != nil {
+		return "", err
+	}
+	if pw != again {
+		return "", errors.New("passwords do not match")
+	}
+	if issue := auth.CheckPasswordRules(pw); issue != "" {
+		return "", fmt.Errorf("password %s", issue)
+	}
+	return pw, nil
+}
+
+// readPassword prompts without echo when in is a terminal; otherwise it reads
+// one line from in. Either way the result is checked against the password rules.
 func readPassword(in io.Reader) (string, error) {
+	if f, ok := in.(*os.File); ok && term.IsTerminal(int(f.Fd())) {
+		return confirmPassword(func(prompt string) (string, error) {
+			fmt.Fprint(os.Stderr, prompt)
+			b, err := term.ReadPassword(int(f.Fd()))
+			fmt.Fprintln(os.Stderr)
+			return string(b), err
+		})
+	}
 	line, err := bufio.NewReader(in).ReadString('\n')
 	if err != nil && !(errors.Is(err, io.EOF) && line != "") {
 		return "", errors.New("no password on standard input")
