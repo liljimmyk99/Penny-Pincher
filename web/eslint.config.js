@@ -17,6 +17,20 @@ export default tseslint.config(
     },
   },
   {
+    // Radix is reached through our wrappers in src/components/ui/ (#180).
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/components/ui/**", "src/lib/cspSafeStyles.test.tsx"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [{ name: "radix-ui", message: "Use the wrappers in src/components/ui/ instead." }],
+          patterns: [{ group: ["@radix-ui/*"], message: "Use the wrappers in src/components/ui/ instead." }],
+        },
+      ],
+    },
+  },
+  {
     // shadcn/ui primitives export their variants (e.g. `buttonVariants`) beside
     // the component; allowed here only, not app-wide.
     files: ["src/components/ui/**/*.tsx"],

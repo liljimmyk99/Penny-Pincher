@@ -106,7 +106,7 @@ export function LinkRefundDialog({ refund, categoryName, onClose, onLinked }: Pr
               className={cn(
                 "grid min-h-15 cursor-pointer grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-x-3 rounded-xl border border-solid border-border bg-card px-3.5 py-2.5 hover:bg-muted",
                 "has-focus-visible:ring-[3px] has-focus-visible:ring-ring/35",
-                on && "border-ring bg-selected text-selected-foreground shadow-[inset_0_0_0_1px_var(--color-ring)] hover:bg-selected",
+                on && "border-ring bg-selected text-selected-foreground shadow-[inset_0_0_0_1px_var(--ring)] hover:bg-selected",
               )}
             >
               <input

@@ -35,7 +35,7 @@ export function UploadStage({ onUploaded }: { onUploaded: (record: ImportRecord)
             <dd className="m-0 text-muted-foreground">Date · Source · Gross · Gross taxable · Net · Note</dd>
           </dl>
         </div>
-        <ul className="m-0 flex flex-col gap-1.5 pl-5 text-sm">
+        <ul className="m-0 flex list-disc flex-col gap-1.5 pl-5 text-sm">
           <li>The Category and Source dropdowns hold your current categories and income sources.</li>
           <li>One file can hold any number of years.</li>
           <li>Refunds are negative amounts. Amounts are in dollars.</li>

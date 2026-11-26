@@ -18,7 +18,7 @@ export function StepIndicator({ current }: { current: number }) {
             className={cn(
               "flex min-h-10 items-center gap-2.5 rounded-full border border-solid border-border bg-card py-0 pr-3.5 pl-1.5 text-sm font-semibold text-muted-foreground",
               (done || now) && "text-foreground",
-              now && "border-primary shadow-[inset_0_0_0_1px_var(--color-primary)]",
+              now && "border-primary shadow-[inset_0_0_0_1px_var(--primary)]",
             )}
           >
             <span

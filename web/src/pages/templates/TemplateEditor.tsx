@@ -113,7 +113,7 @@ export function TemplateEditor({ templateId }: { templateId: string }) {
           )}
         </div>
 
-        <div className={cn(ROW, EXPENSE_GRID, COLHEAD, "[border-top:1px_solid_var(--color-border)] pt-3.5")} aria-hidden="true">
+        <div className={cn(ROW, EXPENSE_GRID, COLHEAD, "[border-top:1px_solid_var(--border)] pt-3.5")} aria-hidden="true">
           <span>Expense item</span>
           <span>Note</span>
           <span>Category</span>
@@ -132,8 +132,8 @@ export function TemplateEditor({ templateId }: { templateId: string }) {
               data-saving={category.is_saving || undefined}
               className={cn(
                 GROUP,
-                index > 0 && "[border-top:1px_solid_var(--color-border)]",
-                category.is_saving && "bg-[color-mix(in_srgb,var(--color-saving-bar)_6%,var(--color-card))]",
+                index > 0 && "[border-top:1px_solid_var(--border)]",
+                category.is_saving && "bg-[color-mix(in_srgb,var(--saving-bar)_6%,var(--card))]",
               )}
               role="group"
               aria-labelledby={headingId}

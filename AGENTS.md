@@ -199,7 +199,7 @@ Rules:
   - **Why:** real, accessible components with far less hand-built CSS to own. It stays close to the old rule ("own components, Radix for behavior"): shadcn/ui is not a runtime package, its components are copied into `web/src/components/ui/`, owned by us and built on Radix primitives.
   - **Setup:** `new-york` style, Zinc base, **Tailwind CSS v4** via `@tailwindcss/vite`. Tailwind compiles to a static CSS file, so it fits the CSP (no inline `<style>`).
   - **Charts stay hand-built.** shadcn's `chart` component (which wraps Recharts) is not adopted; the approved chart types (§6.11) and the "no charting library" rule stand. Charts only change by reading the new tokens.
-  - **Icons:** `lucide-react` (what shadcn components import); `components/icons.tsx` is retired once nothing uses it.
+  - **Icons:** `lucide-react` (what shadcn components import); `components/icons.tsx` was retired in #180.
   - **Font:** Geist (400–700) replaces Manrope, loaded from Google Fonts like Manrope today, so the CSP needs no new origin.
   - **Domain tokens stay ours** beside shadcn's: income, saving, spent, brand, refund, unconfirmed, danger and success alerts, toast.
   - **44px touch targets stay.** shadcn defaults to 36px controls; our Button, Input and Select are 44px by default, with a smaller size only where a dense table needs it and the target is still reachable.
@@ -207,7 +207,7 @@ Rules:
   - **New dependencies:** `tailwindcss`, `@tailwindcss/vite`, `class-variance-authority`, `clsx`, `tailwind-merge`, `tw-animate-css`, `lucide-react`, `sonner` (toasts), `cmdk` (merchant combobox), plus the Radix packages the components import.
   - **CSP:** which of these inject styles at runtime (Sonner, cmdk, Radix) and how each is handled is reviewed in #168 and recorded in `docs/security.md` there. Any policy change ships with the code that needs it.
   - **Rejected:** keeping the hand-built components (more CSS to own, and accessibility re-solved per component); shadcn's `chart` with Recharts (breaks the no-charting-library rule); a runtime component library such as MUI or Chakra (not ours to edit, heavier, and harder to keep within the CSP).
-  - **Implementation** follows in the M9 · shadcn/ui migration issues (#166–#180). Until the cleanup (#180) lands, old and new components live side by side.
+  - **Implementation** shipped in the M9 · shadcn/ui migration issues (#166–#180). The cleanup (#180) removed the hand-built CSS and the legacy `--color-*` token aliases, turned on Tailwind's preflight, and added an ESLint rule that keeps `radix-ui` / `@radix-ui/*` imports inside `web/src/components/ui/`.
 
 - **Username and password sign-in replaces Firebase** (decided 2026-11-24, #182; supersedes the Firebase decisions below, marked *Superseded*)
   - **Why:** the server is reached over Tailscale instead of an open router port, so a hosted identity provider adds a dependency without adding reach. A real login stays, so the owner can sign in as another user to reproduce bugs.
@@ -244,12 +244,12 @@ Rules:
 
 - **Web routing and menus** (decided 2026-11-05)
   - **Routing: React Router (`react-router`, declarative `<Routes>`).** Screens render inside the app shell (sidebar + account menu). Unknown addresses show a "Page not found" page; admin-only pages show it to members too.
-  - **Menus: `@radix-ui/react-dropdown-menu`** (unstyled, per the Radix rule above; reached through shadcn's `DropdownMenu` since #172) for the account menu's keyboard and focus behaviour.
+  - **Menus: Radix DropdownMenu** (from the `radix-ui` package, reached through shadcn's `DropdownMenu` since #172) for the account menu's keyboard and focus behaviour.
 
 - **Categories & sources stats** (decided 2026-11-05)
   - The Categories & sources screen reads `GET /v1/categories/stats?year=` and `GET /v1/income-sources/stats?year=`: one zero-filled row per category or source, aggregated in SQL.
   - **"Entries" counts all time** (every expense and refund in a category; every income entry for a source), so the delete dialog's count and amount are exactly what moves to Other. The money columns (spent, gross, net, and the tax rate from them) are **year to date**.
-  - Web uses `@radix-ui/react-alert-dialog` (destructive confirmations) and `@radix-ui/react-tooltip`, unstyled, per the Radix rule above (shadcn's `AlertDialog` and `Tooltip` wrap the same primitives after #170 and #171).
+  - Web uses Radix AlertDialog (destructive confirmations) and Tooltip, through shadcn's `AlertDialog` and `Tooltip` wrappers (#170, #171).
 
 - **End-to-end tests** (decided 2026-11-05)
   - **Playwright** (`@playwright/test`, Chromium) in its own `/e2e` package, with `@axe-core/playwright` for the dark-mode colour-contrast check. It drives `e2e/compose.yml`: the real API and web images and Caddyfile.

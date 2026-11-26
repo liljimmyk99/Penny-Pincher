@@ -1,10 +1,6 @@
 /*
- * Tailwind CSS v4 and tw-animate-css for the shadcn/ui components (#165, #166).
- *
- * Tailwind's preflight (its CSS reset) is left out on purpose: it would change
- * the look of the screens still styled by src/styles/*.css. It is added when
- * those styles are removed (#180), by importing "tailwindcss/preflight.css"
- * layer(base) here.
+ * Tailwind CSS v4 and tw-animate-css for the shadcn/ui components (#165, #166),
+ * with Tailwind's preflight (its CSS reset) since the old styles went (#180).
  *
  * The token values live in src/styles/tokens.css (#167). `@theme inline` below
  * only names them for Tailwind, so bg-card, text-muted-foreground, border-input,
@@ -13,46 +9,54 @@
  */
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
 @import "tailwindcss/utilities.css" layer(utilities);
 @import "tw-animate-css";
 
-/*
- * Until preflight is added (#180), a small reset for the shadcn/ui controls only
- * (#169, #170, #172, #175), so they don't show the browser's own button and field chrome. It is in
- * the base layer, so every utility on the component still wins, and it matches
- * nothing the old styles use.
- */
+/* App-wide element defaults, after preflight. Every utility still wins. */
 @layer base {
-  :where(
-      [data-slot="button"],
-      [data-slot="input"],
-      [data-slot="textarea"],
-      [data-slot="select-trigger"],
-      [data-slot="checkbox"],
-      [data-slot="toggle"],
-      [data-slot="toggle-group-item"],
-      [data-slot="tabs-trigger"],
-      [data-slot="sidebar-menu-button"],
-      [data-slot="dropdown-menu-trigger"],
-      [data-slot="popover-trigger"]
-    ) {
-    margin: 0;
-    border: 0 solid;
-    background-color: transparent;
-    font: inherit;
-    color: inherit;
-    appearance: none;
+  /* Preflight's borders default to currentColor; ours are the border token. */
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
   }
 
-  /* The shell's lists (#172). */
-  :where([data-slot="sidebar-menu"], [data-slot="sidebar-menu-item"]) {
-    margin: 0;
-    padding: 0;
-    list-style: none;
+  body {
+    font: var(--text-body);
+    color: var(--foreground);
+    background: var(--background);
+    -webkit-font-smoothing: antialiased;
   }
 
-  :where([data-slot="input"], [data-slot="textarea"])::placeholder {
-    opacity: 1;
+  /* Plain text links (a Link that isn't a Button). Preflight strips colour and underline. */
+  a:where(:not([data-slot])) {
+    color: var(--link);
+    text-decoration: underline;
+  }
+
+  a:where(:not([data-slot])):hover {
+    color: var(--link-hover);
+  }
+
+  /* Not on the shadcn/ui components (data-slot), which draw their own 3px ring (#169). */
+  :where(:not([data-slot])):focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  /* Reduced motion (#179): tw-animate-css's enter/exit animations and the
+     components' transitions don't check prefers-reduced-motion themselves.
+     0.01ms rather than none, so Radix still gets its animationend and unmounts
+     closed dialogs and menus. Sonner handles its own. */
+  @media (prefers-reduced-motion: reduce) {
+    [data-slot],
+    [data-slot] * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
