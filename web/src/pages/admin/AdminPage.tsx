@@ -184,7 +184,7 @@ function BackupsSection() {
       title="Backups"
       description="Encrypted snapshots. They can only be opened with the offline private key."
       action={
-        <Button type="button" size="sm" disabled={running} onClick={() => void backUpNow()}>
+        <Button type="button" disabled={running} onClick={() => void backUpNow()}>
           {running ? "Backing up…" : "Back up now"}
         </Button>
       }

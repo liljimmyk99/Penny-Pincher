@@ -96,7 +96,7 @@ function CustomTrends() {
       <SectionCard
         title="Saved trends"
         action={
-          <Button size="sm" onClick={() => setCreating(true)}>
+          <Button onClick={() => setCreating(true)}>
             <Plus aria-hidden="true" />
             New trend
           </Button>
@@ -272,7 +272,7 @@ function MonthEntries({ trend, month, merchantName }: { trend: Trend; month: str
     <div className="border-t border-solid border-x-0 border-b-0 border-border pt-3" aria-live="polite">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="m-0 text-base font-semibold">{formatMonth(month)} entries</h3>
-        <Button asChild variant="outline" size="sm">
+        <Button asChild variant="outline">
           <Link to={transactionsLink(trend, month, merchantName)}>Open in Transactions</Link>
         </Button>
       </div>

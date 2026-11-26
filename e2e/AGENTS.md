@@ -1,6 +1,6 @@
 # AGENTS.md — /e2e
 
-Read the root `AGENTS.md` first. This folder is the end-to-end suite: Playwright driving the real Docker stack. It automates the **M1 testing gate**'s smoke checklist, the **M2 acceptance tests** (AT-1 to AT-24), the **M3 acceptance tests** (MS, RB, YS, ED) the M6 security headers (#105) and request limits (#106), the **M8 import gate** (#100), the admin panel's **Users tab** (#157, #190), and **username and password sign-in** (#182, #192).
+Read the root `AGENTS.md` first. This folder is the end-to-end suite: Playwright driving the real Docker stack. It automates the **M1 testing gate**'s smoke checklist, the **M2 acceptance tests** (AT-1 to AT-24), the **M3 acceptance tests** (MS, RB, YS, ED) the M6 security headers (#105) and request limits (#106), the **M8 import gate** (#100), the admin panel's **Users tab** (#157, #190), **username and password sign-in** (#182, #192), and the **accessibility pass** after the shadcn/ui migration (#179).
 
 ## Running it
 
@@ -50,7 +50,7 @@ npm test                 # builds + starts compose.yml, runs every spec, removes
 | Second user (CLI) sees none of your data and gets defaults | `app` · second user |
 | API stopped: clear error, nothing looks saved | `resilience` |
 | API restarted: earlier data still there | `resilience` |
-| New screens in dark mode, including the sign-in screen with its error, the forced Change password screen and the account menu's Change password dialog | `app` · dark mode (axe colour contrast + screenshots) |
+| New screens in dark mode, including the sign-in screen with its error, the forced Change password screen and the account menu's Change password dialog | `app` · dark mode (axe WCAG A/AA + screenshots) |
 | **Categories & sources (#23)** | |
 | Reorder persists across a reload | `categories` · reorder |
 | "Other" recolorable, not renamable or deletable | `categories` · Other (recolour via API, see below) |
@@ -86,7 +86,7 @@ Each test builds the doc's "Test Month" fixture (6 expense items, 2 paychecks, d
 | AT-21 Day 31 lands on April 30 | `templates` · AT-20 + AT-21 |
 | AT-22 Second user isolation | `templates` · AT-22 (UI and API, incl. 404 on another user's template) |
 | AT-23 Source delete moves template items to Other | `templates` · AT-23 |
-| AT-24 Dark mode | `templates` · AT-24 (axe colour contrast + screenshots) |
+| AT-24 Dark mode | `templates` · AT-24 (axe WCAG A/AA + screenshots) |
 
 - **"Review in Transactions"** (AT-9) belongs to the Summary banner, which is M3 (#32). On Transactions the page is the review, so the test checks the button is absent there.
 
@@ -136,11 +136,29 @@ Fixture workbooks are built in the test with `exceljs` (`support/workbooks.ts`) 
 | The banner appears on another screen while the import runs, then turns to finished and can be dismissed | `import` · IM-3 |
 | Cancel mid-run removes everything the import added | `import` · IM-4 |
 | Undo removes the batch but keeps a hand-added entry in the same month | `import` · IM-5 |
-| Import page and review in dark mode (axe colour contrast + screenshots) | `import` · IM-6 |
+| Import page and review in dark mode (axe WCAG A/AA + screenshots) | `import` · IM-6 |
 
 - **Timing:** the import writes 200 rows per batch, so a small file finishes instantly. IM-3 and IM-4 use a 49,000-row file (just under the 50,000-row limit) with a unique merchant and a long note on every row, which keeps the import running for about four seconds, long enough to see the banner and press Cancel. The banner only follows an import it saw running, so a tiny file would never show it.
 - **`exceljs` is loaded with Node's `require`** (`createRequire`), because Playwright's module loader cannot load its dependency tree.
 - **Not automated:** the Mac import screens, an import interrupted by a server restart (the backend tests cover recovery), and opening the downloaded problem-rows file in Excel.
+
+### Accessibility (`a11y.spec.ts`, #179)
+
+Every axe check in the suite goes through `support/a11y.ts`: all WCAG 2.0, 2.1 and 2.2 A and AA rules (not only colour contrast), after the page's enter animations have finished, with a full-page screenshot attached.
+
+| Check | Test |
+| --- | --- |
+| Every screen (Summary with bars and donut, Add entries, Transactions, Yearly, Trends both tabs, Templates, Categories, Import, Export, Settings, Admin both tabs, Page not found) and the sign-in screen with its error pass axe, in light and in dark | `a11y` · every screen passes axe |
+| The income modal, account menu, edit dialog, delete confirmation, a toast, the merchant suggestions and the Add user dialog pass axe, in light and in dark | `a11y` · dialogs, menus, the combobox and toasts |
+| Every Tab stop on every screen draws a focus ring (outline or the 3px ring) | `a11y` · keyboard only · focus ring |
+| The account menu, a dialog (focus trapped, returned to its trigger), the merchant combobox, the Bars / Donut toggle and the sidebar links work with the keyboard alone | `a11y` · keyboard only · menus and dialogs |
+| Controls are at least 44×44px; inside a dense table (the batch entry rows, row buttons) at least 24px (WCAG 2.2); a control's label counts towards its target, links inside a sentence don't count | `a11y` · touch targets |
+| Nothing scrolls sideways at 640px (1280px at 200% zoom) or 375px; at phone width the sidebar is a sheet that opens, closes with Esc (focus back on its trigger) and closes onto the picked page's heading | `a11y` · reflow |
+| With reduced motion asked for, dialogs, the menu and the sidebar sheet don't animate | `a11y` · reduced motion |
+
+- **Colour is never the only signal:** refunds, unconfirmed rows and change indicators are checked where they are tested (`refunds` · looks different, `templates` · AT-9, `summaries` · MS-6); axe covers the rest.
+- **The account menu skips one rule, `aria-hidden-focus`.** Radix's modal menu marks the rest of the page `aria-hidden` while its links stay focusable, but they can't be reached: focus is trapped in the menu and a click outside only closes it. A non-modal menu would pass, but made the menu's unit tests flaky, so it stays modal.
+- **Manual:** whether each screen matches the V2 canvas (the differences are listed on #179), and screen-reader use.
 
 ### Sign-in (`auth.spec.ts`, #192)
 
@@ -174,7 +192,7 @@ Fixture workbooks are built in the test with `exceljs` (`support/workbooks.ts`) 
 - **Sign-in is the real thing**, with test-generated passwords. What stays manual: signing in on the deployed tailnet host (its `ts.net` certificate and HSTS, `docs/tailscale.md`), the Mac app's sign-in and Keychain, and the copy button in the sign-in details (the browser's clipboard permission).
 - **Time zone:** the browser runs in a zone whose calendar date differs from UTC's at the moment of the run (`Pacific/Pago_Pago` or `Pacific/Kiritimati`). That catches the same `new Date()` / `toISOString()` bug as "after 7 pm Eastern", at any hour.
 - **Recolouring "Other"** is checked on the API because the Categories screen has no colour control yet.
-- **Dark mode** is checked for theme, background and WCAG colour contrast, with screenshots attached to the report. Whether it *looks right* is still a human call.
+- **Dark mode** is checked for theme, background and every WCAG A/AA axe rule, with screenshots attached to the report. Whether it *looks right* is still a human call.
 - **The batch error** is caught by client validation before any request, so the API's all-or-nothing batch is covered by the backend tests, not here.
 - **Not automatable:** entering the golden month by hand, and the "would you still use the spreadsheet?" usability judgement.
 

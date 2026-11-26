@@ -81,11 +81,11 @@ export function UnconfirmedBanner({
         </div>
         <div className="flex flex-wrap gap-2">
           {showReview && (
-            <Button asChild variant="outline" size="sm">
+            <Button asChild variant="outline">
               <Link to={`/transactions?month=${month}`}>Review in Transactions</Link>
             </Button>
           )}
-          <Button type="button" size="sm" disabled={busy} onClick={() => void confirm()}>
+          <Button type="button" disabled={busy} onClick={() => void confirm()}>
             <Check aria-hidden="true" />
             {confirmAll.isPending ? "Confirming…" : "Confirm all as-is"}
           </Button>
@@ -93,7 +93,6 @@ export function UnconfirmedBanner({
             <Button
               type="button"
               variant="outline"
-              size="sm"
               disabled={busy}
               aria-label={`Undo copying ${undoable.template_name ?? "the template"}`}
               onClick={() => void undo()}

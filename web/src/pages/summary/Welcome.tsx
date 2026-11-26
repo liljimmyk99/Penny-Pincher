@@ -54,7 +54,6 @@ export function Welcome({ hasEntries }: { hasEntries: boolean }) {
       action={
         <Button
           variant="ghost"
-          size="sm"
           onClick={() => {
             write(HIDDEN_KEY);
             setHidden(true);

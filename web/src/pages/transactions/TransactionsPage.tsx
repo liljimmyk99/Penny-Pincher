@@ -485,14 +485,14 @@ function CategorySection({
                 aria-label={`${category.name}, ${formatCents(cents)}, ${share === "—" ? "no share" : `${share} of spending`}`}
                 onClick={() => onFilter(on ? null : category.id)}
               >
-                <span className="truncate font-semibold">{category.name}</span>
+                <span className="truncate font-semibold">{category.name}</span>{" "}
                 <span data-bar className="block h-2.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
                   <span
                     className={cn("block h-full rounded-full", category.is_saving ? "bg-saving-bar" : "bg-spent")}
                     style={{ width: `${barPercent(cents, max)}%` }}
                   />
-                </span>
-                <span data-col="total" className="text-right font-semibold whitespace-nowrap tabular-nums">{formatCents(cents)}</span>
+                </span>{" "}
+                <span data-col="total" className="text-right font-semibold whitespace-nowrap tabular-nums">{formatCents(cents)}</span>{" "}
                 <span data-col="share" className="text-right font-medium whitespace-nowrap text-muted-foreground tabular-nums">{share}</span>
               </button>
             );
@@ -567,7 +567,6 @@ function ExpenseSection({
     <Toggle
       key={key}
       variant="outline"
-      size="sm"
       className="rounded-full px-3.5"
       pressed={on}
       onPressedChange={onPress}

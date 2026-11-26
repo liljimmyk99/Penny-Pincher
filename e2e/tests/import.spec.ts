@@ -3,7 +3,7 @@
  * Fixture workbooks are built in the test from generic data (support/workbooks.ts).
  */
 import { readFileSync } from "node:fs";
-import AxeBuilder from "@axe-core/playwright";
+import { expectDarkAndAccessible } from "../support/a11y";
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures";
 import type { Api } from "../support/stack";
@@ -106,7 +106,7 @@ test.describe("M8 import", () => {
     await expect(mar).toContainText("$2,300.00"); // net income
 
     await page.goto("/summary?month=2024-03");
-    await expect(page.getByRole("button", { name: /^Salary, \$2,300\.00 net, 1 entry/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Salary, 1 entry, \$2,300\.00 net/ })).toBeVisible();
     await expect(page.getByRole("list", { name: "Spending by category" }).getByRole("button", { name: /^Housing, \$800\.00/ })).toBeVisible();
   });
 
@@ -177,10 +177,6 @@ test.describe("M8 import", () => {
     test("IM-6 the Import page, review and history are readable in dark mode", async ({ signedIn: page, api }, testInfo) => {
       const source = (await api.createSource("Salary")).name;
       const clean = cleanMultiYear(source);
-      const contrast = async () =>
-        (await new AxeBuilder({ page }).withRules(["color-contrast"]).analyze()).violations.flatMap((v) =>
-          v.nodes.map((n) => `${n.target.join(" ")}: ${n.failureSummary}`),
-        );
 
       // One finished import, so the history table renders; then a review with problems.
       await openImport(page);
@@ -188,16 +184,13 @@ test.describe("M8 import", () => {
       await page.getByRole("button", { name: /^Import \d+ entries$/ }).click();
       await expect(page.getByRole("heading", { name: "Import finished" })).toBeVisible();
       await page.getByRole("button", { name: "Import another file" }).click();
-      await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
       await expect(page.getByRole("heading", { name: "Import history" })).toBeVisible();
-      await testInfo.attach("dark import", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
-      expect(await contrast(), "colour-contrast on the Import page").toEqual([]);
+      await expectDarkAndAccessible(page, testInfo, "import");
 
       const bad = oneOfEachIssue(source);
       await upload(page, await workbook(bad.expenses, bad.income), "second.xlsx");
       await expect(page.getByText("Nothing is saved yet.")).toBeVisible();
-      await testInfo.attach("dark import review", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
-      expect(await contrast(), "colour-contrast on the review").toEqual([]);
+      await expectDarkAndAccessible(page, testInfo, "import review");
     });
   });
 });

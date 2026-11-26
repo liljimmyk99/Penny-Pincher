@@ -55,7 +55,7 @@ export function AppSidebar() {
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             aria-expanded={!collapsed}
             aria-controls={MAIN_NAV_ID}
-            className="ml-auto w-9 text-sidebar-muted-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:ml-0 group-data-[collapsible=icon]:w-11"
+            className="ml-auto text-sidebar-muted-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:ml-0 group-data-[collapsible=icon]:w-11"
             onClick={toggleSidebar}
           >
             <ChevronsLeft

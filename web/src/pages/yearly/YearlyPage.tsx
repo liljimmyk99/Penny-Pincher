@@ -116,7 +116,8 @@ function IncomeVsSpent({ data }: { data: Yearly }) {
     label: shortMonth(m.month),
     a: m.net_cents,
     b: m.spent_cents,
-    name: `${monthName(m.month)}: net income ${formatCents(m.net_cents)}, spent ${formatCents(m.spent_cents)}. Open ${monthName(m.month)} summary`,
+    // Starts with the visible label ("Jan"), so the name contains it (WCAG 2.5.3, #179).
+    name: `${shortMonth(m.month)}: net income ${formatCents(m.net_cents)}, spent ${formatCents(m.spent_cents)}. Open ${monthName(m.month)} summary`,
   }));
   return (
     <SectionCard flush id="yearly-pairs-h" title="Income vs. spent" description="Net income and spending per month. Select a month to open its summary.">

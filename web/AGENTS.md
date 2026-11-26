@@ -186,7 +186,7 @@ Shown in two ways, from the same form (design canvas: Change password):
   - Tiles: Net income, Spent (with change vs. last month), Saved & invested (counted in Spent; its change uses the Saving flip), Left over. They are muted for an empty month.
   - Income lists sources that have entries; a source opens `IncomeDialog` (that source's entries from `useMonthIncome`, its own total row and "All sources combined", with tax rates).
   - Built on `StatTile`/`TileRow`, `SectionCard` (`src/components/SectionCard.tsx`: a `Card` region named by its `h2`, with an optional description and header action), `Segmented`, `Table` (income dialog), `Progress` (Welcome) and `LoadError` (`src/components/LoadError.tsx`, a destructive `Alert` with "Try again") since #177.
-  - Spending is `RankedBars` (default) or the `Donut` with a legend, toggled by the "Chart type" `Segmented` (Bars / Donut, radios). Categories that net to zero or less get no bar. Rows are `aria-pressed` buttons that only highlight; their accessible name carries amount, percent of income and the change in words. Saving always uses `--saving-bar` and the `saving` Badge; other categories use their own colour, else `--chart-1…8`.
+  - Spending is `RankedBars` (default) or the `Donut` with a legend, toggled by the "Chart type" `Segmented` (Bars / Donut, radios). Categories that net to zero or less get no bar. Rows are `aria-pressed` buttons that only highlight; their accessible name carries amount, percent of income and the change in words. Saving always uses `--saving-bar`, and the `saving` Badge once it is renamed (a category called "Saving" doesn't repeat it, #179); other categories use their own colour, else `--chart-1…8`.
   - Change indicators are `ChangeBadge` (the `worse` / `better` Badge variants on the `--worse` and `--better` tokens), always with ▲/▼ and a +/− sign.
   - Banner: the shared `UnconfirmedBanner` (with "Review in Transactions"). An empty month shows `NewMonthOffer` and dashed Income / Spending panels with "Add income" / "Add expenses".
   - Welcome card (`Welcome.tsx`): shown only on the current month while it is empty. Step 1 and "Hide" are remembered in localStorage (a per-viewer convenience); step 2 comes from the templates list, step 3 from the month having entries. It disappears once all three are done.
@@ -354,6 +354,10 @@ Root §6.14; API `imports` routes. One page with four stages and a step indicato
 
 ## Quality
 
-- Keyboard accessible, readable contrast in both themes, responsive down to laptop-sized windows. Layouts should still stack sensibly at phone width.
+- Keyboard accessible, readable contrast in both themes, responsive down to laptop-sized windows. Layouts should still stack sensibly at phone width. The e2e suite checks every screen with axe (WCAG A/AA) in both themes, the focus ring, 44px targets, reflow and reduced motion (`e2e/tests/a11y.spec.ts`, #179).
+- **Label in name (WCAG 2.5.3):** a control with an `aria-label` must contain its visible text, in the order shown. Rows built from several spans put a space between them (`{" "}`, which grid and flex rows don't draw), start with the visible label ("Jan: …", not "January: …") and leave out badges' own screen-reader words (`ChangeBadge decorative`). Row names: `charts/rowNames.ts`.
+- **Reduced motion:** `global.css` cuts every `[data-slot]` animation and transition to 0.01ms under `prefers-reduced-motion` (tw-animate-css doesn't check it). 0.01ms, not `none`, so Radix still gets `animationend`.
+- **Touch targets:** 44px outside tables. `sm` and `icon-sm` (36px) and the batch entry's `cell` inputs are only for rows in a dense table.
+- **Icons:** named `lucide-react` imports only (no `import *`, no `DynamicIcon`), so only the icons we use are bundled (41 of ~1,900 at #179).
 - Test money formatting, the income modal, refund and unconfirmed styling, the template-copy flow, category deletion moving entries to Other, and change-indicator colours (including the Saving flip).
 - Run the linter, type check, and tests before finishing.

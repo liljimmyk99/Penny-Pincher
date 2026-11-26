@@ -228,7 +228,7 @@ export function IncomeForm({ month }: { month: string }) {
                   }}
                   // Arrow keys move and select, as a radio group does.
                   onFocus={() => select(s.id)}
-                  className="h-10 flex-1 rounded-sm px-3.5 font-medium text-muted-foreground data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-xs"
+                  className="h-11 flex-1 rounded-sm px-3.5 font-medium text-muted-foreground data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-xs"
                 >
                   {s.name}
                 </ToggleGroupItem>

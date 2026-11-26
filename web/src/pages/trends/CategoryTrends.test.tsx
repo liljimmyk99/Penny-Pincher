@@ -40,10 +40,10 @@ describe("TrendsPage by category", () => {
     expect(within(tiles).getAllByText(/▲ \+\$2\.00/).length).toBeGreaterThan(0);
 
     const movers = screen.getByRole("list", { name: /Biggest movers/ });
-    const food = within(movers).getByRole("button", { name: /^Food, worse \+\$2\.00/ });
+    const food = within(movers).getByRole("button", { name: /^Food, \+\$2\.00.*, worse than / });
     expect(food).toBeInTheDocument();
     // Saving fell: shown as worse (orange) with a down arrow and minus.
-    expect(within(movers).getByRole("button", { name: /^Saving, worse −\$1\.00/ })).toBeInTheDocument();
+    expect(within(movers).getByRole("button", { name: /^Saving, −\$1\.00.*, worse than / })).toBeInTheDocument();
   });
 
   it("charts a category when its mover is clicked, and flips Saving's tone in the tiles", async () => {
@@ -60,7 +60,7 @@ describe("TrendsPage by category", () => {
     renderTab();
     const user = userEvent.setup();
     const pairs = await screen.findByRole("list", { name: /per month, \d+ and \d+/ });
-    const jan = within(pairs).getByRole("button", { name: /^January:/ });
+    const jan = within(pairs).getByRole("button", { name: /^Jan:/ });
     await user.click(jan);
     expect(jan).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("January spend")).toBeInTheDocument();
