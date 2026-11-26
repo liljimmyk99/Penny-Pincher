@@ -106,7 +106,9 @@ test.describe("M8 import", () => {
     await expect(mar).toContainText("$2,300.00"); // net income
 
     await page.goto("/summary?month=2024-03");
-    await expect(page.getByRole("button", { name: /^Salary, 1 entry, \$2,300\.00 net/ })).toBeVisible();
+    const income = page.getByRole("table", { name: "Income" });
+    await expect(income.getByRole("button", { name: "Salary, 1 entry" })).toBeVisible();
+    await expect(income.locator("tbody tr").filter({ has: page.getByRole("rowheader", { name: "Net", exact: true }) }).locator("td").first()).toHaveText("$2,300.00");
     await expect(page.getByRole("list", { name: "Spending by category" }).getByRole("button", { name: /^Housing, \$800\.00/ })).toBeVisible();
   });
 
