@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CheckIcon, CopyIcon } from "../../components/icons";
+import { Check, Copy } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 
@@ -32,22 +32,22 @@ export function SignInDetails({ title, message, username, password, mustChange, 
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription>{message}</DialogDescription>
       </DialogHeader>
-      <dl className="admin-users__details">
-        <dt>Username</dt>
-        <dd className="admin-users__mono">{username}</dd>
-        <dt>Password</dt>
-        <dd className="admin-users__mono">{password}</dd>
+      <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 rounded-lg border border-border bg-muted px-4 py-3 text-sm">
+        <dt className="text-muted-foreground">Username</dt>
+        <dd className="m-0 font-mono break-all">{username}</dd>
+        <dt className="text-muted-foreground">Password</dt>
+        <dd className="m-0 font-mono break-all">{password}</dd>
         {mustChange && (
           <>
-            <dt>Next sign-in</dt>
-            <dd>They choose a new password</dd>
+            <dt className="text-muted-foreground">Next sign-in</dt>
+            <dd className="m-0">They choose a new password</dd>
           </>
         )}
       </dl>
-      <p className="admin__desc">This is the only time the password is shown. Pass it on now; there is no email.</p>
+      <p className="m-0 text-[13px] text-muted-foreground">This is the only time the password is shown. Pass it on now; there is no email.</p>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={() => void copy()}>
-          {copied ? <CheckIcon width={16} height={16} /> : <CopyIcon width={16} height={16} />}
+          {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
           {copied ? "Copied" : "Copy sign-in details"}
         </Button>
         <Button type="button" onClick={onDone}>

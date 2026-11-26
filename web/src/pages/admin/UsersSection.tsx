@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { errorMessage, useAdminUsers, type Schemas } from "../../api";
-import { AlertIcon, PlusIcon } from "../../components/icons";
+import { Plus } from "lucide-react";
+import { LoadError } from "@/components/LoadError";
+import { SectionCard } from "@/components/SectionCard";
+import { StatusLine } from "@/components/StatusLine";
+import { edgeColumns } from "@/components/tableStyles";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { toast } from "../../lib/toast";
 import { AddUserDialog } from "./AddUserDialog";
 import { formatDateTime } from "./format";
@@ -15,75 +23,75 @@ export function UsersSection() {
   const [resetting, setResetting] = useState<Schemas["AdminUser"] | null>(null);
 
   return (
-    <section className="card admin-backups" aria-labelledby="users-h">
-      <div className="admin-backups__head">
-        <div>
-          <h2 id="users-h">Users</h2>
-          <p className="admin__desc">
-            People who can sign in to Penny-Pincher. Add someone with a username and an initial password.
-          </p>
-        </div>
-        <button type="button" className="btn btn--primary btn--sm" onClick={() => setAdding(true)}>
-          <PlusIcon width={16} height={16} />
+    <SectionCard
+      title="Users"
+      description="People who can sign in to Penny-Pincher. Add someone with a username and an initial password."
+      action={
+        <Button type="button" size="sm" onClick={() => setAdding(true)}>
+          <Plus aria-hidden="true" />
           Add user
-        </button>
-      </div>
+        </Button>
+      }
+      flush
+    >
       {users.isPending ? (
-        <p className="admin__status">Loading users…</p>
+        <StatusLine inset>Loading users…</StatusLine>
       ) : users.isError ? (
-        <p className="alert alert--danger admin-backups__alert" role="alert">
-          <AlertIcon width={18} height={18} />
-          {errorMessage(users.error)}
-        </p>
-      ) : (
-        <div className="admin-backups__scroll">
-          <table className="admin-backups__table">
-            <caption className="visually-hidden">Users, oldest first</caption>
-            <thead>
-              <tr>
-                <th scope="col">Name</th>
-                <th scope="col">Username</th>
-                <th scope="col">Email</th>
-                <th scope="col">Role</th>
-                <th scope="col">Added</th>
-                <th scope="col">Password</th>
-                <th scope="col">
-                  <span className="visually-hidden">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.data.map((u) => (
-                <tr key={u.id}>
-                  <th scope="row">{u.display_name ?? "—"}</th>
-                  <td className="admin-users__mono">{u.username}</td>
-                  <td>{u.email ?? "—"}</td>
-                  <td>
-                    <span className={`admin-users__role admin-users__role--${u.role}`}>
-                      {u.role === "admin" ? "Admin" : "Member"}
-                    </span>
-                  </td>
-                  <td>{formatDateTime(u.created_at)}</td>
-                  <td>
-                    <span className={`badge${u.must_change_password ? " admin-users__pill" : ""}`}>
-                      {u.must_change_password ? "Must change at sign-in" : "Set by user"}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn btn--ghost btn--sm"
-                      aria-label={`Reset password for ${u.username}`}
-                      onClick={() => setResetting(u)}
-                    >
-                      Reset password
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="px-5">
+          <LoadError message={errorMessage(users.error)} onRetry={() => void users.refetch()} />
         </div>
+      ) : (
+        <Table className={cn("min-w-[760px]", edgeColumns)}>
+          <TableCaption className="sr-only">Users, oldest first</TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead scope="col">Name</TableHead>
+              <TableHead scope="col">Username</TableHead>
+              <TableHead scope="col">Email</TableHead>
+              <TableHead scope="col">Role</TableHead>
+              <TableHead scope="col">Added</TableHead>
+              <TableHead scope="col">Password</TableHead>
+              <TableHead scope="col">
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {users.data.map((u) => (
+              <TableRow key={u.id}>
+                <TableHead scope="row" className="font-semibold text-foreground">
+                  {u.display_name ?? "—"}
+                </TableHead>
+                <TableCell className="font-mono text-[13px]">{u.username}</TableCell>
+                <TableCell>{u.email ?? "—"}</TableCell>
+                <TableCell>
+                  <Badge variant={u.role === "admin" ? "selected" : "secondary"}>
+                    {u.role === "admin" ? "Admin" : "Member"}
+                  </Badge>
+                </TableCell>
+                <TableCell className="tabular-nums">{formatDateTime(u.created_at)}</TableCell>
+                <TableCell>
+                  {u.must_change_password ? (
+                    <Badge variant="unconfirmed">Must change at sign-in</Badge>
+                  ) : (
+                    <span className="text-muted-foreground">Set by user</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    aria-label={`Reset password for ${u.username}`}
+                    onClick={() => setResetting(u)}
+                  >
+                    Reset password
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
       {adding && (
         <AddUserDialog
@@ -95,6 +103,6 @@ export function UsersSection() {
         />
       )}
       {resetting && <ResetPasswordDialog user={resetting} onClose={() => setResetting(null)} />}
-    </section>
+    </SectionCard>
   );
 }

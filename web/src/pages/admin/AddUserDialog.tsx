@@ -1,8 +1,12 @@
-import { useId, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
+import { FormField } from "@/components/FormField";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ApiError, errorMessage, fieldErrors, useAddUser, type Schemas } from "../../api";
-import { AlertIcon } from "../../components/icons";
+import { CircleAlert } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { MIN_PASSWORD_LENGTH } from "../../auth/ChangePasswordForm";
-import { PasswordField } from "./PasswordField";
+import { MustChangeCheckbox, PasswordField } from "./PasswordField";
 import { SignInDetails } from "./SignInDetails";
 import { Button } from "../../components/ui/button";
 import {
@@ -25,7 +29,6 @@ interface Props {
 }
 
 export function AddUserDialog({ onClose, onAdded }: Props) {
-  const uid = useId();
   const add = useAddUser();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -74,28 +77,19 @@ export function AddUserDialog({ onClose, onAdded }: Props) {
     }
   }
 
-  const field = (key: string, label: string, value: string, set: (v: string) => void, hint = "") => (
-    <div>
-      <label className="field-label" htmlFor={`${uid}-${key}`}>
-        {label}
-      </label>
-      <input
-        id={`${uid}-${key}`}
-        className={`field${key === "username" ? " admin-users__mono" : ""}`}
-        value={value}
-        autoComplete="off"
-        spellCheck={false}
-        aria-invalid={errors[key] ? true : undefined}
-        aria-describedby={errors[key] ? `${uid}-${key}-err` : undefined}
-        onChange={(e) => set(e.target.value)}
-      />
-      {hint && <p className="admin__desc">{hint}</p>}
-      {errors[key] && (
-        <p id={`${uid}-${key}-err`} className="admin-users__error">
-          {errors[key]}
-        </p>
+  const field = (key: string, label: string, value: string, set: (v: string) => void, hint?: string) => (
+    <FormField label={label} description={hint} error={errors[key]}>
+      {(control) => (
+        <Input
+          {...control}
+          className={key === "username" ? "font-mono" : undefined}
+          value={value}
+          autoComplete="off"
+          spellCheck={false}
+          onChange={(e) => set(e.target.value)}
+        />
       )}
-    </div>
+    </FormField>
   );
 
   return (
@@ -116,34 +110,30 @@ export function AddUserDialog({ onClose, onAdded }: Props) {
                 Set their username and an initial password, then pass them on. There is no email.
               </DialogDescription>
             </DialogHeader>
-            <form className="admin-users__form" noValidate onSubmit={(e) => void submit(e)}>
+            <form className="flex flex-col gap-4" noValidate onSubmit={(e) => void submit(e)}>
               {field("username", "Username", username, setUsername, "3–32 letters, numbers, dots, dashes or underscores.")}
               {field("display_name", "Display name (optional)", name, setName)}
               {field("email", "Email (optional)", email, setEmail)}
-              <div>
-                <label className="field-label" htmlFor={`${uid}-role`}>
-                  Role
-                </label>
-                <select
-                  id={`${uid}-role`}
-                  className="field"
-                  value={role}
-                  onChange={(e) => setRole(e.target.value as Role)}
-                >
-                  <option value="member">Member</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
+              <FormField label="Role">
+                {(control) => (
+                  <Select value={role} onValueChange={(v) => setRole(v as Role)}>
+                    <SelectTrigger {...control} className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="member">Member</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </FormField>
               <PasswordField label="Initial password" value={password} onChange={setPassword} error={errors.password} />
-              <label className="admin-users__check">
-                <input type="checkbox" checked={mustChange} onChange={(e) => setMustChange(e.target.checked)} />
-                Ask them to choose their own password
-              </label>
+              <MustChangeCheckbox checked={mustChange} onChange={setMustChange} />
               {alert && (
-                <p className="alert alert--danger" role="alert">
-                  <AlertIcon width={18} height={18} />
-                  {alert}
-                </p>
+                <Alert variant="destructive">
+                  <CircleAlert aria-hidden="true" />
+                  <AlertDescription>{alert}</AlertDescription>
+                </Alert>
               )}
               <DialogFooter>
                 <Button type="button" variant="outline" disabled={add.isPending} onClick={onClose}>

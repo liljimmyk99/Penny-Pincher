@@ -7,11 +7,12 @@ import {
   useMonthMutations,
   useTemplateApplies,
 } from "../../api";
-import { AlertIcon, CheckIcon, UndoIcon } from "../../components/icons";
+import { Check, Undo2 } from "lucide-react";
+import { LoadError } from "@/components/LoadError";
+import { Button } from "@/components/ui/button";
 import { monthName } from "../../lib/dates";
 import { toast } from "../../lib/toast";
 import { plural, undoableApply, unconfirmedCount } from "./preview";
-import "./months.css";
 
 /**
  * The orange banner shown while a month has unconfirmed template copies
@@ -63,45 +64,47 @@ export function UnconfirmedBanner({
   }
 
   return (
-    <section className="month-banner" aria-label="Unconfirmed items">
-      <div className="month-banner__text">
-        <span className="month-banner__dot" aria-hidden="true" />
-        <p>
-          <strong>
-            {plural(n, "item", "items")} {undoable ? `copied${from}` : "unconfirmed"}
-          </strong>
-          {undoable ? " · unconfirmed until you check each one." : " · check each one, or confirm them all as-is."}
-        </p>
+    <section
+      data-slot="unconfirmed-banner"
+      aria-label="Unconfirmed items"
+      className="flex flex-col gap-3 rounded-xl border border-solid border-unconfirmed-pill bg-unconfirmed-tint px-4 py-3 text-unconfirmed-text"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span aria-hidden="true" className="size-2.5 flex-none rounded-full bg-brand" />
+          <p className="m-0 text-sm">
+            <strong className="font-semibold">
+              {plural(n, "item", "items")} {undoable ? `copied${from}` : "unconfirmed"}
+            </strong>
+            {undoable ? " · unconfirmed until you check each one." : " · check each one, or confirm them all as-is."}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {showReview && (
+            <Button asChild variant="outline" size="sm">
+              <Link to={`/transactions?month=${month}`}>Review in Transactions</Link>
+            </Button>
+          )}
+          <Button type="button" size="sm" disabled={busy} onClick={() => void confirm()}>
+            <Check aria-hidden="true" />
+            {confirmAll.isPending ? "Confirming…" : "Confirm all as-is"}
+          </Button>
+          {undoable && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={busy}
+              aria-label={`Undo copying ${undoable.template_name ?? "the template"}`}
+              onClick={() => void undo()}
+            >
+              <Undo2 aria-hidden="true" />
+              {undoApply.isPending ? "Undoing…" : "Undo"}
+            </Button>
+          )}
+        </div>
       </div>
-      <div className="month-banner__actions">
-        {showReview && (
-          <Link className="btn btn--ghost btn--sm" to={`/transactions?month=${month}`}>
-            Review in Transactions
-          </Link>
-        )}
-        <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={() => void confirm()}>
-          <CheckIcon />
-          {confirmAll.isPending ? "Confirming…" : "Confirm all as-is"}
-        </button>
-        {undoable && (
-          <button
-            type="button"
-            className="btn btn--ghost btn--sm"
-            disabled={busy}
-            aria-label={`Undo copying ${undoable.template_name ?? "the template"}`}
-            onClick={() => void undo()}
-          >
-            <UndoIcon />
-            {undoApply.isPending ? "Undoing…" : "Undo"}
-          </button>
-        )}
-      </div>
-      {error && (
-        <p role="alert" className="alert alert--danger month-banner__error">
-          <AlertIcon width={18} height={18} />
-          {error}
-        </p>
-      )}
+      {error && <LoadError message={error} />}
     </section>
   );
 }

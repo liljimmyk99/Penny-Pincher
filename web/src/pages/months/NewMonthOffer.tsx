@@ -1,5 +1,24 @@
-import { useId, useState } from "react";
+import { Copy, Pencil } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router";
+import { FormField } from "@/components/FormField";
+import { LoadError } from "@/components/LoadError";
+import { SectionCard } from "@/components/SectionCard";
+import { StatTile, TileRow } from "@/components/StatTile";
+import { StatusLine } from "@/components/StatusLine";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import {
   errorMessage,
   useCategories,
@@ -10,12 +29,10 @@ import {
   useTemplates,
   type Schemas,
 } from "../../api";
-import { AlertIcon, CopyIcon, PencilIcon } from "../../components/icons";
 import { monthName, shiftMonth } from "../../lib/dates";
 import { formatCents } from "../../lib/money";
 import { defaultTemplate, plural, templatePreview } from "./preview";
 import { useApplyTemplate } from "./useApplyTemplate";
-import "./months.css";
 
 /**
  * The new-month empty state (web/AGENTS.md "Empty states → New month"):
@@ -32,8 +49,6 @@ export function NewMonthOffer({
   onStartBlank: () => void;
   onApplied: (result: Schemas["TemplateApplyResult"]) => void;
 }) {
-  const headingId = useId();
-  const pickId = useId();
   const templates = useTemplates();
   const [picked, setPicked] = useState<string | null>(null);
   const list = templates.data ?? [];
@@ -42,86 +57,76 @@ export function NewMonthOffer({
   const name = monthName(month);
 
   let body;
-  if (templates.isPending) body = <p className="new-month__status">Loading your templates…</p>;
+  if (templates.isPending) body = <StatusLine>Loading your templates…</StatusLine>;
   else if (templates.isError)
     body = (
-      <p role="alert" className="alert alert--danger">
-        <AlertIcon width={18} height={18} />
-        <span>
-          Couldn’t load your templates. {errorMessage(templates.error)}{" "}
-          <button type="button" className="text-btn" onClick={() => void templates.refetch()}>
-            Try again
-          </button>
-        </span>
-      </p>
+      <LoadError
+        message={`Couldn’t load your templates. ${errorMessage(templates.error)}`}
+        onRetry={() => void templates.refetch()}
+      />
     );
   else if (!chosen)
     body = (
-      <p className="new-month__status">
-        You have no templates yet. <Link to="/templates">Build a template month</Link> to start months from it.
-      </p>
+      <StatusLine>
+        You have no templates yet.{" "}
+        <Link to="/templates" className="text-link hover:text-link-hover">
+          Build a template month
+        </Link>{" "}
+        to start months from it.
+      </StatusLine>
     );
   else body = <Preview month={month} templateId={chosen.id} />;
 
   const empty = chosen !== null && chosen.expense_item_count + chosen.income_item_count === 0;
 
   return (
-    <section className="card new-month" aria-labelledby={headingId}>
-      <div className="new-month__head">
-        <p className="eyebrow">New month</p>
-        <h2 id={headingId} className="new-month__title">
-          Start {name} from your template?
-        </h2>
-        <p className="new-month__desc">
-          Every item is copied into {name} on its day of the month, marked unconfirmed until you check it. You can undo
-          right after.
-        </p>
-      </div>
+    <SectionCard
+      eyebrow="New month"
+      title={`Start ${name} from your template?`}
+      description={`Every item is copied into ${name} on its day of the month, marked unconfirmed until you check it. You can undo right after.`}
+      contentClassName="flex flex-col gap-5"
+    >
       {list.length > 1 && (
-        <div className="new-month__pick">
-          <label htmlFor={pickId} className="field-label">
-            Template
-          </label>
-          <select id={pickId} className="field field--sm" value={chosen?.id ?? ""} onChange={(e) => setPicked(e.target.value)}>
-            {list.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <FormField label="Template" className="max-w-[320px]">
+          {(control) => (
+            <Select value={chosen?.id ?? ""} onValueChange={setPicked}>
+              <SelectTrigger {...control} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {list.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </FormField>
       )}
       {body}
-      {flow.error && (
-        <p role="alert" className="alert alert--danger">
-          <AlertIcon width={18} height={18} />
-          {flow.error}
-        </p>
-      )}
-      <div className="new-month__actions">
+      {flow.error && <LoadError message={flow.error} />}
+      <div className="flex flex-wrap gap-2.5">
         {chosen && (
-          <button
-            type="button"
-            className="btn btn--primary"
-            disabled={flow.pending || empty}
-            onClick={() => void flow.apply(chosen)}
-          >
-            <CopyIcon />
+          <Button type="button" disabled={flow.pending || empty} onClick={() => void flow.apply(chosen)}>
+            <Copy aria-hidden="true" />
             {flow.pending ? "Copying…" : `Copy into ${name}`}
-          </button>
+          </Button>
         )}
-        <button type="button" className="btn btn--ghost" onClick={onStartBlank} disabled={flow.pending}>
+        <Button type="button" variant="outline" onClick={onStartBlank} disabled={flow.pending}>
           Start blank
-        </button>
+        </Button>
         {chosen && (
-          <Link className="btn btn--ghost" to={`/templates?template=${chosen.id}`}>
-            <PencilIcon width={18} height={18} />
-            Edit template
-          </Link>
+          <Button asChild variant="ghost">
+            <Link to={`/templates?template=${chosen.id}`}>
+              <Pencil aria-hidden="true" />
+              Edit template
+            </Link>
+          </Button>
         )}
       </div>
       {flow.dialog}
-    </section>
+    </SectionCard>
   );
 }
 
@@ -132,29 +137,19 @@ function Preview({ month, templateId }: { month: string; templateId: string }) {
 
   const failed = [template, categories, sources].find((q) => q.isError);
   if (failed) return <PreviewError error={failed.error} retry={() => void failed.refetch()} />;
-  if (!template.data || !categories.data || !sources.data) return <p className="new-month__status">Loading the preview…</p>;
+  if (!template.data || !categories.data || !sources.data) return <StatusLine>Loading the preview…</StatusLine>;
   if (template.data.income_items.length === 0 && template.data.expense_items.length === 0)
     return (
-      <p className="new-month__status">
+      <StatusLine>
         “{template.data.name}” has no items yet. Add the paychecks and bills you expect, then copy it.
-      </p>
+      </StatusLine>
     );
   // Last month is only loaded for a template with items, so an empty one doesn't fill that month's cache.
   return <PreviewWithLastMonth month={month} template={template.data} categories={categories.data} sources={sources.data} />;
 }
 
 function PreviewError({ error, retry }: { error: unknown; retry: () => void }) {
-  return (
-    <p role="alert" className="alert alert--danger">
-      <AlertIcon width={18} height={18} />
-      <span>
-        Couldn’t load the template preview. {errorMessage(error)}{" "}
-        <button type="button" className="text-btn" onClick={retry}>
-          Try again
-        </button>
-      </span>
-    </p>
-  );
+  return <LoadError message={`Couldn’t load the template preview. ${errorMessage(error)}`} onRetry={retry} />;
 }
 
 function PreviewWithLastMonth({
@@ -174,36 +169,20 @@ function PreviewWithLastMonth({
 
   const failed = [prevExpenses, prevIncome].find((q) => q.isError);
   if (failed) return <PreviewError error={failed.error} retry={() => void failed.refetch()} />;
-  if (!prevExpenses.data || !prevIncome.data) return <p className="new-month__status">Loading the preview…</p>;
+  if (!prevExpenses.data || !prevIncome.data) return <StatusLine>Loading the preview…</StatusLine>;
 
   const p = templatePreview(template, categories, sources, prevExpenses.data, prevIncome.data);
   const last = monthName(previousMonth);
   const prev = (cents: number | null) => (cents === null ? "—" : formatCents(cents));
   return (
-    <div className="new-month__preview">
-      <div className="tiles" role="group" aria-label={`${template.name} totals`}>
-        <div className="tile">
-          <span className="tile__label">Planned net income</span>
-          <span className="tile__value new-month__income">{formatCents(p.totals.netCents)}</span>
-          <span className="tile__sub">{last}: {formatCents(p.previous.netCents)}</span>
-        </div>
-        <div className="tile">
-          <span className="tile__label">Planned spending</span>
-          <span className="tile__value">{formatCents(p.totals.spentCents)}</span>
-          <span className="tile__sub">
-            {last}: {formatCents(p.previous.spentCents)}
-          </span>
-        </div>
-        <div className="tile">
-          <span className="tile__label">Left over</span>
-          <span className="tile__value">{formatCents(p.totals.leftOverCents)}</span>
-          <span className="tile__sub">
-            {last}: {formatCents(p.previous.leftOverCents)}
-          </span>
-        </div>
-      </div>
+    <div className="flex flex-col gap-5">
+      <TileRow label={`${template.name} totals`}>
+        <StatTile label="Planned net income" value={formatCents(p.totals.netCents)} tone="income" sub={`${last}: ${formatCents(p.previous.netCents)}`} />
+        <StatTile label="Planned spending" value={formatCents(p.totals.spentCents)} sub={`${last}: ${formatCents(p.previous.spentCents)}`} />
+        <StatTile label="Left over" value={formatCents(p.totals.leftOverCents)} sub={`${last}: ${formatCents(p.previous.leftOverCents)}`} />
+      </TileRow>
 
-      <div className="new-month__lists">
+      <div className="grid gap-5 lg:grid-cols-2">
         <PreviewTable
           caption={`Paychecks · ${plural(p.paychecks.length, "item", "items")}`}
           last={last}
@@ -262,48 +241,56 @@ function PreviewTable({
 }) {
   if (rows.length === 0) return null;
   return (
-    <div className="new-month__table-wrap">
-      <table className="new-month__table">
-        <caption>{caption}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Day</th>
-            <th scope="col">Item</th>
-            <th scope="col" className="num">
+    <div className="min-w-0 rounded-xl border border-solid border-border">
+      <Table className="min-w-[360px]">
+        <TableCaption className="mt-0 caption-top px-3 pt-3 pb-1 text-left text-sm font-semibold text-foreground">
+          {caption}
+        </TableCaption>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead scope="col" className="w-12 pl-3">Day</TableHead>
+            <TableHead scope="col">Item</TableHead>
+            <TableHead scope="col" numeric>
               {income ? "Net" : "Amount"}
-            </th>
-            <th scope="col" className="num">
+            </TableHead>
+            <TableHead scope="col" numeric className="pr-3">
               {last}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {rows.map((r) => (
-            <tr key={r.id}>
-              <td className="new-month__day">{r.day}</td>
-              <td>
-                <span className="new-month__name">{r.name}</span>
+            <TableRow key={r.id}>
+              <TableCell className="pl-3 text-muted-foreground tabular-nums">{r.day}</TableCell>
+              <TableCell className="whitespace-normal">
+                <span className="font-semibold">{r.name}</span>
                 {r.detail && (
-                  <span className={r.saving ? "new-month__detail new-month__detail--saving" : "new-month__detail"}>
+                  <span className={cn("ml-2 text-[13px] text-muted-foreground", r.saving && "font-semibold text-saving")}>
                     {r.detail}
                   </span>
                 )}
-              </td>
-              <td className={income ? "num new-month__income" : "num"}>{formatCents(r.cents)}</td>
-              <td className="num new-month__prev">{r.previous}</td>
-            </tr>
+              </TableCell>
+              <TableCell numeric className={cn("font-semibold", income && "text-income")}>
+                {formatCents(r.cents)}
+              </TableCell>
+              <TableCell numeric className="pr-3 text-muted-foreground">
+                {r.previous}
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-        <tfoot>
-          <tr>
-            <th scope="row" colSpan={2}>
+        </TableBody>
+        <TableFooter>
+          <TableRow className="hover:bg-transparent">
+            <TableHead scope="row" colSpan={2} className="pl-3 text-foreground">
               Total
-            </th>
-            <td className={income ? "num new-month__income" : "num"}>{formatCents(totalCents)}</td>
-            <td />
-          </tr>
-        </tfoot>
-      </table>
+            </TableHead>
+            <TableCell numeric className={cn("font-bold", income && "text-income")}>
+              {formatCents(totalCents)}
+            </TableCell>
+            <TableCell className="pr-3" />
+          </TableRow>
+        </TableFooter>
+      </Table>
     </div>
   );
 }

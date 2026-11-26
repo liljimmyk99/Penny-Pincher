@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { ApiError, errorMessage, fieldErrors, useResetUserPassword, type Schemas } from "../../api";
-import { AlertIcon } from "../../components/icons";
+import { CircleAlert } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { MIN_PASSWORD_LENGTH } from "../../auth/ChangePasswordForm";
-import { PasswordField } from "./PasswordField";
+import { MustChangeCheckbox, PasswordField } from "./PasswordField";
 import { SignInDetails } from "./SignInDetails";
 import { Button } from "../../components/ui/button";
 import {
@@ -66,17 +67,14 @@ export function ResetPasswordDialog({ user, onClose }: Props) {
                 They will be signed out on every device. Their entries are not touched.
               </DialogDescription>
             </DialogHeader>
-            <form className="admin-users__form" noValidate onSubmit={(e) => void submit(e)}>
+            <form className="flex flex-col gap-4" noValidate onSubmit={(e) => void submit(e)}>
               <PasswordField label="New password" value={password} onChange={setPassword} error={error} />
-              <label className="admin-users__check">
-                <input type="checkbox" checked={mustChange} onChange={(e) => setMustChange(e.target.checked)} />
-                Ask them to choose their own password
-              </label>
+              <MustChangeCheckbox checked={mustChange} onChange={setMustChange} />
               {alert && (
-                <p className="alert alert--danger" role="alert">
-                  <AlertIcon width={18} height={18} />
-                  {alert}
-                </p>
+                <Alert variant="destructive">
+                  <CircleAlert aria-hidden="true" />
+                  <AlertDescription>{alert}</AlertDescription>
+                </Alert>
               )}
               <DialogFooter>
                 <Button type="button" variant="outline" disabled={reset.isPending} onClick={onClose}>

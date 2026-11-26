@@ -196,7 +196,7 @@ describe("Users tab", () => {
     await u.click(await screen.findByRole("button", { name: "Add user" }));
     const dialog = await screen.findByRole("dialog", { name: "Add user" });
     await u.click(within(dialog).getByRole("button", { name: "Add user" }));
-    expect(within(dialog).getByText(/Use 3–32 letters/, { selector: "p.admin-users__error" })).toBeInTheDocument();
+    expect(within(dialog).getByText(/Use 3–32 letters/, { selector: "[data-slot=field-error]" })).toBeInTheDocument();
     await u.type(within(dialog).getByLabelText("Username"), "root");
     await u.type(within(dialog).getByLabelText("Initial password"), "short");
     await u.click(within(dialog).getByRole("button", { name: "Add user" }));

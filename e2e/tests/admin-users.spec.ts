@@ -6,6 +6,7 @@
 import type { Locator, Page } from "@playwright/test";
 import { expect, signIn, test } from "../support/fixtures";
 import { monthOf, todayIn } from "../support/dates";
+import { pickOption } from "../support/select";
 import { Api, createAccount, login, newPassword, newUsername, type TestAccount } from "../support/stack";
 
 /** The first admin still comes from the CLI; everyone after can be added from the panel. */
@@ -31,7 +32,7 @@ async function addUser(
   await dialog.getByLabel("Username", { exact: true }).fill(user.username);
   if (user.email) await dialog.getByLabel("Email (optional)").fill(user.email);
   if (user.name) await dialog.getByLabel("Display name (optional)").fill(user.name);
-  await dialog.getByLabel("Role").selectOption("member");
+  await pickOption(page, dialog.getByRole("combobox", { name: "Role" }), "Member");
   await dialog.getByLabel("Initial password").fill(user.password);
   const ask = dialog.getByLabel("Ask them to choose their own password");
   await expect(ask).toBeChecked(); // on by default

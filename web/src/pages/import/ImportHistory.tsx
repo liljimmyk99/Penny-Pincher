@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { errorMessage, useImportMutations, useImports, type ImportSummary } from "../../api";
 import { DeleteDialog } from "../../components/DeleteDialog";
+import { LoadError } from "@/components/LoadError";
+import { SectionCard } from "@/components/SectionCard";
+import { StatusLine } from "@/components/StatusLine";
+import { edgeColumns } from "@/components/tableStyles";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 const LABEL: Record<ImportSummary["status"], string> = {
   review: "In review",
@@ -12,6 +20,16 @@ const LABEL: Record<ImportSummary["status"], string> = {
   expired: "Expired",
 };
 
+const CHIP = {
+  review: "selected",
+  running: "selected",
+  completed: "income",
+  cancelled: "secondary",
+  failed: "destructive",
+  undone: "secondary",
+  expired: "secondary",
+} as const satisfies Record<ImportSummary["status"], string>;
+
 export function ImportHistory() {
   const imports = useImports();
   const { undo } = useImportMutations();
@@ -19,52 +37,51 @@ export function ImportHistory() {
   const rows = (imports.data ?? []).filter((i) => i.status !== "review");
 
   return (
-    <section className="card import-card" aria-labelledby="import-history-h">
-      <h2 id="import-history-h" className="import-card__title">
-        Import history
-      </h2>
+    <SectionCard title="Import history" flush>
       {imports.isError && (
-        <p role="alert" className="alert alert--danger">
-          {errorMessage(imports.error)}
-        </p>
+        <div className="px-5">
+          <LoadError message={errorMessage(imports.error)} onRetry={() => void imports.refetch()} />
+        </div>
       )}
       {rows.length === 0 && !imports.isError ? (
-        <p className="import-muted">No imports yet.</p>
+        <StatusLine inset>No imports yet.</StatusLine>
       ) : (
-        <table className="import-table">
-          <thead>
-            <tr>
-              <th scope="col">File</th>
-              <th scope="col">Date</th>
-              <th scope="col">Entries</th>
-              <th scope="col">Years</th>
-              <th scope="col">Status</th>
-              <th scope="col">
-                <span className="visually-hidden">Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table aria-label="Import history" className={cn("min-w-[620px]", edgeColumns)}>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead scope="col">File</TableHead>
+              <TableHead scope="col">Date</TableHead>
+              <TableHead scope="col" numeric>Entries</TableHead>
+              <TableHead scope="col">Years</TableHead>
+              <TableHead scope="col">Status</TableHead>
+              <TableHead scope="col">
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {rows.map((i) => (
-              <tr key={i.id}>
-                <th scope="row">{i.file_name}</th>
-                <td>{i.created_at.slice(0, 10)}</td>
-                <td>{i.entries_imported}</td>
-                <td>{years(i)}</td>
-                <td>
-                  <span className={`badge import-chip import-chip--${i.status}`}>{LABEL[i.status]}</span>
-                </td>
-                <td>
+              <TableRow key={i.id}>
+                <TableHead scope="row" className="font-semibold text-foreground">
+                  {i.file_name}
+                </TableHead>
+                <TableCell className="tabular-nums">{i.created_at.slice(0, 10)}</TableCell>
+                <TableCell numeric>{i.entries_imported}</TableCell>
+                <TableCell className="tabular-nums">{years(i)}</TableCell>
+                <TableCell>
+                  <Badge variant={CHIP[i.status]}>{LABEL[i.status]}</Badge>
+                </TableCell>
+                <TableCell className="text-right">
                   {i.status === "completed" && (
-                    <button type="button" className="text-btn" onClick={() => setTarget(i)}>
-                      Undo<span className="visually-hidden"> import {i.file_name}</span>
-                    </button>
+                    <Button type="button" variant="link" className="h-auto min-h-10 px-1" onClick={() => setTarget(i)}>
+                      Undo<span className="sr-only"> import {i.file_name}</span>
+                    </Button>
                   )}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       )}
       <DeleteDialog
         open={target !== null}
@@ -79,7 +96,7 @@ export function ImportHistory() {
           undo.reset();
         }}
       />
-    </section>
+    </SectionCard>
   );
 }
 

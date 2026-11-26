@@ -13,7 +13,10 @@ import { asFile, cleanMultiYear, large, oneOfEachIssue, overlapping, readSheets,
 const FILE = "past-years.xlsx";
 
 /** The value of a review tile, e.g. tile(page, "Ready to import"). */
-const tile = (page: Page, label: string) => page.locator(".tile", { has: page.locator(".tile__label", { hasText: label }) }).locator(".tile__value");
+const tile = (page: Page, label: string) =>
+  page
+    .locator("[data-slot=stat-tile]", { has: page.locator("[data-slot=stat-tile-label]", { hasText: label }) })
+    .locator("[data-slot=stat-tile-value]");
 
 async function openImport(page: Page) {
   await page.getByRole("link", { name: "Import" }).first().click();

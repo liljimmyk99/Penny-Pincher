@@ -1,10 +1,18 @@
-import { useState } from "react";
+import { Download, TriangleAlert } from "lucide-react";
+import { useRef, useState } from "react";
+import { SectionCard } from "@/components/SectionCard";
+import { StatTile, TileRow } from "@/components/StatTile";
+import { edgeColumns } from "@/components/tableStyles";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { errorMessage, useDownloadImportProblems, useImportMutations, type ImportRecord } from "../../api";
-import { AlertIcon, DownloadIcon } from "../../components/icons";
-import { formatCents } from "../../lib/money";
 import { formatMonth } from "../../lib/dates";
-import { ISSUE_TEXT, MAX_SHOWN, uploadErrorText } from "./hints";
-import { useRef } from "react";
+import { formatCents } from "../../lib/money";
+import { ISSUE_TEXT, MAX_SHOWN, uploadErrorText, XLSX_ACCEPT } from "./hints";
+import { ErrorLine, Footer } from "./parts";
 
 export function ReviewStage({
   record,
@@ -47,83 +55,89 @@ export function ReviewStage({
   }
 
   return (
-    <div className="import-review">
-      <div className="import-filebar">
-        <strong>{record.file_name}</strong>
-        <button
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <strong className="font-semibold">{record.file_name}</strong>
+        <Button
           type="button"
-          className="text-btn"
+          variant="link"
+          className="h-auto min-h-10 px-1"
           disabled={discard.isPending}
           onClick={() => discard.mutate(record.id, { onSuccess: onDiscarded, onError: (e) => setError(errorMessage(e)) })}
         >
           Choose a different file
-        </button>
+        </Button>
       </div>
 
-      <div className="tiles">
-        <Tile label="Entries found" value={String(found)} />
-        <Tile label="Date range" value={range} />
-        <Tile label="Ready to import" value={String(record.rows_ready)} />
-        <Tile label="Need fixing" value={String(record.rows_with_problems)} warn={record.rows_with_problems > 0} />
-      </div>
+      <TileRow label="File summary">
+        <StatTile label="Entries found" value={String(found)} />
+        <StatTile label="Date range" value={range} />
+        <StatTile label="Ready to import" value={String(record.rows_ready)} />
+        <StatTile
+          label="Need fixing"
+          value={String(record.rows_with_problems)}
+          tone={record.rows_with_problems > 0 ? "worse" : "default"}
+        />
+      </TileRow>
 
       {record.months_with_existing_entries.length > 0 && (
-        <div className="import-warning" role="note">
-          <AlertIcon width={18} height={18} />
-          <div>
-            <strong>Some months already have entries.</strong> Imported entries are added alongside them, not replaced:{" "}
-            {record.months_with_existing_entries
-              .map((m) => `${formatMonth(m.month)} (${m.existing_entries} existing)`)
-              .join(", ")}
-            .
-          </div>
-        </div>
+        <Alert role="note" className="border-unconfirmed-pill bg-unconfirmed-tint text-foreground">
+          <TriangleAlert aria-hidden="true" className="text-unconfirmed-text" />
+          <AlertDescription className="text-foreground">
+            <p className="m-0">
+              <strong className="font-semibold">Some months already have entries.</strong> Imported entries are added
+              alongside them, not replaced:{" "}
+              {record.months_with_existing_entries
+                .map((m) => `${formatMonth(m.month)} (${m.existing_entries} existing)`)
+                .join(", ")}
+              .
+            </p>
+          </AlertDescription>
+        </Alert>
       )}
 
-      <section className="card import-card" aria-labelledby="import-years-h">
-        <h2 id="import-years-h" className="import-card__title">
-          By year
-        </h2>
-        <table className="import-table">
-          <thead>
-            <tr>
-              <th scope="col">Year</th>
-              <th scope="col">Months</th>
-              <th scope="col">Expenses</th>
-              <th scope="col">Income</th>
-              <th scope="col">Spent</th>
-              <th scope="col">Problems</th>
-            </tr>
-          </thead>
-          <tbody>
+      <SectionCard title="By year" flush>
+        <Table className={cn("min-w-[520px]", edgeColumns)}>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead scope="col">Year</TableHead>
+              <TableHead scope="col" numeric>Months</TableHead>
+              <TableHead scope="col" numeric>Expenses</TableHead>
+              <TableHead scope="col" numeric>Income</TableHead>
+              <TableHead scope="col" numeric>Spent</TableHead>
+              <TableHead scope="col" numeric>Problems</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {record.years.map((y) => (
-              <tr key={y.year}>
-                <th scope="row">{y.year}</th>
-                <td>{y.months}</td>
-                <td>{y.expense_rows}</td>
-                <td>{y.income_rows}</td>
-                <td>{formatCents(y.spent_cents)}</td>
-                <td>{y.rows_with_problems}</td>
-              </tr>
+              <TableRow key={y.year}>
+                <TableHead scope="row" className="font-semibold text-foreground">
+                  {y.year}
+                </TableHead>
+                <TableCell numeric>{y.months}</TableCell>
+                <TableCell numeric>{y.expense_rows}</TableCell>
+                <TableCell numeric>{y.income_rows}</TableCell>
+                <TableCell numeric>{formatCents(y.spent_cents)}</TableCell>
+                <TableCell numeric className={cn(y.rows_with_problems > 0 && "font-semibold text-worse")}>
+                  {y.rows_with_problems}
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      </section>
+          </TableBody>
+        </Table>
+      </SectionCard>
 
       {groups.size > 0 && (
-        <section className="card import-card" aria-labelledby="import-problems-h">
-          <h2 id="import-problems-h" className="import-card__title">
-            Problems
-          </h2>
+        <SectionCard title="Problems" contentClassName="flex flex-col gap-4">
           {[...groups].map(([code, issues]) => {
             const text = ISSUE_TEXT[code as keyof typeof ISSUE_TEXT];
             return (
-              <div key={code} className="import-problem">
-                <h3>
-                  {text?.title ?? code} <span className="badge">{issues.length}</span>
+              <div key={code} className="flex flex-col gap-1.5 border-x-0 border-t-0 border-b border-solid border-border pb-4">
+                <h3 className="m-0 flex items-center gap-2 text-[15px] font-semibold">
+                  {text?.title ?? code} <Badge variant="unconfirmed">{issues.length}</Badge>
                 </h3>
-                {text && <p className="import-muted">{text.hint}</p>}
-                <ul>
+                {text && <p className="m-0 text-[13px] text-muted-foreground">{text.hint}</p>}
+                <ul className="m-0 flex flex-col gap-0.5 pl-5 text-[13px] tabular-nums">
                   {issues.slice(0, MAX_SHOWN).map((i) => (
                     <li key={`${i.sheet}-${i.row}-${i.column}`}>
                       {i.sheet === "expenses" ? "Expenses" : "Income"} · row {i.row} · {i.column}
@@ -131,34 +145,41 @@ export function ReviewStage({
                     </li>
                   ))}
                 </ul>
-                {issues.length > MAX_SHOWN && <p className="import-muted">+ {issues.length - MAX_SHOWN} more</p>}
+                {issues.length > MAX_SHOWN && (
+                  <p className="m-0 text-[13px] text-muted-foreground">+ {issues.length - MAX_SHOWN} more</p>
+                )}
               </div>
             );
           })}
           {record.issues_truncated && (
-            <p className="import-muted">Only the first {record.issues.length} problems are listed. Download the file for all of them.</p>
+            <p className="m-0 text-[13px] text-muted-foreground">
+              Only the first {record.issues.length} problems are listed. Download the file for all of them.
+            </p>
           )}
-          <button type="button" className="btn btn--ghost" disabled={problems.isPending} onClick={() => problems.mutate(record.id)}>
-            <DownloadIcon width={16} height={16} />
+          <Button
+            type="button"
+            variant="outline"
+            className="self-start"
+            disabled={problems.isPending}
+            onClick={() => problems.mutate(record.id)}
+          >
+            <Download aria-hidden="true" />
             Download file with problems marked
-          </button>
-        </section>
+          </Button>
+        </SectionCard>
       )}
 
       {(error || problems.isError || start.isError) && (
-        <p role="alert" className="alert alert--danger">
-          <AlertIcon width={18} height={18} />
-          {error ?? errorMessage(problems.error ?? start.error)}
-        </p>
+        <ErrorLine>{error ?? errorMessage(problems.error ?? start.error)}</ErrorLine>
       )}
 
-      <div className="import-footer">
-        <span className="import-muted">Nothing is saved yet.</span>
+      <Footer>
+        <span className="mr-auto text-sm text-muted-foreground">Nothing is saved yet.</span>
         <input
           ref={input}
           type="file"
-          className="visually-hidden"
-          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          className="sr-only"
+          accept={XLSX_ACCEPT}
           aria-label="Fixed import file"
           tabIndex={-1}
           onChange={(e) => {
@@ -166,12 +187,11 @@ export function ReviewStage({
             e.target.value = "";
           }}
         />
-        <button type="button" className="btn btn--ghost" disabled={upload.isPending} onClick={() => input.current?.click()}>
+        <Button type="button" variant="outline" disabled={upload.isPending} onClick={() => input.current?.click()}>
           Upload fixed file
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className="btn btn--primary"
           disabled={record.rows_ready === 0 || start.isPending}
           onClick={() => {
             setError(null);
@@ -179,17 +199,8 @@ export function ReviewStage({
           }}
         >
           Import {record.rows_ready} {record.rows_ready === 1 ? "entry" : "entries"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function Tile({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
-  return (
-    <div className="tile">
-      <span className="tile__label">{label}</span>
-      <span className={`tile__value${warn ? " import-tile--warn" : ""}`}>{value}</span>
+        </Button>
+      </Footer>
     </div>
   );
 }
