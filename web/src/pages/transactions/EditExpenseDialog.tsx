@@ -5,7 +5,7 @@ import { formatShortDate, isDate } from "../../lib/dates";
 import { MERCHANT_MAX, NOTE_MAX } from "../../lib/limits";
 import { centsToInput, parseCents } from "../../lib/money";
 import { MoneyInput } from "../../components/MoneyInput";
-import { Input, inputClassName } from "../../components/ui/input";
+import { Input, inputVariants } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { EditDialog, FieldGrid, FormField, Optional } from "./EditDialog";
 import { invalidProps, serverErrors } from "./form";
@@ -147,7 +147,7 @@ export function EditExpenseDialog({ expense, onClose }: { expense: Schemas["Expe
           <MerchantCombobox
             id={id("merchant")}
             label="Merchant"
-            className={inputClassName}
+            className={inputVariants()}
             value={merchant}
             invalid={!!errors.merchant}
             describedBy={errors.merchant ? `${id("merchant")}-err` : undefined}

@@ -2,6 +2,7 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures";
 import { monthOf, todayIn, zoneOffUtcDate } from "../support/dates";
+import { pickOption } from "../support/select";
 
 const today = () => todayIn(undefined);
 
@@ -22,7 +23,7 @@ async function tabTo(page: Page, target: ReturnType<Page["getByLabel"]>, max = 6
 const merchant = (page: Page, row: number) => page.getByRole("combobox", { name: `Merchant, row ${row}` });
 const category = (page: Page, row: number) => page.getByLabel(`Category, row ${row}`);
 const amount = (page: Page, row: number) => page.getByLabel(`Amount, row ${row}`, { exact: true });
-const saved = (page: Page) => page.locator(".entry-card__saved").first();
+const saved = (page: Page) => page.getByRole("region", { name: "Expenses" }).getByRole("status");
 
 test("a whole quick entry and a whole batch entry, keyboard only", async ({ signedIn: page, api }) => {
   await openAdd(page);
@@ -34,7 +35,7 @@ test("a whole quick entry and a whole batch entry, keyboard only", async ({ sign
   await kb.press("Escape"); // close suggestions, if any
   await kb.press("Tab");
   await expect(category(page, 1)).toBeFocused();
-  await kb.type("Food"); // select typeahead
+  await kb.type("Food"); // the closed Select's typeahead
   await kb.press("Tab");
   await expect(amount(page, 1)).toBeFocused();
   await kb.type("12.34");
@@ -87,14 +88,14 @@ test("merchant autocomplete reuses the existing merchant, whatever the case", as
   await page.keyboard.press("Enter");
   await expect(merchant(page, 1)).toHaveValue("Corner Store");
   // The category comes from that merchant's last expense.
-  await expect(category(page, 1)).toHaveValue((await api.category("Food")).id);
+  await expect(category(page, 1)).toHaveText("Food");
   await amount(page, 1).fill("2.00");
 
   // Type it in a different case without picking: the server still matches it.
   await page.getByRole("button", { name: "Add row" }).click();
   await merchant(page, 2).fill("CORNER STORE");
   await merchant(page, 2).press("Escape");
-  await category(page, 2).selectOption({ label: "Food" });
+  await pickOption(page, category(page, 2), /^Food$/);
   await amount(page, 2).fill("1.00");
   await page.getByRole("button", { name: "Save 2 entries" }).click();
   await expect(saved(page)).toHaveText(/Saved 2 entries/);
@@ -108,11 +109,11 @@ test("merchant autocomplete reuses the existing merchant, whatever the case", as
 test("one bad row blocks the whole batch, flags that row, and saves nothing", async ({ signedIn: page, api }) => {
   await openAdd(page);
   await merchant(page, 1).fill("Good Row");
-  await category(page, 1).selectOption({ label: "Food" });
+  await pickOption(page, category(page, 1), /^Food$/);
   await amount(page, 1).fill("10.00");
   await page.getByRole("button", { name: "Add row" }).click();
   await merchant(page, 2).fill("Bad Row");
-  await category(page, 2).selectOption({ label: "Food" });
+  await pickOption(page, category(page, 2), /^Food$/);
   await amount(page, 2).fill("ten dollars");
   await page.getByRole("button", { name: "Save 2 entries" }).click();
 
@@ -137,7 +138,7 @@ test("amounts round-trip as exact cents through save, reload and edit", async ({
     if (i > 0) await page.getByRole("button", { name: "Add row" }).click();
     await merchant(page, i + 1).fill(`Amount Check ${i + 1}`);
     await merchant(page, i + 1).press("Escape");
-    await category(page, i + 1).selectOption({ label: "Food" });
+    await pickOption(page, category(page, i + 1), /^Food$/);
     await amount(page, i + 1).fill(c.typed);
   }
   await page.getByRole("button", { name: `Save ${cases.length} entries` }).click();
@@ -179,7 +180,7 @@ test.describe("dates in a time zone whose day differs from UTC's", () => {
     await expect(page.getByLabel("Date, row 1")).toHaveValue(localToday);
     await merchant(page, 1).fill("Late Night Diner");
     await merchant(page, 1).press("Escape");
-    await category(page, 1).selectOption({ label: "Food" });
+    await pickOption(page, category(page, 1), /^Food$/);
     await amount(page, 1).fill("9.00");
     await page.getByRole("button", { name: "Save entry" }).click();
     await expect(saved(page)).toHaveText(/Saved 1 entry/);
@@ -213,11 +214,11 @@ test("several income entries in one month, including a one-off under Other", asy
   await addIncome("Main Job", "Paycheck", "2000", "1800", "1500.25");
   await addIncome("Other", "One-off job", "300", "0", "300");
 
-  const soFar = income.locator(".so-far");
+  const soFar = income.getByRole("region", { name: /so far · net$/ });
   await expect(soFar).toContainText("Main Job · 2 entries");
   await expect(soFar).toContainText("$3,000.50");
   await expect(soFar).toContainText("Other · 1 entry");
-  await expect(soFar.locator(".so-far__row--total")).toContainText("$3,300.50");
+  await expect(soFar.locator("dl > div").filter({ hasText: "Total" })).toContainText("$3,300.50");
 
   const entries = await api.income(monthOf(today()));
   expect(entries.map((e) => e.net_cents).sort((a, b) => a - b)).toEqual([30000, 150025, 150025]);

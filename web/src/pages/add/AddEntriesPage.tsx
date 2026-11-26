@@ -3,7 +3,6 @@ import { useMonthParam } from "../../lib/useMonthParam";
 import { Page } from "../Page";
 import { ExpenseBatch } from "./ExpenseBatch";
 import { IncomeForm } from "./IncomeForm";
-import "./AddEntriesPage.css";
 
 /**
  * Keyboard-first logging of expenses, refunds and income (web/AGENTS.md
@@ -15,7 +14,7 @@ export function AddEntriesPage() {
 
   return (
     <Page title="Add entries" eyebrow="Log spending & income" actions={<MonthSwitcher month={month} onChange={setMonth} />}>
-      <div className="add-entries">
+      <div className="grid items-start gap-6 min-[1181px]:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
         <ExpenseBatch month={month} />
         <IncomeForm month={month} />
       </div>

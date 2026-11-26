@@ -2,7 +2,8 @@ import { useId, useLayoutEffect, useRef, useState, type FocusEvent, type Keyboar
 import { errorMessage, useTemplateItemMutations, type Schemas } from "../../api";
 import { AlertCircleIcon, CheckIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input, inputClassName } from "@/components/ui/input";
+import { MoneyInput } from "@/components/MoneyInput";
+import { Input, inputVariants } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { MerchantCombobox } from "../../components/MerchantCombobox";
@@ -28,13 +29,8 @@ export const ROW = "grid min-w-[820px] items-center gap-x-2.5 px-5 py-[3px]";
 export const EXPENSE_GRID = "grid-cols-[minmax(160px,1fr)_minmax(140px,1fr)_160px_64px_120px_92px]";
 export const INCOME_GRID = "grid-cols-[150px_minmax(120px,1fr)_64px_116px_116px_116px_92px]";
 
-/**
- * A cell's field: the shadcn Input, 36px and borderless until hovered or
- * focused, so a row reads as a line of a filled-out month (#176).
- */
-const CELL = "h-9 border-transparent bg-transparent px-2 shadow-none hover:border-input focus-visible:bg-card";
-const NUM_CELL = cn(CELL, "text-right font-semibold tabular-nums");
-const SELECT_CELL = "h-9 w-full border-transparent bg-transparent px-2 shadow-none hover:border-input data-[size=sm]:h-9";
+/** Day of month: the quiet `cell` Input (#175), right-aligned like the numbers. */
+const DAY_CELL = "text-right font-semibold tabular-nums";
 
 /**
  * How a row saves. A saved item saves its changed fields when focus leaves the
@@ -222,7 +218,7 @@ export function ExpenseItemRow({
         value={form.merchant}
         invalid={!!errors.merchant}
         describedBy={errIds("merchant")}
-        className={cn(inputClassName, CELL)}
+        className={inputVariants({ variant: "cell" })}
         inputRef={firstRef}
         onChange={(merchant) => update({ merchant })}
         onPick={(m) => update({ merchant: m.name })}
@@ -231,7 +227,7 @@ export function ExpenseItemRow({
         autoFocus={autoFocus}
       />
       <Input
-        className={CELL}
+        variant="cell"
         aria-label={`Note, ${label}`}
         aria-invalid={errors.note ? true : undefined}
         aria-describedby={errIds("note")}
@@ -242,8 +238,8 @@ export function ExpenseItemRow({
       />
       <Select value={form.categoryId} onValueChange={(categoryId) => update({ categoryId })}>
         <SelectTrigger
-          size="sm"
-          className={SELECT_CELL}
+          variant="cell"
+          className="w-full"
           aria-label={`Category, ${label}`}
           aria-invalid={errors.categoryId ? true : undefined}
           aria-describedby={errIds("categoryId")}
@@ -259,7 +255,8 @@ export function ExpenseItemRow({
         </SelectContent>
       </Select>
       <Input
-        className={NUM_CELL}
+        variant="cell"
+        className={DAY_CELL}
         inputMode="numeric"
         aria-label={`Day of month, ${label}`}
         aria-invalid={errors.day ? true : undefined}
@@ -269,15 +266,13 @@ export function ExpenseItemRow({
         onChange={(e) => update({ day: e.target.value })}
         onKeyDown={onEnter}
       />
-      <Input
-        className={NUM_CELL}
-        inputMode="decimal"
+      <MoneyInput
+        variant="cell"
         aria-label={`Amount, ${label}`}
         aria-invalid={errors.amount ? true : undefined}
         aria-describedby={errIds("amount")}
-        placeholder="0.00"
         value={form.amount}
-        onChange={(e) => update({ amount: e.target.value })}
+        onValueChange={(amount) => update({ amount })}
         onKeyDown={onEnter}
       />
       <RowActions
@@ -359,15 +354,13 @@ export function IncomeItemRow({
   };
   const errIds = (field: keyof IncomeForm) => (errors[field] ? `${id}-${field}-err` : undefined);
   const money = (field: "gross" | "taxable" | "net", name: string) => (
-    <Input
-      className={NUM_CELL}
-      inputMode="decimal"
+    <MoneyInput
+      variant="cell"
       aria-label={`${name}, ${label}`}
       aria-invalid={errors[field] ? true : undefined}
       aria-describedby={errIds(field)}
-      placeholder="0.00"
       value={form[field]}
-      onChange={(e) => update({ [field]: e.target.value })}
+      onValueChange={(text) => update({ [field]: text })}
       onKeyDown={onEnter}
     />
   );
@@ -382,8 +375,8 @@ export function IncomeItemRow({
       <Select value={form.sourceId} onValueChange={(sourceId) => update({ sourceId })}>
         <SelectTrigger
           ref={firstRef}
-          size="sm"
-          className={SELECT_CELL}
+          variant="cell"
+          className="w-full"
           aria-label={`Source, ${label}`}
           aria-invalid={errors.sourceId ? true : undefined}
           aria-describedby={errIds("sourceId")}
@@ -400,7 +393,7 @@ export function IncomeItemRow({
         </SelectContent>
       </Select>
       <Input
-        className={CELL}
+        variant="cell"
         aria-label={`Label, ${label}`}
         aria-invalid={errors.label ? true : undefined}
         aria-describedby={errIds("label")}
@@ -410,7 +403,8 @@ export function IncomeItemRow({
         onKeyDown={onEnter}
       />
       <Input
-        className={NUM_CELL}
+        variant="cell"
+        className={DAY_CELL}
         inputMode="numeric"
         aria-label={`Day of month, ${label}`}
         aria-invalid={errors.day ? true : undefined}

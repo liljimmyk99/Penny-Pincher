@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type KeyboardEvent, type Ref } from "react";
 import { Plus } from "lucide-react";
 import { exactMerchant, useMerchantSearch, type Schemas } from "../api";
+import { inputVariants } from "./ui/input";
 import { MERCHANT_MAX } from "../lib/limits";
 import { Command, CommandItem, CommandList } from "./ui/command";
 import { Popover, PopoverAnchor, PopoverContent } from "./ui/popover";
@@ -22,7 +23,7 @@ interface Props {
   onCommit: () => void;
   /** Keys the combobox didn't use (Enter for "next row" and so on). */
   onKeyDown?: (e: KeyboardEvent<HTMLInputElement>) => void;
-  /** The input's class: a table cell by default, `field` in a form. */
+  /** The input's class: the Input's `cell` variant by default, `inputVariants()` in a form. */
   className?: string;
   autoFocus?: boolean;
 }
@@ -50,7 +51,7 @@ export function MerchantCombobox({
   onPick,
   onCommit,
   onKeyDown,
-  className = "cell-input",
+  className = inputVariants({ variant: "cell" }),
   autoFocus,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -148,9 +149,9 @@ export function MerchantCombobox({
             id={id}
             ref={inputRef}
             className={className}
-            // Styled as the shadcn Input when given its classes (inputClassName); the
-            // old .cell-input (Add entries, until #175) still relies on the base rules.
-            data-slot={className.includes("cell-input") ? undefined : "input"}
+            // Drawn with the Input's classes (inputVariants), so it takes the
+            // shadcn controls' base reset rather than the old element rules (#176).
+            data-slot="input"
             type="text"
             role="combobox"
             aria-label={label}
