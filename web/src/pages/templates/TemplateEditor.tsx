@@ -6,10 +6,15 @@ import {
   useTemplate,
   useTemplateItemMutations,
 } from "../../api";
-import { AlertIcon, PlusIcon } from "../../components/icons";
+import { PlusIcon } from "lucide-react";
+import { LoadError } from "../../components/LoadError";
+import { StatTile } from "../../components/StatTile";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { formatCents } from "../../lib/money";
 import { formatTaxRate } from "../../lib/taxRate";
-import { ExpenseItemRow, IncomeItemRow } from "./ItemRows";
+import { EXPENSE_GRID, ExpenseItemRow, INCOME_GRID, IncomeItemRow, ROW } from "./ItemRows";
 import { groupByCategory, templateTotals } from "./totals";
 
 type NewDraft = { kind: "income" } | { kind: "expense"; categoryId: string };
@@ -26,20 +31,10 @@ export function TemplateEditor({ templateId }: { templateId: string }) {
 
   const failed = [template, categories, sources].find((q) => q.isError);
   if (failed) {
-    return (
-      <div role="alert" className="alert alert--danger">
-        <AlertIcon width={18} height={18} />
-        <span>
-          Couldn’t load this template. {errorMessage(failed.error)}{" "}
-          <button type="button" className="text-btn" onClick={() => void failed.refetch()}>
-            Try again
-          </button>
-        </span>
-      </div>
-    );
+    return <LoadError message={`Couldn’t load this template. ${errorMessage(failed.error)}`} onRetry={() => void failed.refetch()} />;
   }
   if (!template.data || !categories.data || !sources.data) {
-    return <p className="tpl-status">Loading template…</p>;
+    return <p className="m-0 text-muted-foreground">Loading template…</p>;
   }
 
   const tpl = template.data;
@@ -55,39 +50,42 @@ export function TemplateEditor({ templateId }: { templateId: string }) {
     if (!again) setDrafts((ds) => ds.filter((d) => d.key !== key));
   };
 
+  const addButton = "h-9 px-1 font-semibold";
+
   return (
-    <div className="tpl-editor">
-      <div className="tiles" role="group" aria-label="Template totals">
-        <Tile label="Net income" value={formatCents(totals.netCents)} tone="income" />
-        <Tile
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap gap-4" role="group" aria-label="Template totals">
+        <StatTile label="Net income" value={formatCents(totals.netCents)} tone="income" />
+        <StatTile
           label="Planned spending"
           value={formatCents(totals.spentCents)}
           sub={totals.savingCents > 0 ? `Includes ${formatCents(totals.savingCents)} saved & invested` : undefined}
         />
-        <Tile label="Left over" value={formatCents(totals.leftOverCents)} />
+        <StatTile label="Left over" value={formatCents(totals.leftOverCents)} />
       </div>
 
-      <div className="card tpl-card">
-        <div className="tpl-group" role="group" aria-labelledby="tpl-income-h">
-          <div className="tpl-group__head">
-            <h3 id="tpl-income-h" className="tpl-group__name tpl-group__name--income">
+      {/* Wide rows scroll inside the card, never the page. */}
+      <div data-slot="card" className="overflow-x-auto rounded-xl border border-border bg-card text-card-foreground">
+        <div className={GROUP} role="group" aria-labelledby="tpl-income-h">
+          <div className={GROUP_HEAD}>
+            <h3 id="tpl-income-h" className="m-0 text-sm font-bold text-income">
               Income
             </h3>
-            <span className="tpl-group__end">
-              <span className="tpl-group__sub">{formatCents(totals.netCents)} net</span>
-              <button type="button" className="text-btn" onClick={() => addDraft({ kind: "income" })}>
-                <PlusIcon />
+            <span className="inline-flex items-center gap-3">
+              <span className="text-sm font-bold tabular-nums">{formatCents(totals.netCents)} net</span>
+              <Button variant="link" className={addButton} onClick={() => addDraft({ kind: "income" })}>
+                <PlusIcon aria-hidden="true" />
                 Add income
-              </button>
+              </Button>
             </span>
           </div>
-          <div className="tpl-row tpl-row--income tpl-colhead" aria-hidden="true">
+          <div className={cn(ROW, INCOME_GRID, COLHEAD)} aria-hidden="true">
             <span>Source</span>
             <span>Label</span>
-            <span className="num">Day</span>
-            <span className="num">Gross</span>
-            <span className="num">Taxable</span>
-            <span className="num">Net</span>
+            <span className="text-right">Day</span>
+            <span className="text-right">Gross</span>
+            <span className="text-right">Taxable</span>
+            <span className="text-right">Net</span>
             <span />
           </div>
           {incomeItems.map((item) => (
@@ -105,25 +103,25 @@ export function TemplateEditor({ templateId }: { templateId: string }) {
               />
             ))}
           {incomeItems.length === 0 && !drafts.some((d) => d.kind === "income") && (
-            <p className="tpl-group__empty">No income yet. Add each paycheck you expect in a month.</p>
+            <p className={GROUP_NOTE}>No income yet. Add each paycheck you expect in a month.</p>
           )}
           {incomeItems.length > 0 && (
-            <p className="tpl-group__totals">
+            <p className={cn(GROUP_NOTE, "tabular-nums")}>
               All sources: gross {formatCents(totals.grossCents)} · taxable {formatCents(totals.grossTaxableCents)} ·
               net {formatCents(totals.netCents)} · tax rate {formatTaxRate(totals.grossTaxableCents, totals.netCents)}
             </p>
           )}
         </div>
 
-        <div className="tpl-row tpl-row--expense tpl-colhead tpl-colhead--expense" aria-hidden="true">
+        <div className={cn(ROW, EXPENSE_GRID, COLHEAD, "[border-top:1px_solid_var(--color-border)] pt-3.5")} aria-hidden="true">
           <span>Expense item</span>
           <span>Note</span>
           <span>Category</span>
-          <span className="num">Day</span>
-          <span className="num">Amount</span>
+          <span className="text-right">Day</span>
+          <span className="text-right">Amount</span>
           <span />
         </div>
-        {groups.map(({ category, items, subtotalCents }) => {
+        {groups.map(({ category, items, subtotalCents }, index) => {
           const groupDrafts = drafts.filter(
             (d): d is Draft & { kind: "expense" } => d.kind === "expense" && d.categoryId === category.id,
           );
@@ -131,28 +129,33 @@ export function TemplateEditor({ templateId }: { templateId: string }) {
           return (
             <div
               key={category.id}
-              className={category.is_saving ? "tpl-group tpl-group--saving" : "tpl-group"}
+              data-saving={category.is_saving || undefined}
+              className={cn(
+                GROUP,
+                index > 0 && "[border-top:1px_solid_var(--color-border)]",
+                category.is_saving && "bg-[color-mix(in_srgb,var(--color-saving-bar)_6%,var(--color-card))]",
+              )}
               role="group"
               aria-labelledby={headingId}
             >
-              <div className="tpl-group__head">
-                <span className="tpl-group__title">
-                  <h3 id={headingId} className="tpl-group__name">
+              <div className={GROUP_HEAD}>
+                <span className="inline-flex items-center gap-3">
+                  <h3 id={headingId} className={cn("m-0 text-sm font-bold", category.is_saving && "text-saving")}>
                     {category.name}
                   </h3>
-                  {category.is_saving && <span className="badge badge--saving">Counted as savings</span>}
+                  {category.is_saving && <Badge variant="saving">Counted as savings</Badge>}
                 </span>
-                <span className="tpl-group__end">
-                  <span className="tpl-group__sub">{formatCents(subtotalCents)}</span>
-                  <button
-                    type="button"
-                    className="text-btn"
+                <span className="inline-flex items-center gap-3">
+                  <span className="text-sm font-bold tabular-nums">{formatCents(subtotalCents)}</span>
+                  <Button
+                    variant="link"
+                    className={addButton}
                     aria-label={`Add item to ${category.name}`}
                     onClick={() => addDraft({ kind: "expense", categoryId: category.id })}
                   >
-                    <PlusIcon />
+                    <PlusIcon aria-hidden="true" />
                     Add item
-                  </button>
+                  </Button>
                 </span>
               </div>
               {items.map((item) => (
@@ -175,7 +178,7 @@ export function TemplateEditor({ templateId }: { templateId: string }) {
                 />
               ))}
               {items.length === 0 && groupDrafts.length === 0 && (
-                <p className="tpl-group__empty">No items. Anything you add here gets copied every month.</p>
+                <p className={GROUP_NOTE}>No items. Anything you add here gets copied every month.</p>
               )}
             </div>
           );
@@ -185,23 +188,9 @@ export function TemplateEditor({ templateId }: { templateId: string }) {
   );
 }
 
-function Tile({
-  label,
-  value,
-  sub,
-  tone,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  tone?: "income";
-}) {
-  return (
-    <div className="tile">
-      <span className="tile__label">{label}</span>
-      <span className={tone === "income" ? "tile__value tpl-tile--income" : "tile__value"}>{value}</span>
-      {sub && <span className="tile__sub">{sub}</span>}
-    </div>
-  );
-}
-
+/** A group of rows (Income, or one category), wide enough for its rows. */
+const GROUP = "min-w-[820px] pb-2";
+const GROUP_HEAD = "flex flex-wrap items-center justify-between gap-2 px-5 pt-3 pb-1";
+const GROUP_NOTE = "m-0 px-5 pt-1 pb-2 text-[13px] text-muted-foreground";
+/** The column headings above the rows (hidden from assistive tech: every field is labelled). */
+const COLHEAD = "pt-1.5 pb-0.5 text-[11px] font-semibold tracking-[0.05em] text-muted-foreground uppercase [&>span]:px-2";

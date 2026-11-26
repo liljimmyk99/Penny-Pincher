@@ -97,7 +97,7 @@ test.describe("M8 import", () => {
     await page.getByRole("link", { name: "Open Yearly" }).click();
     await expect(page.getByRole("heading", { level: 1, name: "Yearly" })).toBeVisible();
     await page.goto("/yearly?year=2024");
-    const mar = page.locator(".yearly__table tbody tr", { has: page.getByRole("link", { name: "March" }) });
+    const mar = page.getByRole("table", { name: "Month by month" }).locator("tbody tr", { has: page.getByRole("link", { name: "March" }) });
     await expect(mar).not.toContainText("—");
     await expect(mar).toContainText("$812.00"); // spent: 12 + 800
     await expect(mar).toContainText("$2,300.00"); // net income

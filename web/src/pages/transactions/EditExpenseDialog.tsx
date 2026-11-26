@@ -4,7 +4,10 @@ import { MerchantCombobox } from "../../components/MerchantCombobox";
 import { formatShortDate, isDate } from "../../lib/dates";
 import { MERCHANT_MAX, NOTE_MAX } from "../../lib/limits";
 import { centsToInput, parseCents } from "../../lib/money";
-import { EditDialog, FormField } from "./EditDialog";
+import { MoneyInput } from "../../components/MoneyInput";
+import { Input, inputVariants } from "../../components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { EditDialog, FieldGrid, FormField, Optional } from "./EditDialog";
 import { invalidProps, serverErrors } from "./form";
 
 type Field = "date" | "merchant" | "category" | "amount" | "note";
@@ -121,11 +124,10 @@ export function EditExpenseDialog({ expense, onClose }: { expense: Schemas["Expe
       onSubmit={() => void save()}
       onClose={onClose}
     >
-      <div className="edit-form__grid">
+      <FieldGrid>
         <FormField id={id("date")} label="Date" error={errors.date}>
-          <input
+          <Input
             id={id("date")}
-            className="field"
             type="date"
             required
             value={date}
@@ -134,13 +136,10 @@ export function EditExpenseDialog({ expense, onClose }: { expense: Schemas["Expe
           />
         </FormField>
         <FormField id={id("amount")} label="Amount" error={errors.amount}>
-          <input
+          <MoneyInput
             id={id("amount")}
-            className="field field--num"
-            type="text"
-            inputMode="decimal"
             value={amount}
-            onChange={(e) => edit("amount", setAmount)(e.target.value)}
+            onValueChange={(text) => edit("amount", setAmount)(text)}
             {...invalidProps(id("amount"), errors.amount)}
           />
         </FormField>
@@ -148,7 +147,7 @@ export function EditExpenseDialog({ expense, onClose }: { expense: Schemas["Expe
           <MerchantCombobox
             id={id("merchant")}
             label="Merchant"
-            className="field"
+            className={inputVariants()}
             value={merchant}
             invalid={!!errors.merchant}
             describedBy={errors.merchant ? `${id("merchant")}-err` : undefined}
@@ -158,33 +157,31 @@ export function EditExpenseDialog({ expense, onClose }: { expense: Schemas["Expe
           />
         </FormField>
         <FormField id={id("category")} label="Category" error={errors.category} wide>
-          <select
-            id={id("category")}
-            className="field"
-            value={categoryId}
-            onChange={(e) => edit("category", setCategoryId)(e.target.value)}
-            {...invalidProps(id("category"), errors.category)}
-          >
-            {(categories.data ?? []).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <Select value={categoryId} onValueChange={edit("category", setCategoryId)}>
+            <SelectTrigger id={id("category")} className="w-full" {...invalidProps(id("category"), errors.category)}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(categories.data ?? []).map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </FormField>
         <FormField
           id={id("note")}
           label={
             <>
-              Note <span className="edit-form__optional">optional</span>
+              Note <Optional />
             </>
           }
           error={errors.note}
           wide
         >
-          <input
+          <Input
             id={id("note")}
-            className="field"
             type="text"
             maxLength={NOTE_MAX}
             value={note}
@@ -192,7 +189,7 @@ export function EditExpenseDialog({ expense, onClose }: { expense: Schemas["Expe
             {...invalidProps(id("note"), errors.note)}
           />
         </FormField>
-      </div>
+      </FieldGrid>
     </EditDialog>
   );
 }

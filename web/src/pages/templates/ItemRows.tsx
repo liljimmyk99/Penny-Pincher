@@ -1,6 +1,11 @@
 import { useId, useLayoutEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { errorMessage, useTemplateItemMutations, type Schemas } from "../../api";
-import { AlertIcon, CheckIcon, TrashIcon } from "../../components/icons";
+import { AlertCircleIcon, CheckIcon, Trash2Icon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { MoneyInput } from "@/components/MoneyInput";
+import { Input, inputVariants } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { MerchantCombobox } from "../../components/MerchantCombobox";
 import { serverErrors } from "../transactions/form";
 import {
@@ -18,6 +23,14 @@ import {
 } from "./itemForms";
 
 type Mutations = ReturnType<typeof useTemplateItemMutations>;
+
+/** A row of the editor's grid (the column headings use it too). */
+export const ROW = "grid min-w-[820px] items-center gap-x-2.5 px-5 py-[3px]";
+export const EXPENSE_GRID = "grid-cols-[minmax(160px,1fr)_minmax(140px,1fr)_160px_64px_120px_92px]";
+export const INCOME_GRID = "grid-cols-[150px_minmax(120px,1fr)_64px_116px_116px_116px_92px]";
+
+/** Day of month: the quiet `cell` Input (#175), right-aligned like the numbers. */
+const DAY_CELL = "text-right font-semibold tabular-nums";
 
 /**
  * How a row saves. A saved item saves its changed fields when focus leaves the
@@ -109,9 +122,15 @@ function useRowSave<F extends string, T>(item: T | undefined) {
   return { errors, setErrors, alert, setAlert, latest, queue, run };
 }
 
-/** Leaving the row (not just moving between its fields) saves it. */
+/**
+ * Leaving the row (not just moving between its fields) saves it. Opening a
+ * Category or Source picker moves focus into its menu, which Radix renders in a
+ * portal outside the row; that doesn't count as leaving (#176).
+ */
 function leftRow(e: FocusEvent<HTMLElement>) {
-  return !e.currentTarget.contains(e.relatedTarget as Node | null);
+  const next = e.relatedTarget as Element | null;
+  if (next?.closest('[data-slot="select-content"]')) return false;
+  return !e.currentTarget.contains(next);
 }
 
 export function ExpenseItemRow({
@@ -190,7 +209,7 @@ export function ExpenseItemRow({
     <div
       role="group"
       aria-label={item ? label : "New expense item"}
-      className={item ? "tpl-row tpl-row--expense" : "tpl-row tpl-row--expense tpl-row--draft"}
+      className={cn(ROW, EXPENSE_GRID, !item && "bg-muted")}
       onBlur={(e) => leftRow(e) && void commit("leave")}
     >
       <MerchantCombobox
@@ -199,6 +218,7 @@ export function ExpenseItemRow({
         value={form.merchant}
         invalid={!!errors.merchant}
         describedBy={errIds("merchant")}
+        className={inputVariants({ variant: "cell" })}
         inputRef={firstRef}
         onChange={(merchant) => update({ merchant })}
         onPick={(m) => update({ merchant: m.name })}
@@ -206,8 +226,8 @@ export function ExpenseItemRow({
         onKeyDown={onEnter}
         autoFocus={autoFocus}
       />
-      <input
-        className="cell-input"
+      <Input
+        variant="cell"
         aria-label={`Note, ${label}`}
         aria-invalid={errors.note ? true : undefined}
         aria-describedby={errIds("note")}
@@ -216,23 +236,27 @@ export function ExpenseItemRow({
         onChange={(e) => update({ note: e.target.value })}
         onKeyDown={onEnter}
       />
-      <select
-        className="cell-input"
-        aria-label={`Category, ${label}`}
-        aria-invalid={errors.categoryId ? true : undefined}
-        aria-describedby={errIds("categoryId")}
-        value={form.categoryId}
-        onChange={(e) => update({ categoryId: e.target.value })}
-        onKeyDown={onEnter}
-      >
-        {categories.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-          </option>
-        ))}
-      </select>
-      <input
-        className="cell-input num"
+      <Select value={form.categoryId} onValueChange={(categoryId) => update({ categoryId })}>
+        <SelectTrigger
+          variant="cell"
+          className="w-full"
+          aria-label={`Category, ${label}`}
+          aria-invalid={errors.categoryId ? true : undefined}
+          aria-describedby={errIds("categoryId")}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {categories.map((c) => (
+            <SelectItem key={c.id} value={c.id}>
+              {c.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Input
+        variant="cell"
+        className={DAY_CELL}
         inputMode="numeric"
         aria-label={`Day of month, ${label}`}
         aria-invalid={errors.day ? true : undefined}
@@ -242,15 +266,13 @@ export function ExpenseItemRow({
         onChange={(e) => update({ day: e.target.value })}
         onKeyDown={onEnter}
       />
-      <input
-        className="cell-input num"
-        inputMode="decimal"
+      <MoneyInput
+        variant="cell"
         aria-label={`Amount, ${label}`}
         aria-invalid={errors.amount ? true : undefined}
         aria-describedby={errIds("amount")}
-        placeholder="0.00"
         value={form.amount}
-        onChange={(e) => update({ amount: e.target.value })}
+        onValueChange={(amount) => update({ amount })}
         onKeyDown={onEnter}
       />
       <RowActions
@@ -281,7 +303,7 @@ export function IncomeItemRow({
     keyof IncomeForm,
     Schemas["TemplateIncomeItem"]
   >(item);
-  const firstRef = useRef<HTMLSelectElement>(null);
+  const firstRef = useRef<HTMLButtonElement>(null);
   const sourceName = (sourceId: string) => sources.find((s) => s.id === sourceId)?.name ?? "Income";
   const label = item ? [sourceName(item.income_source_id), item.note].filter(Boolean).join(" · ") : "new income";
 
@@ -332,15 +354,13 @@ export function IncomeItemRow({
   };
   const errIds = (field: keyof IncomeForm) => (errors[field] ? `${id}-${field}-err` : undefined);
   const money = (field: "gross" | "taxable" | "net", name: string) => (
-    <input
-      className="cell-input num"
-      inputMode="decimal"
+    <MoneyInput
+      variant="cell"
       aria-label={`${name}, ${label}`}
       aria-invalid={errors[field] ? true : undefined}
       aria-describedby={errIds(field)}
-      placeholder="0.00"
       value={form[field]}
-      onChange={(e) => update({ [field]: e.target.value })}
+      onValueChange={(text) => update({ [field]: text })}
       onKeyDown={onEnter}
     />
   );
@@ -349,28 +369,31 @@ export function IncomeItemRow({
     <div
       role="group"
       aria-label={item ? label : "New income item"}
-      className={item ? "tpl-row tpl-row--income" : "tpl-row tpl-row--income tpl-row--draft"}
+      className={cn(ROW, INCOME_GRID, !item && "bg-muted")}
       onBlur={(e) => leftRow(e) && void commit("leave")}
     >
-      <select
-        ref={firstRef}
-        className="cell-input"
-        aria-label={`Source, ${label}`}
-        aria-invalid={errors.sourceId ? true : undefined}
-        aria-describedby={errIds("sourceId")}
-        value={form.sourceId}
-        onChange={(e) => update({ sourceId: e.target.value })}
-        onKeyDown={onEnter}
-        autoFocus={autoFocus}
-      >
-        {sources.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.name}
-          </option>
-        ))}
-      </select>
-      <input
-        className="cell-input"
+      <Select value={form.sourceId} onValueChange={(sourceId) => update({ sourceId })}>
+        <SelectTrigger
+          ref={firstRef}
+          variant="cell"
+          className="w-full"
+          aria-label={`Source, ${label}`}
+          aria-invalid={errors.sourceId ? true : undefined}
+          aria-describedby={errIds("sourceId")}
+          autoFocus={autoFocus}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {sources.map((s) => (
+            <SelectItem key={s.id} value={s.id}>
+              {s.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Input
+        variant="cell"
         aria-label={`Label, ${label}`}
         aria-invalid={errors.label ? true : undefined}
         aria-describedby={errIds("label")}
@@ -379,8 +402,9 @@ export function IncomeItemRow({
         onChange={(e) => update({ label: e.target.value })}
         onKeyDown={onEnter}
       />
-      <input
-        className="cell-input num"
+      <Input
+        variant="cell"
+        className={DAY_CELL}
         inputMode="numeric"
         aria-label={`Day of month, ${label}`}
         aria-invalid={errors.day ? true : undefined}
@@ -419,20 +443,21 @@ function RowActions({
   // the row (and save a draft that is being discarded). Keep focus where it is.
   const keepFocus = (e: MouseEvent) => e.preventDefault();
   return (
-    <span className="tpl-row__actions" onMouseDown={keepFocus}>
+    <span className="inline-flex justify-end gap-1" onMouseDown={keepFocus}>
       {draft && (
-        <button type="button" className="icon-btn" aria-label={`Save ${label}`} onClick={onSave}>
-          <CheckIcon width={18} height={18} />
-        </button>
+        <Button variant="ghost" size="icon-sm" className="text-income" aria-label={`Save ${label}`} onClick={onSave}>
+          <CheckIcon aria-hidden="true" />
+        </Button>
       )}
-      <button
-        type="button"
-        className="icon-btn icon-btn--danger"
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        className="hover:bg-danger-alert hover:text-danger-alert-foreground"
         aria-label={draft ? `Discard ${label}` : `Remove ${label}`}
         onClick={onRemove}
       >
-        <TrashIcon width={18} height={18} />
-      </button>
+        <Trash2Icon aria-hidden="true" />
+      </Button>
     </span>
   );
 }
@@ -447,9 +472,9 @@ function RowErrors<F extends string>({ id, errors, alert }: { id: string; errors
   ));
   if (alert) items.push(<li key="alert">{alert}</li>);
   return (
-    <div className="tpl-row__errors" role="alert">
-      <AlertIcon width={16} height={16} aria-hidden="true" />
-      <ul>{items}</ul>
+    <div className="col-span-full my-1 flex items-start gap-1.5 px-2 text-[13px] font-medium text-danger-alert-foreground" role="alert">
+      <AlertCircleIcon aria-hidden="true" className="mt-px size-4 flex-none" />
+      <ul className="m-0 list-none p-0">{items}</ul>
     </div>
   );
 }

@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type ReactNode } from "react";
 import { errorMessage } from "../../api";
-import { AlertIcon, GripIcon, InfoIcon, LockIcon, PencilIcon, TrashIcon } from "../../components/icons";
+import { AlertCircleIcon, GripVerticalIcon, InfoIcon, LockIcon, PencilIcon, Trash2Icon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { moveAmongUnlocked } from "./reorder";
 
@@ -148,49 +151,46 @@ export function ManageTable<T extends ManageRow>({
   }
 
   return (
-    <div className="manage-table__scroll">
-      <table className="manage-table">
-        <caption className="visually-hidden">{caption}</caption>
-        <thead>
-          <tr>
-            <th scope="col" className="manage-table__handle-col">
-              <span className="visually-hidden">Reorder</span>
-            </th>
-            <th scope="col">{nameHeader}</th>
+    <div>
+      <Table className="min-w-[560px]">
+        <TableCaption className="sr-only">{caption}</TableCaption>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead scope="col" className="w-14 pl-4">
+              <span className="sr-only">Reorder</span>
+            </TableHead>
+            <TableHead scope="col">{nameHeader}</TableHead>
             {columns.map((c) => (
-              <th key={c.header} scope="col" className="num">
+              <TableHead key={c.header} scope="col" numeric>
                 {c.header}
-              </th>
+              </TableHead>
             ))}
-            <th scope="col" className="manage-table__actions-col">
-              <span className="visually-hidden">Actions</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
+            <TableHead scope="col" className="w-[104px] pr-6">
+              <span className="sr-only">Actions</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {rows.map((row) => {
             const isEditing = editing?.id === row.id;
             const blocked = deleteBlockedReason?.(row) ?? null;
             const errorId = `rename-error-${row.id}`;
-            const classes = [
-              row.id === dragId && "is-dragging",
-              row.id === overId && row.id !== dragId && "is-drop-target",
-            ]
-              .filter(Boolean)
-              .join(" ");
             return (
-              <tr
+              <TableRow
                 key={row.id}
-                className={classes || undefined}
+                data-dragging={row.id === dragId || undefined}
+                data-drop-target={(row.id === overId && row.id !== dragId) || undefined}
+                className="data-[dragging]:opacity-50 data-[drop-target]:shadow-[inset_0_2px_0_var(--color-ring)]"
                 onDragOver={(e) => onDragOver(e, row)}
                 onDragLeave={() => overId === row.id && setOverId(null)}
                 onDrop={(e) => onDrop(e, row)}
               >
-                <td>
+                <TableCell className="pl-4">
                   {!row.locked && (
-                    <button
-                      type="button"
-                      className="icon-btn icon-btn--handle"
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="cursor-grab text-muted-foreground active:cursor-grabbing"
                       aria-label={`Reorder ${row.name}`}
                       aria-describedby="reorder-help"
                       draggable
@@ -205,21 +205,21 @@ export function ManageTable<T extends ManageRow>({
                         else handles.current.delete(row.id);
                       }}
                     >
-                      <GripIcon />
-                    </button>
+                      <GripVerticalIcon aria-hidden="true" />
+                    </Button>
                   )}
-                </td>
-                <th scope="row" className="manage-table__name">
+                </TableCell>
+                <TableHead scope="row" className="font-semibold whitespace-normal text-foreground">
                   {isEditing ? (
                     <form
-                      className="manage-table__edit"
+                      className="flex flex-wrap items-center gap-2 py-1"
                       onSubmit={(e) => {
                         e.preventDefault();
                         void saveEdit(row);
                       }}
                     >
-                      <input
-                        className="field field--sm"
+                      <Input
+                        className="h-9 max-w-[260px] font-normal"
                         type="text"
                         aria-label={renameLabel}
                         value={editing.draft}
@@ -235,42 +235,42 @@ export function ManageTable<T extends ManageRow>({
                           }
                         }}
                       />
-                      <button type="submit" className="btn btn--primary btn--sm" disabled={editing.saving}>
+                      <Button type="submit" variant="success" size="sm" disabled={editing.saving}>
                         Save
-                      </button>
-                      <button type="button" className="btn btn--ghost btn--sm" onClick={() => endEdit(row.id)}>
+                      </Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => endEdit(row.id)}>
                         Cancel
-                      </button>
+                      </Button>
                       {editing.error && (
-                        <p id={errorId} role="alert" className="manage-table__error">
-                          <AlertIcon width={16} height={16} />
+                        <p id={errorId} role="alert" className="m-0 flex basis-full items-center gap-1.5 text-[13px] font-medium text-danger-alert-foreground">
+                          <AlertCircleIcon aria-hidden="true" className="size-4" />
                           {editing.error}
                         </p>
                       )}
                     </form>
                   ) : (
-                    <span className="manage-table__label">
+                    <span data-slot="manage-name" className="inline-flex flex-wrap items-center gap-2">
                       {row.name}
                       {badges?.(row)}
                     </span>
                   )}
-                </th>
+                </TableHead>
                 {columns.map((c) => (
-                  <td key={c.header} className="num tnum">
+                  <TableCell key={c.header} numeric>
                     {c.cell(row)}
-                  </td>
+                  </TableCell>
                 ))}
-                <td className="manage-table__actions">
+                <TableCell className="pr-6 text-right">
                   {row.locked ? (
-                    <span className="locked">
-                      <LockIcon width={15} height={15} />
+                    <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
+                      <LockIcon aria-hidden="true" className="size-[15px]" />
                       Locked
                     </span>
                   ) : (
-                    <span className="manage-table__buttons">
-                      <button
-                        type="button"
-                        className="icon-btn"
+                    <span className="inline-flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
                         aria-label={`Rename ${row.name}`}
                         onClick={() => startEdit(row)}
                         disabled={isEditing}
@@ -279,54 +279,51 @@ export function ManageTable<T extends ManageRow>({
                           else renameButtons.current.delete(row.id);
                         }}
                       >
-                        <PencilIcon />
-                      </button>
+                        <PencilIcon aria-hidden="true" />
+                      </Button>
                       {blocked ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <button
-                              type="button"
-                              className="icon-btn icon-btn--info"
-                              aria-label={`Why ${row.name} can't be deleted`}
-                            >
-                              <InfoIcon />
-                            </button>
+                            <Button variant="ghost" size="icon-sm" className="text-muted-foreground" aria-label={`Why ${row.name} can't be deleted`}>
+                              <InfoIcon aria-hidden="true" />
+                            </Button>
                           </TooltipTrigger>
                           <TooltipContent side="top" sideOffset={6}>
                             {blocked}
                           </TooltipContent>
                         </Tooltip>
                       ) : (
-                        <button
-                          type="button"
-                          className="icon-btn icon-btn--danger"
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="hover:bg-danger-alert hover:text-danger-alert-foreground"
                           aria-label={`Delete ${row.name}`}
                           onClick={() => onDelete(row)}
                         >
-                          <TrashIcon />
-                        </button>
+                          <Trash2Icon aria-hidden="true" />
+                        </Button>
                       )}
                     </span>
                   )}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             );
           })}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td />
-            <th scope="row">{footer.label}</th>
+        </TableBody>
+        <TableFooter>
+          <TableRow className="hover:bg-transparent">
+            <TableCell className="pl-4" />
+            <TableHead scope="row" className="text-foreground">{footer.label}</TableHead>
             {footer.cells.map((cell, i) => (
-              <td key={i} className="num tnum">
+              <TableCell key={i} numeric>
                 {cell}
-              </td>
+              </TableCell>
             ))}
-            <td />
-          </tr>
-        </tfoot>
-      </table>
-      <p className="visually-hidden" role="status" aria-live="polite">
+            <TableCell className="pr-6" />
+          </TableRow>
+        </TableFooter>
+      </Table>
+      <p className="sr-only" role="status" aria-live="polite">
         {announcement}
       </p>
     </div>

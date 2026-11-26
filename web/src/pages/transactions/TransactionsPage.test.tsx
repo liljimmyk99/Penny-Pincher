@@ -218,7 +218,7 @@ describe("TransactionsPage: income", () => {
     expect(rows[1]).toHaveTextContent("Mar 15Employer APaycheck$3,000.00$2,800.00$2,100.0025.0%");
     // No taxable income: no tax rate.
     expect(rows[2]).toHaveTextContent("Mar 5Side job—Unconfirmed · from template$500.00$0.00$500.00—");
-    expect(rows[2]).toHaveClass("is-unconfirmed");
+    expect(rows[2]).toHaveAttribute("data-variant", "unconfirmed");
     expect(rows[3]).toHaveTextContent("Total$3,500.00$2,800.00$2,600.007.1%");
   });
 });
@@ -246,13 +246,16 @@ describe("TransactionsPage: spending", () => {
       "BrokerageUnconfirmed · from template",
     ]);
     const [, refund, original, unconfirmed] = expenseRows();
-    expect(refund).toHaveClass("is-refund");
-    expect(within(refund).getByText("−$20.00")).toHaveClass("is-refund");
-    expect(within(refund).getByText("Partial refund")).toHaveClass("pill--partial");
-    expect(original).not.toHaveClass("is-refund");
+    expect(refund).toHaveAttribute("data-refund");
+    expect(refund).toHaveAttribute("data-variant", "refund");
+    expect(within(refund).getByText("−$20.00")).toHaveClass("text-refund-text");
+    expect(within(refund).getByText("Partial refund")).toHaveAttribute("data-tag", "partial");
+    expect(within(refund).getByText("Partial refund")).toHaveAttribute("data-variant", "refund");
+    expect(original).not.toHaveAttribute("data-refund");
+    expect(original).toHaveAttribute("data-variant", "default");
     // Partly refunded: the amount stays as logged; the net is display-only.
-    expect(within(original).getByText("$50.00")).not.toHaveClass("is-struck");
-    expect(unconfirmed).toHaveClass("is-unconfirmed");
+    expect(within(original).getByText("$50.00").tagName).not.toBe("S");
+    expect(unconfirmed).toHaveAttribute("data-variant", "unconfirmed");
   });
 
   it("filters the expense list from a category row or chip, and clears it again", async () => {
@@ -328,7 +331,8 @@ describe("TransactionsPage: edit and delete", () => {
     expect(amount).toHaveValue("4.50");
     await user.clear(amount);
     await user.type(amount, "12.05");
-    await user.selectOptions(within(dialog).getByLabelText("Category"), "Household");
+    await user.click(within(dialog).getByRole("combobox", { name: "Category" }));
+    await user.click(await screen.findByRole("option", { name: "Household" }));
     await user.click(within(dialog).getByRole("button", { name: "Save changes" }));
 
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -439,14 +443,14 @@ describe("TransactionsPage: refunds", () => {
     await ready();
 
     const fromEarlier = rowFor("Wrong order");
-    expect(fromEarlier).toHaveClass("is-refund");
-    expect(await within(fromEarlier).findByText("From February")).toHaveClass("pill--earlier");
+    expect(fromEarlier).toHaveAttribute("data-refund");
+    expect(await within(fromEarlier).findByText("From February")).toHaveAttribute("data-tag", "earlier");
     const link = within(fromEarlier).getByRole("link", { name: "Corner Coffee · Feb 11 · $7.00" });
     expect(link).toHaveAttribute("href", "/transactions?month=2020-02#expense-e5");
-    expect(within(fromEarlier).getByText("−$7.00")).toHaveClass("is-refund");
+    expect(within(fromEarlier).getByText("−$7.00")).toHaveClass("text-refund-text");
 
     const unlinked = rowFor("Price match");
-    expect(within(unlinked).getByText("Not linked")).toHaveClass("pill--unlinked");
+    expect(within(unlinked).getByText("Not linked")).toHaveAttribute("data-tag", "unlinked");
     expect(within(unlinked).queryByRole("link")).not.toBeInTheDocument();
     expect(within(unlinked).getByRole("button", { name: "Link refund Corner Store, Mar 25" })).toBeInTheDocument();
     // Linked refunds and expenses have no Link… button.
@@ -462,11 +466,11 @@ describe("TransactionsPage: refunds", () => {
     expect(screen.getByTestId("location")).toHaveTextContent("/transactions?month=2020-02#expense-e5");
     const original = await screen.findByText("Refunded in full on Mar 8 · net $0.00");
     const row = original.closest("tr")!;
-    expect(row).toHaveClass("is-target");
+    expect(row).toHaveAttribute("data-target");
     await waitFor(() => expect(row).toHaveFocus());
     const amount = within(row).getByText("$7.00");
     expect(amount.tagName).toBe("S");
-    expect(amount.closest("td")).toHaveClass("is-struck");
+    expect(amount.closest("td")).toHaveClass("text-muted-foreground");
     expect(amount.closest("td")).toHaveTextContent("$7.00 (refunded in full)");
   });
 
@@ -476,7 +480,7 @@ describe("TransactionsPage: refunds", () => {
     });
     await ready();
 
-    expect(await screen.findByText("Full refund")).toHaveClass("pill--full");
+    expect(await screen.findByText("Full refund")).toHaveAttribute("data-tag", "full");
     expect(screen.getByText("Refunded in full on Mar 21 · net $0.00")).toBeInTheDocument();
   });
 
@@ -500,7 +504,7 @@ describe("TransactionsPage: refunds", () => {
 
     await user.click(chips.getByRole("button", { name: "Refunds 3" }));
     expect(expenseRows()).toHaveLength(3);
-    expect(expenseRows().every((r) => r.classList.contains("is-refund"))).toBe(true);
+    expect(expenseRows().every((r) => r.hasAttribute("data-refund"))).toBe(true);
     expect(screen.getByTestId("location")).toHaveTextContent("show=refunds");
     expect(footer()).toHaveTextContent("Showing 3 of 6 expenses · −$37.00");
 

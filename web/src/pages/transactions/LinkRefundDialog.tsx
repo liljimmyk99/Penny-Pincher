@@ -1,6 +1,10 @@
 import { useId, useState, type FormEvent } from "react";
 import { errorMessage, useEntryMutations, useExpensesBetween, type Schemas } from "../../api";
-import { AlertIcon, SearchIcon } from "../../components/icons";
+import { SearchIcon } from "lucide-react";
+import { ErrorAlert, LoadError } from "../../components/LoadError";
+import { Badge } from "../../components/ui/badge";
+import { Input } from "../../components/ui/input";
+import { cn } from "../../lib/utils";
 import { addDays, formatShortDate, monthName, monthOf } from "../../lib/dates";
 import { formatCents } from "../../lib/money";
 import { suggestOriginal } from "./refunds";
@@ -18,6 +22,8 @@ import {
 
 /** How far back the dialog looks for the original purchase. */
 export const LINK_WINDOW_DAYS = 90;
+/** Status lines and the note under the list. */
+const note = "m-0 text-[13px] text-muted-foreground";
 /** Most candidates listed at once; searching narrows the rest. */
 const SHOWN = 50;
 
@@ -80,50 +86,48 @@ export function LinkRefundDialog({ refund, categoryName, onClose, onLinked }: Pr
     .join(" · ");
 
   let list;
-  if (candidates.isPending) list = <p className="link-dialog__status">Loading expenses…</p>;
+  if (candidates.isPending) list = <p className={note}>Loading expenses…</p>;
   else if (candidates.isError)
-    list = (
-      <p role="alert" className="alert alert--danger">
-        <AlertIcon width={18} height={18} />
-        <span>
-          Couldn’t load expenses. {errorMessage(candidates.error)}{" "}
-          <button type="button" className="text-btn" onClick={() => void candidates.refetch()}>
-            Try again
-          </button>
-        </span>
-      </p>
-    );
+    list = <LoadError message={`Couldn’t load expenses. ${errorMessage(candidates.error)}`} onRetry={() => void candidates.refetch()} />;
   else if (all.length === 0)
-    list = <p className="link-dialog__status">No expenses in the {LINK_WINDOW_DAYS} days before this refund.</p>;
-  else if (shown.length === 0) list = <p className="link-dialog__status">No expenses match “{query.trim()}”.</p>;
+    list = <p className={note}>No expenses in the {LINK_WINDOW_DAYS} days before this refund.</p>;
+  else if (shown.length === 0) list = <p className={note}>No expenses match “{query.trim()}”.</p>;
   else
     list = (
-      <div role="radiogroup" aria-label="Expense to link" className="link-dialog__options">
+      <div role="radiogroup" aria-label="Expense to link" className="flex max-h-80 flex-col gap-2 overflow-y-auto p-0.5">
         {shown.map((c) => {
           const on = c.id === selected;
           const net = c.amount_cents + c.refunded_total_cents;
           const meta = [formatShortDate(c.date), categoryName(c.category_id), c.note].filter(Boolean).join(" · ");
           return (
-            <label key={c.id} className={on ? "link-opt is-on" : "link-opt"}>
+            <label
+              key={c.id}
+              data-state={on ? "checked" : "unchecked"}
+              className={cn(
+                "grid min-h-15 cursor-pointer grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-x-3 rounded-xl border border-solid border-border bg-card px-3.5 py-2.5 hover:bg-muted",
+                "has-focus-visible:ring-[3px] has-focus-visible:ring-ring/35",
+                on && "border-ring bg-selected text-selected-foreground shadow-[inset_0_0_0_1px_var(--color-ring)] hover:bg-selected",
+              )}
+            >
               <input
                 type="radio"
                 name={`${uid}-original`}
                 value={c.id}
                 checked={on}
                 onChange={() => setChosen(c.id)}
-                className="link-opt__radio"
+                className="m-0 size-[18px] accent-primary"
               />
-              <span className="link-opt__text">
-                <span className="link-opt__title">
-                  <strong>{c.merchant.name}</strong>
-                  {c === suggested && <span className="pill pill--suggested">Suggested</span>}
+              <span className="flex min-w-0 flex-col gap-0.5">
+                <span className="flex flex-wrap items-center gap-2">
+                  <strong className="font-semibold">{c.merchant.name}</strong>
+                  {c === suggested && <Badge variant="selected">Suggested</Badge>}
                 </span>
-                <span className="link-opt__meta">
+                <span className={cn("truncate text-[13px]", on ? "text-selected-foreground" : "text-muted-foreground")}>
                   {meta}
                   {c.refunded_total_cents !== 0 && ` · net ${formatCents(net)}`}
                 </span>
               </span>
-              <span className="link-opt__amount">{formatCents(c.amount_cents)}</span>
+              <span className="font-bold tabular-nums">{formatCents(c.amount_cents)}</span>
             </label>
           );
         })}
@@ -137,12 +141,13 @@ export function LinkRefundDialog({ refund, categoryName, onClose, onLinked }: Pr
           <DialogTitle>Link refund to an expense</DialogTitle>
           <DialogDescription>{describe}</DialogDescription>
         </DialogHeader>
-        <form className="link-dialog__form" noValidate onSubmit={(e) => void submit(e)}>
-          <label className="tx-search link-dialog__search">
-            <SearchIcon />
-            <span className="visually-hidden">Search expenses</span>
-            <input
+        <form className="flex flex-col gap-3" noValidate onSubmit={(e) => void submit(e)}>
+          <label className="relative block">
+            <SearchIcon aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <span className="sr-only">Search expenses</span>
+            <Input
               type="search"
+              className="pl-9"
               placeholder={`Search expenses from the last ${LINK_WINDOW_DAYS} days`}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -150,20 +155,15 @@ export function LinkRefundDialog({ refund, categoryName, onClose, onLinked }: Pr
           </label>
           {list}
           {ordered.length > SHOWN && (
-            <p className="link-dialog__status">
+            <p className={note}>
               Showing {SHOWN} of {ordered.length}. Search to narrow the list.
             </p>
           )}
-          <p className="link-dialog__note">
+          <p className={note}>
             Linking is optional. An unlinked refund still lowers {categoryName(refund.category_id)} spending for{" "}
             {monthName(monthOf(refund.date))}.
           </p>
-          {alert && (
-            <p role="alert" className="alert alert--danger">
-              <AlertIcon width={18} height={18} />
-              {alert}
-            </p>
-          )}
+          {alert && <ErrorAlert>{alert}</ErrorAlert>}
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline" type="button" disabled={pending}>

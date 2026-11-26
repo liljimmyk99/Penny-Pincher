@@ -3,13 +3,18 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { errorMessage, useYearlySummary } from "../../api";
 import { PairedBars } from "../../charts/PairedBars";
 import { RankedBars, type RankedBar } from "../../charts/RankedBars";
-import { AlertIcon, ChevronLeftIcon, ChevronRightIcon } from "../../components/icons";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { LoadError } from "../../components/LoadError";
+import { SectionCard } from "../../components/SectionCard";
+import { StatTile } from "../../components/StatTile";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { monthName, todayISO } from "../../lib/dates";
 import { formatCents } from "../../lib/money";
 import { categoryColor } from "../summary/summary";
 import { Page } from "../Page";
 import { averageCents, rankedAverages, type Yearly } from "./yearly";
-import "./YearlyPage.css";
 
 const MIN_YEAR = 2000;
 const MAX_YEAR = 2100;
@@ -31,19 +36,9 @@ export function YearlyPage() {
   const summary = useYearlySummary(year);
 
   let body;
-  if (summary.isPending) body = <p className="yearly__status">Loading {year}…</p>;
+  if (summary.isPending) body = <p className="m-0 text-muted-foreground">Loading {year}…</p>;
   else if (summary.isError)
-    body = (
-      <p role="alert" className="alert alert--danger">
-        <AlertIcon width={18} height={18} />
-        <span>
-          Couldn’t load the yearly summary. {errorMessage(summary.error)}{" "}
-          <button type="button" className="text-btn" onClick={() => void summary.refetch()}>
-            Try again
-          </button>
-        </span>
-      </p>
-    );
+    body = <LoadError message={`Couldn’t load the yearly summary. ${errorMessage(summary.error)}`} onRetry={() => void summary.refetch()} />;
   else body = <YearlyBody key={year} data={summary.data} />;
 
   return (
@@ -52,25 +47,25 @@ export function YearlyPage() {
       eyebrow={String(year)}
       actions={
         <div role="group" aria-label="Year" className="month-switcher">
-          <button
-            type="button"
-            className="icon-btn"
+          <Button
+            variant="ghost"
+            size="icon"
             aria-label={`Previous year, ${year - 1}`}
             disabled={year <= MIN_YEAR}
             onClick={() => setYear(year - 1)}
           >
-            <ChevronLeftIcon />
-          </button>
+            <ChevronLeftIcon aria-hidden="true" />
+          </Button>
           <span className="month-switcher__label" aria-live="polite">{year}</span>
-          <button
-            type="button"
-            className="icon-btn"
+          <Button
+            variant="ghost"
+            size="icon"
             aria-label={`Next year, ${year + 1}`}
             disabled={year >= MAX_YEAR}
             onClick={() => setYear(year + 1)}
           >
-            <ChevronRightIcon />
-          </button>
+            <ChevronRightIcon aria-hidden="true" />
+          </Button>
         </div>
       }
     >
@@ -82,36 +77,25 @@ export function YearlyPage() {
 function YearlyBody({ data }: { data: Yearly }) {
   const { totals, average_month_count: n } = data;
   const empty = n === 0;
-  const muted = empty ? " tile__value--muted" : "";
+  const tone = (t: "income" | "saving" | "default") => (empty ? "muted" : t);
   const avg = (cents: number) => `${formatCents(averageCents(cents, n))} / month`;
 
   return (
     <>
-      <div className="tiles" role="group" aria-label={`${data.year} totals`}>
-        <div className="tile">
-          <span className="tile__label">Net income</span>
-          <span className={`tile__value tile__value--income${muted}`}>{formatCents(totals.net_cents)}</span>
-          <span className="tile__sub">{avg(totals.net_cents)} average</span>
-        </div>
-        <div className="tile">
-          <span className="tile__label">Spent</span>
-          <span className={`tile__value${muted}`}>{formatCents(totals.spent_cents)}</span>
-          <span className="tile__sub">{avg(totals.spent_cents)} average</span>
-        </div>
-        <div className="tile">
-          <span className="tile__label">Saved &amp; invested</span>
-          <span className={`tile__value tile__value--saving${muted}`}>{formatCents(totals.saving_cents)}</span>
-          <span className="tile__sub">Counted in Spent · {avg(totals.saving_cents)}</span>
-        </div>
-        <div className="tile">
-          <span className="tile__label">Left over</span>
-          <span className={`tile__value${muted}`}>{formatCents(totals.left_over_cents)}</span>
-          <span className="tile__sub">{avg(totals.left_over_cents)} average</span>
-        </div>
+      <div className="flex flex-wrap gap-4" role="group" aria-label={`${data.year} totals`}>
+        <StatTile label="Net income" value={formatCents(totals.net_cents)} tone={tone("income")} sub={`${avg(totals.net_cents)} average`} />
+        <StatTile label="Spent" value={formatCents(totals.spent_cents)} tone={tone("default")} sub={`${avg(totals.spent_cents)} average`} />
+        <StatTile
+          label="Saved & invested"
+          value={formatCents(totals.saving_cents)}
+          tone={tone("saving")}
+          sub={`Counted in Spent · ${avg(totals.saving_cents)}`}
+        />
+        <StatTile label="Left over" value={formatCents(totals.left_over_cents)} tone={tone("default")} sub={`${avg(totals.left_over_cents)} average`} />
       </div>
 
       {empty && (
-        <p className="yearly__status">
+        <p className="m-0 text-muted-foreground">
           Nothing logged in {data.year} yet. <Link to="/add">Add entries</Link> to see the year take shape.
         </p>
       )}
@@ -135,11 +119,7 @@ function IncomeVsSpent({ data }: { data: Yearly }) {
     name: `${monthName(m.month)}: net income ${formatCents(m.net_cents)}, spent ${formatCents(m.spent_cents)}. Open ${monthName(m.month)} summary`,
   }));
   return (
-    <section className="card yearly" aria-labelledby="yearly-pairs-h">
-      <div className="yearly__head">
-        <h2 id="yearly-pairs-h">Income vs. spent</h2>
-        <p className="yearly__desc">Net income and spending per month. Select a month to open its summary.</p>
-      </div>
+    <SectionCard flush id="yearly-pairs-h" title="Income vs. spent" description="Net income and spending per month. Select a month to open its summary.">
       <PairedBars
         groups={groups}
         aName="Net income"
@@ -148,7 +128,7 @@ function IncomeVsSpent({ data }: { data: Yearly }) {
         summary={`${data.year}: net income ${formatCents(data.totals.net_cents)}, spent ${formatCents(data.totals.spent_cents)}.`}
         onSelect={(month) => void navigate(`/summary?month=${month}`)}
       />
-    </section>
+    </SectionCard>
   );
 }
 
@@ -165,16 +145,18 @@ function CategoryAverages({ data }: { data: Yearly }) {
     detail: `${formatCents(c.total_cents)} for the year`,
   }));
   return (
-    <section className="card yearly" aria-labelledby="yearly-cats-h">
-      <div className="yearly__head">
-        <h2 id="yearly-cats-h">Monthly average by category</h2>
-        <p className="yearly__desc">
+    <SectionCard flush
+      id="yearly-cats-h"
+      title="Monthly average by category"
+      description={
+        <>
           Averaged over the {data.average_month_count} {data.average_month_count === 1 ? "month" : "months"} with entries.
           Saving is counted in Spent.
-        </p>
-      </div>
+        </>
+      }
+    >
       {rows.length === 0 ? (
-        <p className="yearly__empty">No spending logged in {data.year}.</p>
+        <p className="m-0 px-6 text-muted-foreground">No spending logged in {data.year}.</p>
       ) : (
         <RankedBars
           rows={rows}
@@ -183,7 +165,7 @@ function CategoryAverages({ data }: { data: Yearly }) {
           label="Monthly average spending by category"
         />
       )}
-    </section>
+    </SectionCard>
   );
 }
 
@@ -193,55 +175,51 @@ function MonthTable({ data }: { data: Yearly }) {
   const { totals } = data;
   const cell = (cents: number, has: boolean) => (has ? formatCents(cents) : <span aria-label="none">—</span>);
   return (
-    <section className="card yearly" aria-labelledby="yearly-table-h">
-      <div className="yearly__head">
-        <h2 id="yearly-table-h">Month by month</h2>
-        <p className="yearly__desc">Select a month to open its summary.</p>
-      </div>
-      <div className="yearly__scroll">
-        <table className="tx-table yearly__table">
-          <thead>
-            <tr>
-              <th scope="col">Month</th>
-              <th scope="col" className="num">Net income</th>
-              <th scope="col" className="num">Spent</th>
-              <th scope="col" className="num">Left over</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.months.map((m) => (
-              <tr
-                key={m.month}
-                className={`yearly__row${m.has_entries ? "" : " is-quiet"}`}
-                onClick={() => void navigate(`/summary?month=${m.month}`)}
-              >
-                <th scope="row">
-                  <Link to={`/summary?month=${m.month}`} onClick={(e) => e.stopPropagation()}>
-                    {monthName(m.month)}
-                  </Link>
-                </th>
-                <td className="num yearly__income">{cell(m.net_cents, m.has_entries)}</td>
-                <td className="num">{cell(m.spent_cents, m.has_entries)}</td>
-                <td className="num">{cell(m.left_over_cents, m.has_entries)}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <th scope="row">Total</th>
-              <td className="num yearly__income">{formatCents(totals.net_cents)}</td>
-              <td className="num">{formatCents(totals.spent_cents)}</td>
-              <td className="num">{formatCents(totals.left_over_cents)}</td>
-            </tr>
-            <tr>
-              <th scope="row">Monthly average</th>
-              <td className="num yearly__income">{formatCents(averageCents(totals.net_cents, n))}</td>
-              <td className="num">{formatCents(averageCents(totals.spent_cents, n))}</td>
-              <td className="num">{formatCents(averageCents(totals.left_over_cents, n))}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </section>
+    <SectionCard flush id="yearly-table-h" title="Month by month" description="Select a month to open its summary.">
+      <Table aria-labelledby="yearly-table-h" className="min-w-[520px]">
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead scope="col" className="pl-6">Month</TableHead>
+            <TableHead scope="col" numeric>Net income</TableHead>
+            <TableHead scope="col" numeric>Spent</TableHead>
+            <TableHead scope="col" numeric className="pr-6">Left over</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {data.months.map((m) => (
+            // The whole row opens the month (§6.10); the month's link is the keyboard and screen-reader path.
+            <TableRow
+              key={m.month}
+              data-quiet={m.has_entries ? undefined : true}
+              className={cn("cursor-pointer", !m.has_entries && "text-muted-foreground")}
+              onClick={() => void navigate(`/summary?month=${m.month}`)}
+            >
+              <TableHead scope="row" className="pl-6 font-bold text-foreground">
+                <Link to={`/summary?month=${m.month}`} onClick={(e) => e.stopPropagation()}>
+                  {monthName(m.month)}
+                </Link>
+              </TableHead>
+              <TableCell numeric className="text-income">{cell(m.net_cents, m.has_entries)}</TableCell>
+              <TableCell numeric>{cell(m.spent_cents, m.has_entries)}</TableCell>
+              <TableCell numeric className="pr-6">{cell(m.left_over_cents, m.has_entries)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+        <TableFooter className="font-bold">
+          <TableRow className="hover:bg-transparent">
+            <TableHead scope="row" className="pl-6 text-foreground">Total</TableHead>
+            <TableCell numeric className="text-income">{formatCents(totals.net_cents)}</TableCell>
+            <TableCell numeric>{formatCents(totals.spent_cents)}</TableCell>
+            <TableCell numeric className="pr-6">{formatCents(totals.left_over_cents)}</TableCell>
+          </TableRow>
+          <TableRow className="hover:bg-transparent">
+            <TableHead scope="row" className="pl-6 text-foreground">Monthly average</TableHead>
+            <TableCell numeric className="text-income">{formatCents(averageCents(totals.net_cents, n))}</TableCell>
+            <TableCell numeric>{formatCents(averageCents(totals.spent_cents, n))}</TableCell>
+            <TableCell numeric className="pr-6">{formatCents(averageCents(totals.left_over_cents, n))}</TableCell>
+          </TableRow>
+        </TableFooter>
+      </Table>
+    </SectionCard>
   );
 }

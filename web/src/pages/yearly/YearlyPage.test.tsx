@@ -63,7 +63,8 @@ function renderPage(filled = true, path = "/yearly?year=2020") {
   return { user: userEvent.setup(), fetchMock };
 }
 
-const tile = (label: string) => screen.getByText(label, { selector: ".tile__label" }).closest(".tile") as HTMLElement;
+const tile = (label: string) =>
+  within(screen.getByRole("group", { name: /totals$/ })).getByText(label).closest("[data-slot=stat-tile]") as HTMLElement;
 
 describe("YearlyPage", () => {
   it("shows tiles with monthly averages", async () => {
@@ -114,6 +115,7 @@ describe("YearlyPage", () => {
     renderPage(false);
     await screen.findByText(/Nothing logged in 2020 yet/);
     expect(tile("Spent")).toHaveTextContent("$0.00");
+    expect(tile("Spent")).toHaveAttribute("data-tone", "muted");
     expect(screen.getByText("No spending logged in 2020.")).toBeInTheDocument();
   });
 });
