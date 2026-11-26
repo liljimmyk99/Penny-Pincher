@@ -213,7 +213,7 @@ describe("SummaryPage", () => {
     const income = await screen.findByRole("table", { name: "Income" });
     const headers = within(income).getAllByRole("columnheader");
     // Only sources with entries get a column; "Other" has none this month.
-    expect(headers.map((h) => h.textContent)).toEqual(["Figure", "Employer A1 entry", "Side job1 entry", "All sources combined"]);
+    expect(headers.map((h) => h.textContent)).toEqual(["Figure", "Employer A 1 entry", "Side job 1 entry", "All sources combined"]);
     const rows = within(income).getAllByRole("row").slice(1);
     expect(rows.map((r) => r.textContent)).toEqual([
       "Gross$3,000.00$500.00$3,500.00",

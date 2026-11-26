@@ -214,7 +214,7 @@ function IncomeSection({ month, data, onOpen }: { month: string; data: Summary; 
                   aria-label={`${s.name}, ${plural(s.entry_count, "entry", "entries")}`}
                   onClick={() => onOpen(s.income_source_id)}
                 >
-                  <span className="font-semibold">{s.name}</span>
+                  <span className="font-semibold">{s.name}</span>{" "}
                   <span className="text-xs font-normal text-muted-foreground">{plural(s.entry_count, "entry", "entries")}</span>
                 </button>
               </TableHead>
