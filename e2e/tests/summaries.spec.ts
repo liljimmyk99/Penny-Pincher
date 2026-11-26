@@ -125,12 +125,19 @@ test("MS-1, MS-2, MS-3 January tiles, income per source and the income modal", a
   // MS-1
   await expectTiles(page, MONTHS["2027-01"]);
 
-  // MS-2: per-source rows and the combined total (net shown on the row).
-  await expect(page.getByRole("button", { name: "Job A, 2 entries, $3,600.00 net" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Job B, 1 entry, $800.00 net" })).toBeVisible();
-  await expect(page.getByRole("listitem").filter({ hasText: /^All sources combined/ })).toHaveText(/All sources combined\s*\$4,400\.00/);
+  // MS-2: gross, gross taxable, net and tax rate per source, then all sources combined (root AGENTS.md §6.10).
+  const income = page.getByRole("table", { name: "Income" });
+  await expect(income.getByRole("button", { name: "Job A, 2 entries" })).toBeVisible();
+  await expect(income.getByRole("button", { name: "Job B, 1 entry" })).toBeVisible();
+  await expect(income.locator("thead th").last()).toHaveText("All sources combined");
+  const figures = (label: string) => income.locator("tbody tr").filter({ has: page.getByRole("rowheader", { name: label, exact: true }) }).locator("td");
+  //                                  Job A        Job B        All sources combined
+  await expect(figures("Gross")).toHaveText(["$5,000.00", "$1,000.00", "$6,000.00"]);
+  await expect(figures("Gross taxable")).toHaveText(["$4,600.00", "$1,000.00", "$5,600.00"]);
+  await expect(figures("Net")).toHaveText(["$3,600.00", "$800.00", "$4,400.00"]);
+  await expect(figures("Tax rate")).toHaveText(["21.7%", "20.0%", "21.4%"]);
 
-  // MS-3 (and the gross / taxable / net / tax-rate figures of MS-2): the modal.
+  // MS-3: the modal, with the same totals.
   const jobA = await openJobA(page);
   await expect(jobA.locator("tbody tr")).toHaveCount(2);
   const total = (label: string) => jobA.locator("tfoot tr").filter({ has: page.getByRole("rowheader", { name: label, exact: true }) });
@@ -458,6 +465,8 @@ test("ED-2 gross taxable of $0.00 hides the tax rate", async ({ signedIn: page, 
   // A month no other figure depends on.
   await api.createIncome({ date: "2029-01-15", source, gross: 10000, taxable: 0, net: 10000 });
   await openSummary(page, "2029-01");
+  const taxRow = page.getByRole("table", { name: "Income" }).locator("tbody tr").filter({ has: page.getByRole("rowheader", { name: "Tax rate" }) });
+  await expect(taxRow.locator("td")).toHaveText(["—", "—"]); // Job A, All sources combined
   const dialog = await openJobA(page);
   await expect(dialog.locator("tbody tr").first().locator("td").last()).toHaveText("—");
   await expect(dialog.locator("tfoot tr").first().locator("td").last()).toHaveText("—");
