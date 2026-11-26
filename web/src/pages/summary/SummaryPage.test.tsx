@@ -1,5 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { ApiProvider, createApiClient, type Schemas } from "../../api";
@@ -131,9 +131,9 @@ describe("SummaryPage", () => {
       .getAllByRole("button")
       .map((b) => b.getAttribute("aria-label"));
     expect(names).toEqual([
-      "Housing, $1,000.00, 38% of income, better −$200.00 (−17%) vs. last month",
-      "Food, $450.00, 17% of income, worse +$50.00 (+13%) vs. last month",
-      "Saving, $300.00, 12% of income, better +$100.00 (+50%) vs. last month",
+      "Housing, $1,000.00, 38% of income, −$200.00 (−17%), better than last month",
+      "Food, $450.00, 17% of income, +$50.00 (+13%), worse than last month",
+      "Saving, $300.00, 12% of income, +$100.00 (+50%), better than last month",
     ]);
     // Categories with nothing spent have no bar.
     expect(screen.queryByRole("button", { name: /^Utilities/ })).not.toBeInTheDocument();
@@ -157,10 +157,19 @@ describe("SummaryPage", () => {
     expect(within(tile("Saved & invested")).getByText(/▲/).closest("[data-slot=badge]")).toHaveAttribute("data-variant", "better");
   });
 
-  it("gives Saving its own treatment", async () => {
-    renderPage(filledSummary());
+  it("gives Saving its own treatment, with a badge once it is renamed", async () => {
+    const summary = filledSummary();
+    renderPage(summary);
     await screen.findByRole("list", { name: "Spending by category" });
-    expect(within(row(/^Saving/)).getByText("Saving", { selector: "[data-slot=badge]" })).toHaveAttribute("data-variant", "saving");
+    // Called "Saving" already: no second "Saving" in the badge or the name (WCAG 2.5.3, #179).
+    expect(within(row(/^Saving/)).queryByText("Saving", { selector: "[data-slot=badge]" })).not.toBeInTheDocument();
+    cleanup();
+
+    summary.spending.categories = summary.spending.categories.map((c) => (c.is_saving ? { ...c, name: "Investments" } : c));
+    renderPage(summary);
+    await screen.findByRole("list", { name: "Spending by category" });
+    const renamed = row(/^Investments, Saving, \$300\.00/);
+    expect(within(renamed).getByText("Saving", { selector: "[data-slot=badge]" })).toHaveAttribute("data-variant", "saving");
   });
 
   it("only highlights a category when its row is clicked", async () => {
@@ -201,7 +210,7 @@ describe("SummaryPage", () => {
 
   it("opens a source's entries in a modal, with tax rate and all sources combined", async () => {
     const { user } = renderPage(filledSummary());
-    await user.click(await screen.findByRole("button", { name: /^Employer A, \$2,100.00 net/ }));
+    await user.click(await screen.findByRole("button", { name: /^Employer A, 1 entry, \$2,100.00 net/ }));
 
     const dialog = await screen.findByRole("dialog", { name: "Employer A" });
     await within(dialog).findByRole("cell", { name: "Paycheck" });

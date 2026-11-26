@@ -27,7 +27,7 @@ export function UsersSection() {
       title="Users"
       description="People who can sign in to Penny-Pincher. Add someone with a username and an initial password."
       action={
-        <Button type="button" size="sm" onClick={() => setAdding(true)}>
+        <Button type="button" onClick={() => setAdding(true)}>
           <Plus aria-hidden="true" />
           Add user
         </Button>

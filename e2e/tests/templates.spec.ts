@@ -4,7 +4,7 @@
  * One test per AT, named after it. Each test gets its own user and builds the
  * doc's "Test Month" fixture, so the tests don't depend on each other's months.
  */
-import AxeBuilder from "@axe-core/playwright";
+import { expectDarkAndAccessible } from "../support/a11y";
 import type { Page } from "@playwright/test";
 import { expect, signIn, test } from "../support/fixtures";
 import { zoneOffUtcDate } from "../support/dates";
@@ -577,21 +577,13 @@ test.describe("AT-24 dark mode", () => {
 
   test("AT-24 the templates screen, unconfirmed rows and banner are readable in dark mode", async ({ signedIn: page, api }, testInfo) => {
     const { templateId } = await buildTestMonth(api);
-    const contrast = async (...include: string[]) => {
-      let axe = new AxeBuilder({ page }).withRules(["color-contrast"]);
-      for (const sel of include) axe = axe.include(sel);
-      return (await axe.analyze()).violations.flatMap((v) => v.nodes.map((n) => `${n.target.join(" ")}: ${n.failureSummary}`));
-    };
 
     await page.goto(`/templates?template=${templateId}`);
     await expect(page.getByRole("group", { name: "Template totals" })).toBeVisible();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-    await testInfo.attach("dark templates", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
-    expect(await contrast(), "colour-contrast on Templates").toEqual([]);
+    await expectDarkAndAccessible(page, testInfo, "templates");
 
     await copyFromOffer(page, "2027-03", "March");
     await expect(page.locator("tr[data-variant=unconfirmed]")).toHaveCount(8);
-    await testInfo.attach("dark unconfirmed month", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
-    expect(await contrast("[data-slot=unconfirmed-banner]", "tr[data-variant=unconfirmed]"), "colour-contrast on the banner and unconfirmed rows").toEqual([]);
+    await expectDarkAndAccessible(page, testInfo, "unconfirmed month");
   });
 });

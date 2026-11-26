@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Toggle } from "@/components/ui/toggle";
 import { cn } from "@/lib/utils";
 import { changeWords, describeChange } from "../../lib/change";
+import { showSavingBadge } from "../../charts/rowNames";
 import { monthName, todayISO } from "../../lib/dates";
 import { formatCents } from "../../lib/money";
 import { biggestMovers, defaultMonthIndex, monthFigures, type Series } from "./trendChange";
@@ -71,7 +72,8 @@ function Body({ data, today }: { data: Trends; today: string }) {
     label: m.slice(0, 3),
     a: series.this_year_cents[i],
     b: series.last_year_cents[i],
-    name: `${m}: ${data.year} ${formatCents(series.this_year_cents[i])}, ${data.year - 1} ${formatCents(series.last_year_cents[i])}`,
+    // Starts with the visible label ("Jan"), so the name contains it (WCAG 2.5.3, #179).
+    name: `${m.slice(0, 3)}: ${data.year} ${formatCents(series.this_year_cents[i])}, ${data.year - 1} ${formatCents(series.last_year_cents[i])}`,
   }));
 
   const movers = biggestMovers(data.categories, index);
@@ -85,7 +87,7 @@ function Body({ data, today }: { data: Trends; today: string }) {
       tone: m.tone,
       saving: m.series.is_saving,
       change: <ChangeText tone={c.tone} text={`${c.arrow} ${c.amount}`} />,
-      name: `${m.series.name}, ${words}. Chart this category`,
+      name: `${m.series.name}${showSavingBadge({ label: m.series.name, saving: m.series.is_saving }) ? ", Saving" : ""}, ${words}. Chart this category`,
     };
   });
 

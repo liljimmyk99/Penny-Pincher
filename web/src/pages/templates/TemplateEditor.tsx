@@ -50,7 +50,7 @@ export function TemplateEditor({ templateId }: { templateId: string }) {
     if (!again) setDrafts((ds) => ds.filter((d) => d.key !== key));
   };
 
-  const addButton = "h-9 px-1 font-semibold";
+  const addButton = "h-11 px-1 font-semibold";
 
   return (
     <div className="flex flex-col gap-4">

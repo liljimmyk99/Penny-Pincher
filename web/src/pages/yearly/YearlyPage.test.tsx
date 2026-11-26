@@ -88,7 +88,7 @@ describe("YearlyPage", () => {
   it("charts have text alternatives and a month opens its summary", async () => {
     const { user } = renderPage();
     const chart = await screen.findByRole("list", { name: "Net income and spent per month" });
-    const jan = within(chart).getByRole("button", { name: /^January: net income \$3,000.00, spent \$2,000.00/ });
+    const jan = within(chart).getByRole("button", { name: /^Jan: net income \$3,000.00, spent \$2,000.00. Open January summary/ });
     await user.click(jan);
     expect(screen.getByTestId("where")).toHaveTextContent("/summary?month=2020-01");
   });

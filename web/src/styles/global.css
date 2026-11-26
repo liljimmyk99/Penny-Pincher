@@ -34,6 +34,20 @@ h2:where(:not([data-slot])) {
   outline-offset: 2px;
 }
 
+/* Reduced motion (#179): tw-animate-css's enter/exit animations and the
+   components' transitions don't check prefers-reduced-motion themselves.
+   0.01ms rather than none, so Radix still gets its animationend and unmounts
+   closed dialogs and menus. Sonner and .spinner (controls.css) handle their own. */
+@media (prefers-reduced-motion: reduce) {
+  [data-slot],
+  [data-slot] * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Utilities */
 
 /* Tabular numerals: use on every money column so digits line up. */

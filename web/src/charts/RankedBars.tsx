@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { barWidth } from "../pages/summary/summary";
 import { Badge } from "@/components/ui/badge";
+import { rankedBarName, showSavingBadge } from "./rowNames";
 import "./charts.css";
 
 export interface RankedBar {
@@ -42,18 +43,18 @@ export function RankedBars({
             type="button"
             className={`ranked__row${highlightedId === r.id ? " is-highlighted" : ""}${highlightedId && highlightedId !== r.id ? " is-dimmed" : ""}`}
             aria-pressed={highlightedId === r.id}
-            aria-label={[r.label, r.amount, r.detail, r.changeText].filter(Boolean).join(", ")}
+            aria-label={rankedBarName(r)}
             onClick={() => onToggle(r.id)}
           >
             <span className="ranked__name">
-              {r.label}
-              {r.saving && <Badge variant="saving">Saving</Badge>}
-            </span>
+              {r.label}{" "}
+              {showSavingBadge(r) && <Badge variant="saving">Saving</Badge>}
+            </span>{" "}
             <span className="ranked__track" aria-hidden="true">
               <span className="ranked__bar" style={{ width: `${barWidth(r.cents, max)}%`, background: r.color }} />
-            </span>
-            <span className="ranked__amount" aria-hidden="true">{r.amount}</span>
-            <span className="ranked__detail" aria-hidden="true">{r.detail}</span>
+            </span>{" "}
+            <span className="ranked__amount" aria-hidden="true">{r.amount}</span>{" "}
+            <span className="ranked__detail" aria-hidden="true">{r.detail}</span>{" "}
             <span className="ranked__extra" aria-hidden="true">{r.change}</span>
           </button>
         </li>

@@ -89,7 +89,7 @@ async function expectTiles(page: Page, m: { net: string; spent: string; saved: s
   await expect(tileValue(page, "Left over")).toHaveText(m.left);
 }
 
-/** A ranked-bar row; its accessible name is "Name, amount, N% of income, <change in words>". */
+/** A ranked-bar row; its accessible name is "Name, amount, N% of income, <change in words>", in the order shown. */
 const spendingRows = (page: Page) => page.getByRole("list", { name: "Spending by category" }).getByRole("button");
 const spendingRow = (page: Page, category: string) =>
   spendingRows(page).filter({ hasText: new RegExp(`^${category}`) });
@@ -126,8 +126,8 @@ test("MS-1, MS-2, MS-3 January tiles, income per source and the income modal", a
   await expectTiles(page, MONTHS["2027-01"]);
 
   // MS-2: per-source rows and the combined total (net shown on the row).
-  await expect(page.getByRole("button", { name: "Job A, $3,600.00 net, 2 entries" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Job B, $800.00 net, 1 entry" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Job A, 2 entries, $3,600.00 net" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Job B, 1 entry, $800.00 net" })).toBeVisible();
   await expect(page.getByRole("listitem").filter({ hasText: /^All sources combined/ })).toHaveText(/All sources combined\s*\$4,400\.00/);
 
   // MS-3 (and the gross / taxable / net / tax-rate figures of MS-2): the modal.
@@ -161,10 +161,10 @@ test("MS-4, MS-5, MS-6 January spending, change vs. December and the colours", a
 
   // MS-5: compared with December 2026, across the year boundary.
   await expectRow(page, "Housing", /no change vs\. last month$/);
-  await expectRow(page, "Food", /worse \+\$100\.00 \(\+33%\) vs\. last month$/);
-  await expectRow(page, "Saving", /better \+\$100\.00 \(\+25%\) vs\. last month$/);
+  await expectRow(page, "Food", /\+\$100\.00 \(\+33%\), worse than last month$/);
+  await expectRow(page, "Saving", /\+\$100\.00 \(\+25%\), better than last month$/);
   // December had no Utilities: the dollar change shows, with no percentage.
-  await expectRow(page, "Utilities", /worse \+\$150\.00 vs\. last month$/);
+  await expectRow(page, "Utilities", /\+\$150\.00, worse than last month$/);
 
   // MS-6: orange for worse, blue for better, and Saving's meaning is flipped.
   const change = (category: string) => spendingRow(page, category).locator("[data-slot=badge][data-variant]").last();
@@ -198,14 +198,14 @@ test("MS-7, MS-8, MS-9 December, February and March, with the month switcher", a
   await page.getByRole("button", { name: "Next month, February 2027" }).click();
   await expect(page).toHaveURL(/month=2027-02/);
   await expectTiles(page, MONTHS["2027-02"]);
-  await expectRow(page, "Utilities", /better −\$30\.00 \(−20%\) vs\. last month$/);
-  await expectRow(page, "Food", /better −\$50\.00 \(−13%\) vs\. last month$/); // doc: −12.5%
+  await expectRow(page, "Utilities", /−\$30\.00 \(−20%\), better than last month$/);
+  await expectRow(page, "Food", /−\$50\.00 \(−13%\), better than last month$/); // doc: −12.5%
 
   // MS-9: Saving and Utilities netted to nothing, so they get no row (see the doc's open questions).
   await page.getByRole("button", { name: "Next month, March 2027" }).click();
   await expect(page).toHaveURL(/month=2027-03/);
   await expectTiles(page, MONTHS["2027-03"]);
-  await expectRow(page, "Food", /better −\$250\.00 \(−71%\) vs\. last month$/); // doc: −71.4%
+  await expectRow(page, "Food", /−\$250\.00 \(−71%\), better than last month$/); // doc: −71.4%
   await expect(spendingRow(page, "Saving")).toHaveCount(0);
   await expect(spendingRow(page, "Utilities")).toHaveCount(0);
   await noBrokenNumbers(page);
@@ -373,9 +373,9 @@ test("YS-4, YS-5, YS-10 category averages, paired bars and their text alternativ
   // YS-5 and YS-10: one labelled button per month, with its figures in the name.
   const pairs = page.getByRole("list", { name: "Net income and spent per month" }).getByRole("button");
   await expect(pairs).toHaveCount(12);
-  await expect(pairs.nth(0)).toHaveAccessibleName("January: net income $4,400.00, spent $2,250.00. Open January summary");
-  await expect(pairs.nth(1)).toHaveAccessibleName("February: net income $3,600.00, spent $2,170.00. Open February summary");
-  await expect(pairs.nth(2)).toHaveAccessibleName("March: net income $1,800.00, spent $1,300.00. Open March summary");
+  await expect(pairs.nth(0)).toHaveAccessibleName("Jan: net income $4,400.00, spent $2,250.00. Open January summary");
+  await expect(pairs.nth(1)).toHaveAccessibleName("Feb: net income $3,600.00, spent $2,170.00. Open February summary");
+  await expect(pairs.nth(2)).toHaveAccessibleName("Mar: net income $1,800.00, spent $1,300.00. Open March summary");
   await expect(page.getByText("2027: net income $9,800.00, spent $5,720.00.")).toBeAttached();
 
   // Heights are proportional to the largest value ($4,400.00 = 100%).
@@ -401,7 +401,7 @@ test("YS-6 a month row and a month's bar both open that month's Summary", async 
 
   await page.goBack();
   await openYearly(page, 2027);
-  await page.getByRole("button", { name: /^March: net income/ }).click();
+  await page.getByRole("button", { name: /^Mar: net income/ }).click();
   await expect(page).toHaveURL(/\/summary\?month=2027-03/);
   await expectTiles(page, MONTHS["2027-03"]);
 });

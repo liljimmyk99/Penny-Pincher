@@ -38,9 +38,12 @@ export function describeChange(currentCents: number, previousCents: number, isSa
   };
 }
 
-/** The change as words, for a row's accessible name. */
+/**
+ * The change as words, for a row's accessible name. The figures come first, in the order
+ * the badge shows them, so the name contains the visible text (WCAG 2.5.3, #179).
+ */
 export function changeWords(current: number, previous: number, saving = false): string {
   const c = describeChange(current, previous, saving);
   if (c.tone === "none") return "no change vs. last month";
-  return `${c.tone === "worse" ? "worse" : "better"} ${c.amount}${c.percent ? ` (${c.percent})` : ""} vs. last month`;
+  return `${c.amount}${c.percent ? ` (${c.percent})` : ""}, ${c.tone === "worse" ? "worse" : "better"} than last month`;
 }

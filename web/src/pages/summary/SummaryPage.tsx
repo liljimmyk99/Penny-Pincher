@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import { errorMessage, useMonthlySummary, type Schemas } from "../../api";
 import { Donut } from "../../charts/Donut";
 import { RankedBars, type RankedBar } from "../../charts/RankedBars";
+import { rankedBarName, showSavingBadge } from "../../charts/rowNames";
 import { ChangeBadge } from "@/components/ChangeBadge";
 import { LoadingSection } from "@/components/LoadingSection";
 import { MonthSwitcher } from "../../components/MonthSwitcher";
@@ -187,11 +188,11 @@ function IncomeList({ month, data, onOpen }: { month: string; data: Summary; onO
             type="button"
             className={cn(rowButton, "grid min-h-11 grid-cols-[1fr_auto_auto] items-center gap-4 py-1")}
             aria-haspopup="dialog"
-            aria-label={`${s.name}, ${formatCents(s.net_cents)} net, ${plural(s.entry_count, "entry", "entries")}`}
+            aria-label={`${s.name}, ${plural(s.entry_count, "entry", "entries")}, ${formatCents(s.net_cents)} net`}
             onClick={() => onOpen(s.income_source_id)}
           >
-            <span className="font-semibold">{s.name}</span>
-            <span className="text-[13px] text-muted-foreground" aria-hidden="true">{plural(s.entry_count, "entry", "entries")}</span>
+            <span className="font-semibold">{s.name}</span>{" "}
+            <span className="text-[13px] text-muted-foreground" aria-hidden="true">{plural(s.entry_count, "entry", "entries")}</span>{" "}
             <span className="min-w-24 text-right font-semibold text-income tabular-nums" aria-hidden="true">{formatCents(s.net_cents)}</span>
           </button>
         </li>
@@ -220,7 +221,7 @@ function SpendingPanel({ month, data }: { month: string; data: Summary }) {
     color: categoryColor(c, i),
     saving: c.is_saving,
     detail: `${percentOfIncome(c.total_cents, net)} of income`,
-    change: <ChangeBadge current={c.total_cents} previous={c.previous_month_total_cents} saving={c.is_saving} suffix="" />,
+    change: <ChangeBadge current={c.total_cents} previous={c.previous_month_total_cents} saving={c.is_saving} suffix="" decorative />,
     changeText: changeWords(c.total_cents, c.previous_month_total_cents, c.is_saving),
   }));
 
@@ -288,16 +289,16 @@ function RankedLegend({
               data-highlighted={on || undefined}
               data-dimmed={(highlightedId && !on) || undefined}
               aria-pressed={on}
-              aria-label={[r.label, r.amount, r.detail, r.changeText].filter(Boolean).join(", ")}
+              aria-label={rankedBarName(r)}
               onClick={() => onToggle(r.id)}
             >
               <span className="size-3 rounded-[3px]" style={{ background: r.color }} aria-hidden="true" />
               <span className="flex items-center gap-2 font-semibold" aria-hidden="true">
-                {r.label}
-                {r.saving && <Badge variant="saving">Saving</Badge>}
-              </span>
-              <span className="text-[13px] font-semibold tabular-nums" aria-hidden="true">{r.amount}</span>
-              <span className="text-[13px] text-muted-foreground tabular-nums" aria-hidden="true">{r.detail}</span>
+                {r.label}{" "}
+                {showSavingBadge(r) && <Badge variant="saving">Saving</Badge>}
+              </span>{" "}
+              <span className="text-[13px] font-semibold tabular-nums" aria-hidden="true">{r.amount}</span>{" "}
+              <span className="text-[13px] text-muted-foreground tabular-nums" aria-hidden="true">{r.detail}</span>{" "}
               <span className="text-[13px]" aria-hidden="true">{r.change}</span>
             </button>
           </li>

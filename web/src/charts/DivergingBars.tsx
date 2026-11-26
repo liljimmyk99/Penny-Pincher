@@ -1,5 +1,6 @@
 import type { ChangeTone } from "../lib/change";
 import { Badge } from "@/components/ui/badge";
+import { showSavingBadge } from "./rowNames";
 import "./charts.css";
 
 export interface DivergingBar {
@@ -49,15 +50,15 @@ export function DivergingBars({
             onClick={() => onSelect(r.id)}
           >
             <span className="ranked__name">
-              {r.label}
-              {r.saving && <Badge variant="saving">Saving</Badge>}
-            </span>
+              {r.label}{" "}
+              {showSavingBadge(r) && <Badge variant="saving">Saving</Badge>}
+            </span>{" "}
             <span className="diverging__track" aria-hidden="true">
               <span
                 className={`diverging__bar diverging__bar--${r.delta > 0 ? "up" : "down"} diverging__bar--${r.tone}`}
                 style={{ width: `${divergingWidth(r.delta, maxAbs)}%` }}
               />
-            </span>
+            </span>{" "}
             <span aria-hidden="true">{r.change}</span>
           </button>
         </li>

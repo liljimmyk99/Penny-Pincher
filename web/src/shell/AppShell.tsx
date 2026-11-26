@@ -29,7 +29,7 @@ export function AppShell() {
     <SidebarProvider open={!collapsed} onOpenChange={onOpenChange}>
       <a
         href="#main"
-        className="absolute top-2 left-2 z-[100] -translate-y-[200%] rounded-md bg-card px-4 py-2 font-bold text-link focus:translate-y-0"
+        className="absolute top-2 left-2 z-[100] -translate-y-[200%] rounded-md bg-card px-4 py-2 font-bold text-link focus:translate-y-0 inline-flex min-h-11 items-center"
       >
         Skip to content
       </a>

@@ -205,11 +205,11 @@ function NewTemplate({ onCreated, startOpen }: { onCreated: (t: Schemas["Templat
         </p>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" size="sm" disabled={create.isPending}>
+        <Button type="submit" disabled={create.isPending}>
           Create template
         </Button>
         {!startOpen && (
-          <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>
+          <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
             Cancel
           </Button>
         )}
