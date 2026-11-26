@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
+import { toast } from "@/lib/toast";
 import { Button } from "../../components/ui/button";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 
@@ -21,8 +22,11 @@ export function SignInDetails({ title, message, username, password, mustChange, 
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
+      // The toast never repeats the details: they stay only in this dialog.
+      toast("Sign-in details copied");
     } catch {
       setCopied(false);
+      toast.error("Couldn't copy. Select the details and copy them by hand.");
     }
   }
 

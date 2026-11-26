@@ -1,9 +1,8 @@
 import { FormField } from "@/components/FormField";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { MIN_PASSWORD_LENGTH } from "../../auth/ChangePasswordForm";
-import { generatePassword } from "./generatePassword";
+import { GeneratePasswordButton } from "@/components/GeneratePasswordButton";
+import { MIN_PASSWORD_LENGTH } from "@/lib/password";
 
 interface Props {
   label: string;
@@ -26,9 +25,7 @@ export function PasswordField({ label, value, onChange, error }: Props) {
             spellCheck={false}
             onChange={(e) => onChange(e.target.value)}
           />
-          <Button type="button" variant="outline" onClick={() => onChange(generatePassword())}>
-            Generate
-          </Button>
+          <GeneratePasswordButton onGenerate={onChange} />
         </div>
       )}
     </FormField>

@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ApiError, errorMessage, fieldErrors, useAddUser, type Schemas } from "../../api";
 import { CircleAlert } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { MIN_PASSWORD_LENGTH } from "../../auth/ChangePasswordForm";
+import { MIN_PASSWORD_LENGTH } from "@/lib/password";
 import { MustChangeCheckbox, PasswordField } from "./PasswordField";
 import { SignInDetails } from "./SignInDetails";
 import { Button } from "../../components/ui/button";

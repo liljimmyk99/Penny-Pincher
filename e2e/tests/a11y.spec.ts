@@ -140,8 +140,24 @@ for (const colorScheme of ["light", "dark"] as const) {
         await openScreen(page, "/admin", "Admin dashboard");
         await page.getByRole("tab", { name: "Users" }).click();
         await page.getByRole("button", { name: "Add user" }).click();
-        await expect(page.getByRole("dialog", { name: "Add user" })).toBeVisible();
+        const addUser = page.getByRole("dialog", { name: "Add user" });
+        await expect(addUser).toBeVisible();
+        await addUser.getByRole("button", { name: "Generate" }).click();
+        await expect(addUser.getByLabel("Initial password")).not.toHaveValue("");
         await check(page, testInfo, "add user dialog");
+        await closeOverlay(page);
+
+        // The shared password pieces (#201): the Show/Hide toggle pressed and the live
+        // checklist with met and unmet rules.
+        await page.getByRole("button", { name: /Admin$/ }).click();
+        await page.getByRole("menuitem", { name: "Change password" }).click();
+        const change = page.getByRole("dialog", { name: "Change password" });
+        await expect(change).toBeVisible();
+        await change.getByLabel("New password", { exact: true }).fill("short");
+        await change.getByRole("button", { name: "Show passwords" }).click();
+        await expect(change.getByRole("button", { name: "Hide passwords" })).toHaveAttribute("aria-pressed", "true");
+        await expect(change.getByRole("list", { name: "Password requirements" })).toContainText("(not met)");
+        await check(page, testInfo, "change password dialog");
         await closeOverlay(page);
       } finally {
         await api.dispose();
