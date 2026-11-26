@@ -5,6 +5,7 @@
 import { request } from "@playwright/test";
 import { expect, test } from "../support/fixtures";
 import { monthOf, todayIn } from "../support/dates";
+import { pickOption } from "../support/select";
 import { BASE_URL, compose } from "../support/stack";
 
 const today = () => todayIn(undefined);
@@ -37,7 +38,7 @@ test("with the API stopped, saving fails clearly; after a restart every earlier 
   await expect(page.getByRole("heading", { level: 1, name: "Add entries" })).toBeVisible();
   await page.getByRole("combobox", { name: "Merchant, row 1" }).fill("During Outage");
   await page.getByRole("combobox", { name: "Merchant, row 1" }).press("Escape");
-  await page.getByLabel("Category, row 1").selectOption({ label: "Food" });
+  await pickOption(page, page.getByLabel("Category, row 1"), /^Food$/);
   await page.getByLabel("Amount, row 1", { exact: true }).fill("99.99");
 
   compose("stop", "api");
@@ -46,7 +47,7 @@ test("with the API stopped, saving fails clearly; after a restart every earlier 
     const expenses = page.getByRole("region", { name: "Expenses" });
     await expect(expenses.getByRole("alert")).toContainText("Nothing was saved.");
     // Nothing pretends to be saved: no "Saved" status, and the row is still there to retry.
-    await expect(expenses.locator(".entry-card__saved")).toHaveText("");
+    await expect(expenses.getByRole("status")).toHaveText("");
     await expect(page.getByRole("combobox", { name: "Merchant, row 1" })).toHaveValue("During Outage");
     await expect(page.getByLabel("Amount, row 1", { exact: true })).toHaveValue("99.99");
 

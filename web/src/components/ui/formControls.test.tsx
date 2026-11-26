@@ -143,3 +143,28 @@ describe("Select", () => {
     expect(trigger).toHaveTextContent("Housing");
   });
 });
+
+describe("cell variants (#175)", () => {
+  it("Input cell is the quiet 38px table-cell input, still with the focus ring and invalid styles", () => {
+    render(<Input aria-label="Note, row 1" variant="cell" />);
+    const input = screen.getByRole("textbox", { name: "Note, row 1" });
+    expect(input).toHaveClass("h-9.5", "border-transparent", "bg-transparent", "hover:border-input", ...focusRing, ...invalid);
+    expect(input).not.toHaveClass("h-11");
+  });
+
+  it("SelectTrigger cell fills its cell and keeps its 38px height over the default size", () => {
+    render(
+      <Select>
+        <SelectTrigger aria-label="Category, row 1" variant="cell">
+          <SelectValue placeholder="Choose…" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="a">A</SelectItem>
+        </SelectContent>
+      </Select>,
+    );
+    const trigger = screen.getByRole("combobox", { name: "Category, row 1" });
+    expect(trigger).toHaveClass("w-full", "border-transparent", "data-[size=default]:h-9.5", ...focusRing);
+    expect(trigger).not.toHaveClass("data-[size=default]:h-11");
+  });
+});

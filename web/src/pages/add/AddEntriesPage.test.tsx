@@ -170,8 +170,14 @@ const dateInput = (row = 1) => screen.getByLabelText(`Date, row ${row}`) as HTML
 const batchPosts = (backend: ReturnType<typeof fakeBackend>) =>
   backend.posts.filter((p) => p.path === "/v1/expenses/batch").map((p) => (p.body as { items: unknown[] }).items);
 
+/** Open a Radix Select and click one of its options. */
+async function pick(user: ReturnType<typeof userEvent.setup>, trigger: HTMLElement, name: string | RegExp) {
+  await user.click(trigger);
+  await user.click(await screen.findByRole("option", { name }));
+}
+
 async function ready() {
-  await screen.findByRole("option", { name: "Food" });
+  await waitFor(() => expect(categorySelect()).toHaveTextContent("Choose…"));
   await screen.findByRole("radio", { name: "Employer A" });
 }
 
@@ -184,7 +190,7 @@ describe("AddEntriesPage: expenses", () => {
     await user.click(merchant());
     await user.keyboard("New Bakery");
     await user.tab();
-    await user.selectOptions(categorySelect(), "Food");
+    await pick(user, categorySelect(), "Food");
     await user.tab();
     await user.keyboard("4.35");
     await user.tab();
@@ -218,13 +224,13 @@ describe("AddEntriesPage: expenses", () => {
 
     await user.click(merchant());
     await user.keyboard("Shop One");
-    await user.selectOptions(categorySelect(), "Household");
+    await pick(user, categorySelect(), "Household");
     await user.click(field("Amount"));
     await user.keyboard("12{Enter}");
     expect(merchant(2)).toHaveFocus();
 
     await user.keyboard("Shop Two");
-    await user.selectOptions(categorySelect(2), "Food");
+    await pick(user, categorySelect(2), "Food");
     await user.click(field("Amount", 2));
     await user.keyboard("1,000.10{Enter}");
     expect(merchant(3)).toHaveFocus();
@@ -262,7 +268,7 @@ describe("AddEntriesPage: expenses", () => {
 
     expect(merchant()).toHaveValue("Corner Coffee");
     expect(screen.queryByRole("listbox", { name: "Past merchants" })).not.toBeInTheDocument();
-    await waitFor(() => expect(categorySelect()).toHaveValue("2"));
+    await waitFor(() => expect(categorySelect()).toHaveTextContent("Food"));
     // Enter that picked the suggestion didn't also add a row.
     expect(screen.queryByRole("combobox", { name: "Merchant, row 2" })).not.toBeInTheDocument();
   });
@@ -271,13 +277,13 @@ describe("AddEntriesPage: expenses", () => {
     const { user } = renderPage();
     await ready();
 
-    await user.selectOptions(categorySelect(), "Other");
+    await pick(user, categorySelect(), "Other");
     await user.click(merchant());
     await user.keyboard("Corner C");
     await screen.findByRole("option", { name: "Corner Coffee" });
     await user.keyboard("{ArrowDown}{Enter}");
     await user.tab();
-    expect(categorySelect()).toHaveValue("9");
+    expect(categorySelect()).toHaveTextContent("Other");
   });
 
   it("adds a refund linked to an original expense, saved as a negative amount", async () => {
@@ -292,12 +298,12 @@ describe("AddEntriesPage: expenses", () => {
 
     const link = await screen.findByRole("combobox", { name: "Refund for, row 2" });
     await waitFor(() => expect(link).toBeEnabled());
-    await user.selectOptions(link, "e2");
-    expect(categorySelect(2)).toHaveValue("3");
+    await pick(user, link, /^Feb 3, 2020 · \$49\.99 · Household/);
+    expect(categorySelect(2)).toHaveTextContent("Household");
     await user.click(field("Refund amount", 2));
     await user.keyboard("20");
 
-    expect(merchant(2).closest("tr")).toHaveClass("batch__row--refund");
+    expect(merchant(2).closest("tr")).toHaveAttribute("data-variant", "refund");
     expect(screen.getByText(/1 row ready/)).toHaveTextContent("1 row ready · −$20.00 net");
 
     await user.click(screen.getByRole("button", { name: "Save entry" }));
@@ -321,11 +327,11 @@ describe("AddEntriesPage: expenses", () => {
 
     await user.click(merchant());
     await user.keyboard("Brand New Place");
-    await user.selectOptions(categorySelect(), "Food");
+    await pick(user, categorySelect(), "Food");
     await user.click(field("Amount"));
     await user.keyboard("-5.5");
 
-    expect(merchant().closest("tr")).toHaveClass("batch__row--refund");
+    expect(merchant().closest("tr")).toHaveAttribute("data-variant", "refund");
     expect(screen.getByText("New merchant: nothing to link this refund to.")).toBeInTheDocument();
     await user.keyboard("{Control>}{Enter}{/Control}");
     await screen.findByText(/Saved 1 entry/);
@@ -369,7 +375,7 @@ describe("AddEntriesPage: expenses", () => {
       if (row === 2) await user.click(screen.getByRole("button", { name: "Add row" }));
       await user.click(merchant(row));
       await user.keyboard(name);
-      await user.selectOptions(categorySelect(row), "Food");
+      await pick(user, categorySelect(row), "Food");
       await user.click(field("Amount", row));
       await user.keyboard("3");
     }
@@ -460,5 +466,51 @@ describe("AddEntriesPage: month", () => {
     expect(dateInput().value).toBe("2020-04-01");
     expect(screen.getByLabelText("Date")).toHaveValue("2020-04-01");
     expect(await screen.findByText("No income logged in April yet.")).toBeInTheDocument();
+  });
+});
+
+describe("AddEntriesPage: category picker keys", () => {
+  it("typing on the closed category picks by name, as a native select did", async () => {
+    const { user } = renderPage();
+    await ready();
+
+    await user.click(merchant());
+    await user.keyboard("Somewhere New{Escape}");
+    await user.tab();
+    expect(categorySelect()).toHaveFocus();
+    await user.keyboard("Hou");
+
+    expect(categorySelect()).toHaveTextContent("Household");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("Enter on the category moves to the next row instead of opening the list", async () => {
+    const { user } = renderPage();
+    await ready();
+
+    await user.click(merchant());
+    await user.keyboard("Somewhere New");
+    await pick(user, categorySelect(), "Food");
+    expect(categorySelect()).toHaveFocus();
+    await user.keyboard("{Enter}");
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(merchant(2)).toHaveFocus();
+  });
+
+  it("⌘/Ctrl+Enter on the category saves every row", async () => {
+    const { backend, user } = renderPage();
+    await ready();
+
+    await user.click(merchant());
+    await user.keyboard("Somewhere New");
+    await user.click(field("Amount"));
+    await user.keyboard("7");
+    await pick(user, categorySelect(), "Food");
+    await user.keyboard("{Control>}{Enter}{/Control}");
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    await waitFor(() => expect(batchPosts(backend)).toHaveLength(1));
+    expect(batchPosts(backend)[0]).toEqual([expect.objectContaining({ category_id: "2", amount_cents: 700 })]);
   });
 });

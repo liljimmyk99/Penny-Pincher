@@ -42,12 +42,13 @@ test("a refund linked to last month's expense counts this month; the original sh
   await merchant.fill("Gadget");
   await page.getByRole("option", { name: "Gadget Shop" }).click();
   const link = page.getByLabel("Refund for, row 2");
-  await expect(link.locator("option", { hasText: "$100.00" })).toHaveCount(1);
-  await link.selectOption({ index: 1 });
-  await expect(page.getByLabel("Category, row 2")).toHaveValue(original.category_id);
+  await link.click();
+  await expect(page.getByRole("listbox").getByRole("option", { name: /\$100\.00/ })).toHaveCount(1);
+  await page.getByRole("listbox").getByRole("option", { name: /\$100\.00/ }).click();
+  await expect(page.getByLabel("Category, row 2")).toHaveText("Entertainment");
   await page.getByLabel("Refund amount, row 2").fill("30");
   await page.getByRole("button", { name: "Save entry" }).click();
-  await expect(page.locator(".entry-card__saved").first()).toHaveText(/Saved 1 entry · −\$30\.00 net\./);
+  await expect(page.getByRole("region", { name: "Expenses" }).getByRole("status")).toHaveText(/Saved 1 entry · −\$30\.00 net\./);
 
   const [refund] = (await api.expenses(thisMonth())).filter((e) => e.amount_cents < 0);
   expect(refund).toMatchObject({ amount_cents: -3000, refunded_expense_id: original.id, category_id: original.category_id });
