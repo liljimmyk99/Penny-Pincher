@@ -67,6 +67,9 @@ describe("Badge", () => {
     ["unconfirmed", ["bg-unconfirmed-pill", "text-unconfirmed-text"]],
     ["saving", ["bg-selected", "text-saving"]],
     ["income", ["bg-success-alert", "text-income"]],
+    ["worse", ["bg-transparent", "text-worse"]],
+    ["better", ["bg-transparent", "text-better"]],
+    ["unchanged", ["bg-transparent", "text-muted-foreground"]],
   ] as const)("%s uses its tokens", (variant, classes) => {
     render(<Badge variant={variant}>Tag</Badge>);
     const badge = screen.getByText("Tag");

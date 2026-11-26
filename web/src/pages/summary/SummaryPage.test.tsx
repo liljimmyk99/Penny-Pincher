@@ -98,7 +98,7 @@ function renderPage(summary: Summary, { path = `/summary?month=${MONTH}`, unconf
 }
 
 const tiles = () => screen.getByRole("group", { name: /totals$/ });
-const tile = (label: string) => within(tiles()).getByText(label).closest(".tile") as HTMLElement;
+const tile = (label: string) => within(tiles()).getByText(label).closest("[data-slot=stat-tile]") as HTMLElement;
 const row = (name: RegExp) => screen.getByRole("button", { name });
 
 describe("SummaryPage", () => {
@@ -143,22 +143,24 @@ describe("SummaryPage", () => {
     renderPage(filledSummary());
     await screen.findByRole("list", { name: "Spending by category" });
 
-    const change = (name: RegExp) => within(row(name)).getByText(/[▲▼]/).closest(".change");
-    expect(change(/^Food/)).toHaveClass("change--worse"); // spent more
-    expect(change(/^Housing/)).toHaveClass("change--better"); // spent less
-    expect(change(/^Saving/)).toHaveClass("change--better"); // saved more: the flip
+    const change = (name: RegExp) => within(row(name)).getByText(/[▲▼]/).closest("[data-slot=badge]");
+    expect(change(/^Food/)).toHaveAttribute("data-variant", "worse"); // spent more
+    expect(change(/^Housing/)).toHaveAttribute("data-variant", "better"); // spent less
+    expect(change(/^Saving/)).toHaveAttribute("data-variant", "better"); // saved more: the flip
+    expect(change(/^Food/)).toHaveClass("text-worse");
+    expect(change(/^Housing/)).toHaveClass("text-better");
     expect(within(row(/^Food/)).getByText(/▲/)).toHaveTextContent("▲ +$50.00 (+13%)");
     expect(within(row(/^Housing/)).getByText(/▼/)).toHaveTextContent("▼ −$200.00 (−17%)");
     // Overall spending went down vs. last month.
-    expect(within(tile("Spent")).getByText(/▼/).closest(".change")).toHaveClass("change--better");
+    expect(within(tile("Spent")).getByText(/▼/).closest("[data-slot=badge]")).toHaveAttribute("data-variant", "better");
     // Saved more than last month: better, with an up arrow.
-    expect(within(tile("Saved & invested")).getByText(/▲/).closest(".change")).toHaveClass("change--better");
+    expect(within(tile("Saved & invested")).getByText(/▲/).closest("[data-slot=badge]")).toHaveAttribute("data-variant", "better");
   });
 
   it("gives Saving its own treatment", async () => {
     renderPage(filledSummary());
     await screen.findByRole("list", { name: "Spending by category" });
-    expect(within(row(/^Saving/)).getByText("Saving", { selector: ".badge" })).toHaveClass("badge--saving");
+    expect(within(row(/^Saving/)).getByText("Saving", { selector: "[data-slot=badge]" })).toHaveAttribute("data-variant", "saving");
   });
 
   it("only highlights a category when its row is clicked", async () => {
@@ -180,10 +182,14 @@ describe("SummaryPage", () => {
   it("toggles between Bars and Donut for the same month's data", async () => {
     const { user } = renderPage(filledSummary());
     await screen.findByRole("list", { name: "Spending by category" });
-    expect(screen.getByRole("button", { name: "Bars" })).toHaveAttribute("aria-pressed", "true");
+    const chartType = screen.getByRole("radiogroup", { name: "Chart type" });
+    expect(within(chartType).getByRole("radio", { name: "Bars" })).toHaveAttribute("aria-checked", "true");
 
-    await user.click(screen.getByRole("button", { name: "Donut" }));
-    expect(screen.getByRole("button", { name: "Donut" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(within(chartType).getByRole("radio", { name: "Donut" }));
+    expect(within(chartType).getByRole("radio", { name: "Donut" })).toHaveAttribute("aria-checked", "true");
+    // Choosing the chosen option again keeps it chosen.
+    await user.click(within(chartType).getByRole("radio", { name: "Donut" }));
+    expect(within(chartType).getByRole("radio", { name: "Donut" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("img", { name: "Spending by category, $1,750.00 in total" })).toBeInTheDocument();
     const legend = within(screen.getByRole("list", { name: "Spending by category" })).getAllByRole("button");
     expect(legend).toHaveLength(3);
@@ -235,11 +241,11 @@ describe("SummaryPage: empty states", () => {
 
     for (const label of ["Net income", "Spent", "Saved & invested", "Left over"]) {
       expect(tile(label)).toHaveTextContent("$0.00");
-      expect(within(tile(label)).getByText("$0.00")).toHaveClass("tile__value--muted");
+      expect(tile(label)).toHaveAttribute("data-tone", "muted");
     }
     expect(screen.getByRole("link", { name: "Add income" })).toHaveAttribute("href", "/add?month=2020-03");
     expect(screen.getByRole("link", { name: "Add expenses" })).toHaveAttribute("href", "/add?month=2020-03");
-    expect(screen.queryByRole("button", { name: "Bars" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "Bars" })).not.toBeInTheDocument();
     // The new-month offer is there, since the month has nothing.
     expect(await screen.findByRole("heading", { name: "Start March from your template?" })).toBeInTheDocument();
   });

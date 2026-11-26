@@ -31,9 +31,18 @@ type StatTileProps = {
 export function StatTile({ label, value, sub, tone = "default", className }: StatTileProps) {
   return (
     <Card data-slot="stat-tile" data-tone={tone} className={cn("min-w-[200px] flex-1 gap-1.5 px-5 py-[18px]", className)}>
-      <p className="m-0 text-xs font-semibold tracking-[0.06em] text-muted-foreground uppercase">{label}</p>
-      <p className={cn("m-0 text-[26px] leading-tight font-bold tracking-[-0.02em] tabular-nums", toneClass[tone])}>{value}</p>
+      <p data-slot="stat-tile-label" className="m-0 text-xs font-semibold tracking-[0.06em] text-muted-foreground uppercase">{label}</p>
+      <p data-slot="stat-tile-value" className={cn("m-0 text-[26px] leading-tight font-bold tracking-[-0.02em] tabular-nums", toneClass[tone])}>{value}</p>
       {sub != null && <p className="m-0 text-[13px] text-muted-foreground">{sub}</p>}
     </Card>
+  );
+}
+
+/** A row of summary tiles: a named group, 16px apart, wrapping on narrow windows. */
+export function TileRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div role="group" aria-label={label} className="flex flex-wrap gap-4">
+      {children}
+    </div>
   );
 }

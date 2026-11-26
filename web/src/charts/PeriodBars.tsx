@@ -30,7 +30,7 @@ export function PeriodBars({
   const height = (v: number) => (v <= 0 || max <= 0 ? 0 : Math.max(2, Math.round((v / max) * 100)));
   return (
     <div className="period">
-      <p className="visually-hidden">{summary}</p>
+      <p className="sr-only">{summary}</p>
       <ul className="period__plot" aria-label={label} style={{ gridTemplateColumns: `repeat(${bars.length}, minmax(0, 1fr))` }}>
         {bars.map((b) => {
           const inner = (

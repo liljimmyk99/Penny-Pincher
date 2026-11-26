@@ -39,12 +39,12 @@ describe("summary helpers", () => {
       [0, 75],
       [75, 100],
     ]);
-    expect(slices[1].color).toBe("var(--color-saving-bar)");
-    expect(donutGradient(slices)).toContain("var(--color-saving-bar) 75.000% 100.000%");
+    expect(slices[1].color).toBe("var(--saving-bar)");
+    expect(donutGradient(slices)).toContain("var(--saving-bar) 75.000% 100.000%");
   });
 
   it("draws an empty ring when there is nothing to chart", () => {
     expect(donutSlices([])).toEqual([]);
-    expect(donutGradient([])).toBe("conic-gradient(var(--color-divider) 0 100%)");
+    expect(donutGradient([])).toBe("conic-gradient(var(--muted) 0 100%)");
   });
 });
