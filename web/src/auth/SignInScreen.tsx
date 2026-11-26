@@ -1,6 +1,7 @@
-import { ChartLine, CircleAlert, CirclePlus, Copy, Eye, EyeOff, Lock } from "lucide-react";
+import { ChartLine, CircleAlert, CirclePlus, Copy, Lock } from "lucide-react";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { FormField } from "@/components/FormField";
+import { PasswordInput } from "@/components/PasswordInput";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -26,7 +27,6 @@ export function SignInScreen({ notice }: { notice: SessionNotice | null }) {
   const session = useSession();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
 
@@ -85,29 +85,14 @@ export function SignInScreen({ notice }: { notice: SessionNotice | null }) {
 
           <FormField label="Password" invalid={credentialError} describedBy={credentialError ? errorId : undefined}>
             {(control) => (
-              <div className="relative">
-                <Input
-                  {...control}
-                  className="pr-12"
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="absolute top-1 right-1 text-muted-foreground [&_svg:not([class*='size-'])]:size-[18px]"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  aria-pressed={showPassword}
-                  onClick={() => setShowPassword((v) => !v)}
-                >
-                  {showPassword ? <EyeOff /> : <Eye />}
-                </Button>
-              </div>
+              <PasswordInput
+                {...control}
+                name="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             )}
           </FormField>
         </div>

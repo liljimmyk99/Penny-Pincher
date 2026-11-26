@@ -247,6 +247,44 @@ describe("Users tab", () => {
     const details = await screen.findByRole("dialog", { name: "Sign-in details" });
     await u.click(within(details).getByRole("button", { name: "Copy sign-in details" }));
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Password: a-long-initial-password"));
+    const toast = await screen.findByText("Sign-in details copied");
+    expect(toast).not.toHaveTextContent("a-long-initial-password");
+  });
+
+  it("says so in a toast when copying fails", async () => {
+    const { user: u } = renderUsers((body) => Response.json(body, { status: 201 }));
+    vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(new Error("denied"));
+    await u.click(screen.getByRole("tab", { name: "Users" }));
+    await u.click(await screen.findByRole("button", { name: "Add user" }));
+    const dialog = await screen.findByRole("dialog", { name: "Add user" });
+    await u.type(within(dialog).getByLabelText("Username"), "newbie");
+    await u.type(within(dialog).getByLabelText("Initial password"), "a-long-initial-password");
+    await u.click(within(dialog).getByRole("button", { name: "Add user" }));
+    const details = await screen.findByRole("dialog", { name: "Sign-in details" });
+    await u.click(within(details).getByRole("button", { name: "Copy sign-in details" }));
+    expect(await screen.findByText(/Couldn't copy/)).toBeInTheDocument();
+  });
+
+  it("never writes a generated password to storage or the address", async () => {
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+    const { user: u } = renderUsers((body) => Response.json(body, { status: 201 }));
+    vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+    await u.click(screen.getByRole("tab", { name: "Users" }));
+    await u.click(await screen.findByRole("button", { name: "Add user" }));
+    const dialog = await screen.findByRole("dialog", { name: "Add user" });
+    await u.type(within(dialog).getByLabelText("Username"), "newbie");
+    await u.click(within(dialog).getByRole("button", { name: "Generate" }));
+    const password = (within(dialog).getByLabelText("Initial password") as HTMLInputElement).value;
+    await u.click(within(dialog).getByRole("button", { name: "Add user" }));
+    const details = await screen.findByRole("dialog", { name: "Sign-in details" });
+    expect(details).toHaveTextContent(password);
+    await u.click(within(details).getByRole("button", { name: "Copy sign-in details" }));
+    await screen.findByText("Sign-in details copied");
+
+    for (const [, value] of setItem.mock.calls) expect(value).not.toContain(password);
+    expect(window.location.href).not.toContain(password);
+    expect(Object.values(window.sessionStorage)).not.toContain(password);
+    setItem.mockRestore();
   });
 
   it("resets a password and shows the details once", async () => {
