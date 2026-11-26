@@ -301,8 +301,8 @@ test("AT-9 copied rows are tinted and pilled; the banner offers Confirm all and 
   const unconfirmed = page.locator("tr[data-variant=unconfirmed]");
   await expect(unconfirmed).toHaveCount(8);
   await expect(page.locator("[data-slot=badge][data-variant=unconfirmed]").filter({ hasText: "Unconfirmed · from template" })).toHaveCount(8);
-  // The tint is on the row's cells. Confirm one row to get a plain row to compare with.
-  const cellBg = (row: ReturnType<typeof expenseRow>) => row.locator("td").first().evaluate((el) => getComputedStyle(el).backgroundColor);
+  // The tint is on the row (TableRow variant). Confirm one row to get a plain row to compare with.
+  const cellBg = (row: ReturnType<typeof expenseRow>) => row.evaluate((el) => getComputedStyle(el).backgroundColor);
   const tinted = await cellBg(expenseRow(page, "Gym"));
   await expenseRow(page, "Rent").getByRole("button", { name: /^Confirm expense Rent/ }).click();
   await expect(expenseRow(page, "Rent")).not.toHaveAttribute("data-variant", "unconfirmed");

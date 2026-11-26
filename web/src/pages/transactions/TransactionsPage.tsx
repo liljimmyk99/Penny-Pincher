@@ -492,15 +492,15 @@ function CategorySection({
                     style={{ width: `${barPercent(cents, max)}%` }}
                   />
                 </span>
-                <span className="text-right font-semibold whitespace-nowrap tabular-nums">{formatCents(cents)}</span>
-                <span className="text-right font-medium whitespace-nowrap text-muted-foreground tabular-nums">{share}</span>
+                <span data-col="total" className="text-right font-semibold whitespace-nowrap tabular-nums">{formatCents(cents)}</span>
+                <span data-col="share" className="text-right font-medium whitespace-nowrap text-muted-foreground tabular-nums">{share}</span>
               </button>
             );
           })}
-          <div className={cn(catGrid, "mt-1 min-h-11 [border-top:1px_solid_var(--color-border)] font-bold")}>
+          <div data-slot="category-total" className={cn(catGrid, "mt-1 min-h-11 [border-top:1px_solid_var(--color-border)] font-bold")}>
             <span>Total spent</span>
             <span data-bar />
-            <span className="text-right whitespace-nowrap tabular-nums">{formatCents(totalCents)}</span>
+            <span data-col="total" className="text-right whitespace-nowrap tabular-nums">{formatCents(totalCents)}</span>
             <span className="text-right whitespace-nowrap tabular-nums">{totalCents > 0 ? "100%" : "—"}</span>
           </div>
         </div>
@@ -632,7 +632,7 @@ function ExpenseSection({
                     {!e.confirmed && <UnconfirmedBadge />}
                   </div>
                   {original && (
-                    <p className="mt-1 mb-0 flex items-center gap-1.5 text-xs font-semibold text-refund-text">
+                    <p data-slot="refund-for" className="mt-1 mb-0 flex items-center gap-1.5 text-xs font-semibold text-refund-text">
                       <LinkIcon aria-hidden="true" className="size-3.5 flex-none" />
                       <span>
                         Refund for{" "}
@@ -647,7 +647,7 @@ function ExpenseSection({
                       </span>
                     </p>
                   )}
-                  {status && <p className="mt-1 mb-0 text-xs font-semibold text-muted-foreground">{status.text}</p>}
+                  {status && <p data-slot="refund-status" className="mt-1 mb-0 text-xs font-semibold text-muted-foreground">{status.text}</p>}
                 </TableCell>
                 <TableCell>
                   <Badge variant={category?.is_saving ? "saving" : "secondary"}>{category?.name ?? "—"}</Badge>

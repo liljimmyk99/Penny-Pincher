@@ -9,7 +9,7 @@ const lastMonth = () => shiftMonth(thisMonth(), -1);
 
 const expenseRow = (page: Page, merchant: string) => page.getByRole("table", { name: "Expenses" }).locator("tbody tr").filter({ hasText: merchant });
 const footer = (page: Page) => page.getByRole("region", { name: /^Expenses/ }).getByRole("status");
-const categoryButton = (page: Page, name: string) => page.locator(".cat-rows button.cat-row").filter({ hasText: name });
+const categoryButton = (page: Page, name: string) => page.locator("[data-slot=category-row]").filter({ hasText: name });
 
 /** Marks the document, so a later check can tell whether the page reloaded. */
 const markDocument = (page: Page) => page.evaluate(() => ((window as unknown as { __e2e: number }).__e2e = 1));
@@ -43,7 +43,7 @@ test("editing an amount updates the totals without a reload", async ({ signedIn:
 
   await expect(footer(page)).toHaveText("2 expenses · $35.00");
   await expect(categoryButton(page, "Food")).toContainText("$15.00");
-  await expect(page.locator(".cat-row--total")).toContainText("$35.00");
+  await expect(page.locator("[data-slot=category-total]")).toContainText("$35.00");
   await notReloaded(page);
 });
 
@@ -93,13 +93,13 @@ test("the category filter works and category totals add up to the grand total", 
   for (const e of entries) await api.createExpense({ date: day, ...e });
   await page.reload();
   const total = entries.reduce((sum, e) => sum + e.amount_cents, 0);
-  await expect(page.locator(".cat-rows button.cat-row")).toHaveCount(4); // loaded: Food, Housing, Entertainment, Saving
+  await expect(page.locator("[data-slot=category-row]")).toHaveCount(4); // loaded: Food, Housing, Entertainment, Saving
 
   // Every category's total, summed, equals "Total spent" and the list footer.
-  const shown = await page.locator(".cat-rows button.cat-row .num:not(.cat-row__share)").allTextContents();
+  const shown = await page.locator("[data-slot=category-row] [data-col=total]").allTextContents();
   expect(shown.map(parseMoney).reduce((a, b) => a + b, 0)).toBe(total);
-  expect(parseMoney(await page.locator(".cat-row--total .num").first().innerText())).toBe(total);
-  await expect(footer(page)).toHaveText(`6 expenses · ${(await page.locator(".cat-row--total .num").first().innerText()).trim()}`);
+  expect(parseMoney(await page.locator("[data-slot=category-total] [data-col=total]").first().innerText())).toBe(total);
+  await expect(footer(page)).toHaveText(`6 expenses · ${(await page.locator("[data-slot=category-total] [data-col=total]").first().innerText()).trim()}`);
 
   // Filtering by Food shows only Food, by the row button or the chip.
   await categoryButton(page, "Food").click();

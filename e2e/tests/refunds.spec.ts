@@ -57,8 +57,8 @@ test("a refund linked to last month's expense counts this month; the original sh
   await page.goto(`/transactions?month=${thisMonth()}`);
   const r = row(page, "Gadget Shop", "refund");
   await expect(r.locator("[data-tag]")).toHaveText(`From ${monthName(lastMonth())}${lastMonth().slice(0, 4) === thisMonth().slice(0, 4) ? "" : ` ${lastMonth().slice(0, 4)}`}`);
-  await expect(r.locator(".tx-refund-for")).toContainText("Refund for Gadget Shop");
-  await expect(page.locator(".cat-rows button.cat-row").filter({ hasText: "Entertainment" })).toContainText("−$30.00");
+  await expect(r.locator("[data-slot=refund-for]")).toContainText("Refund for Gadget Shop");
+  await expect(page.locator("[data-slot=category-row]").filter({ hasText: "Entertainment" })).toContainText("−$30.00");
   const tiles = page.getByRole("region", { name: "Refunds this month" });
   await expect(tiles).toContainText("−$30.00");
   await expect(tiles).toContainText("1 refund · 1 linked to an expense");
@@ -67,9 +67,9 @@ test("a refund linked to last month's expense counts this month; the original sh
   await page.getByRole("button", { name: `Previous month, ${formatMonth(lastMonth())}` }).click();
   const o = row(page, "Gadget Shop", "expense");
   await expect(o.locator("[data-col=amount]")).toHaveText("$100.00");
-  await expect(o.locator(".tx-refunded")).toContainText("Partly refunded · −$30.00");
-  await expect(o.locator(".tx-refunded")).toContainText("net $70.00");
-  await expect(page.locator(".cat-rows button.cat-row").filter({ hasText: "Entertainment" })).toContainText("$100.00");
+  await expect(o.locator("[data-slot=refund-status]")).toContainText("Partly refunded · −$30.00");
+  await expect(o.locator("[data-slot=refund-status]")).toContainText("net $70.00");
+  await expect(page.locator("[data-slot=category-row]").filter({ hasText: "Entertainment" })).toContainText("$100.00");
   expect((await api.expense(original.id)).refunded_total_cents).toBe(-3000);
 });
 
