@@ -107,7 +107,7 @@ function Body({ data, today }: { data: Trends; today: string }) {
             className="rounded-full px-4 text-foreground data-[state=on]:border-primary"
           >
             {c.name}
-            {c.saving && <Badge variant="saving">Saving</Badge>}
+            {showSavingBadge({ label: c.name, saving: c.saving }) && <Badge variant="saving">Saving</Badge>}
           </Toggle>
         ))}
       </div>

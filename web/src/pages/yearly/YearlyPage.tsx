@@ -161,6 +161,8 @@ function CategoryAverages({ data }: { data: Yearly }) {
       ) : (
         <RankedBars
           rows={rows}
+          // "$16,170.00 for the year" on one line (#179).
+          detailWidth="170px"
           highlightedId={highlighted}
           onToggle={(id) => setHighlighted((h) => (h === id ? null : id))}
           label="Monthly average spending by category"

@@ -26,16 +26,14 @@ export function UploadStage({ onUploaded }: { onUploaded: (record: ImportRecord)
     <div className="grid gap-6 lg:grid-cols-2">
       <SectionCard title="1. Get the template" contentClassName="flex flex-col gap-4">
         <div aria-hidden="true" className="overflow-hidden rounded-xl border border-solid border-border bg-card">
-          <div className="flex gap-0.5 border-x-0 border-t-0 border-b border-solid border-border bg-muted/50 px-1.5 pt-1.5">
-            <span className="-mb-px rounded-t-lg border border-b-0 border-solid border-border bg-card px-4 py-2.5 text-[13px] font-semibold">
-              Expenses
-            </span>
-            <span className="px-4 py-2.5 text-[13px] font-semibold text-muted-foreground">Income</span>
-          </div>
-          <div className="flex flex-col gap-1 px-4 py-3 text-[13px] text-muted-foreground">
-            <p className="m-0">Date · Category · Merchant · Amount · Note</p>
-            <p className="m-0">Date · Source · Gross · Gross taxable · Net · Note</p>
-          </div>
+          {/* The workbook's two sheets and their columns (#179: no tab strip, which made
+              the Income columns look like part of the Expenses sheet). */}
+          <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 px-4 py-3 text-[13px]">
+            <dt className="font-semibold">Expenses</dt>
+            <dd className="m-0 text-muted-foreground">Date · Category · Merchant · Amount · Note</dd>
+            <dt className="font-semibold">Income</dt>
+            <dd className="m-0 text-muted-foreground">Date · Source · Gross · Gross taxable · Net · Note</dd>
+          </dl>
         </div>
         <ul className="m-0 flex flex-col gap-1.5 pl-5 text-sm">
           <li>The Category and Source dropdowns hold your current categories and income sources.</li>

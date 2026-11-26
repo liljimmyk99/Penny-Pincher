@@ -258,20 +258,20 @@ export function ExpenseBatch({ month }: { month: string }) {
         </Alert>
       )}
 
-      <Table className="min-w-[760px]">
+      <Table className="min-w-[720px]">
         <caption className="visually-hidden">New expenses</caption>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead scope="col" className="w-[150px] px-3">
               Date
             </TableHead>
-            <TableHead scope="col" className="w-[26%] px-3">
+            <TableHead scope="col" className="w-[22%] px-3">
               Merchant
             </TableHead>
             <TableHead scope="col" className="w-[170px] px-3">
               Category
             </TableHead>
-            <TableHead scope="col" numeric className="w-[130px] px-3">
+            <TableHead scope="col" numeric className="w-[110px] px-3">
               Amount
             </TableHead>
             <TableHead scope="col" className="px-3">

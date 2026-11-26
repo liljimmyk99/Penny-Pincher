@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { barWidth } from "../pages/summary/summary";
 import { Badge } from "@/components/ui/badge";
 import { rankedBarName, showSavingBadge } from "./rowNames";
@@ -28,15 +28,18 @@ export function RankedBars({
   highlightedId,
   onToggle,
   label,
+  detailWidth,
 }: {
   rows: RankedBar[];
   highlightedId: string | null;
   onToggle: (id: string) => void;
   label: string;
+  /** The detail column's width, when its text is longer than "25% of income". */
+  detailWidth?: string;
 }) {
   const max = Math.max(0, ...rows.map((r) => r.cents));
   return (
-    <ul className="ranked" aria-label={label}>
+    <ul className="ranked" aria-label={label} style={detailWidth ? ({ "--ranked-detail-width": detailWidth } as CSSProperties) : undefined}>
       {rows.map((r) => (
         <li key={r.id}>
           <button
