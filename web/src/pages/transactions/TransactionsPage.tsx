@@ -497,7 +497,7 @@ function CategorySection({
               </button>
             );
           })}
-          <div data-slot="category-total" className={cn(catGrid, "mt-1 min-h-11 [border-top:1px_solid_var(--color-border)] font-bold")}>
+          <div data-slot="category-total" className={cn(catGrid, "mt-1 min-h-11 [border-top:1px_solid_var(--border)] font-bold")}>
             <span>Total spent</span>
             <span data-bar />
             <span data-col="total" className="text-right whitespace-nowrap tabular-nums">{formatCents(totalCents)}</span>
@@ -617,7 +617,7 @@ function ExpenseSection({
                 variant={!e.confirmed ? "unconfirmed" : refund ? "refund" : "default"}
                 data-refund={refund || undefined}
                 data-target={isTarget || undefined}
-                className="outline-none data-[target]:shadow-[inset_0_2px_0_var(--color-ring),inset_0_-2px_0_var(--color-ring)]"
+                className="outline-none data-[target]:shadow-[inset_0_2px_0_var(--ring),inset_0_-2px_0_var(--ring)]"
               >
                 <TableCell data-col="date" className={cn("pl-6", muted)}>{formatShortDate(e.date)}</TableCell>
                 <TableCell className="whitespace-normal">
@@ -718,7 +718,7 @@ function ExpenseSection({
       )}
       {body}
       {expenses.length > 0 && (
-        <p role="status" className="m-0 [border-top:1px_solid_var(--color-border)] px-6 pt-3.5 text-[13px] text-muted-foreground tabular-nums">
+        <p role="status" className="m-0 [border-top:1px_solid_var(--border)] px-6 pt-3.5 text-[13px] text-muted-foreground tabular-nums">
           {filtered
             ? `Showing ${count.format(shown.length)} of ${plural(expenses.length, "expense", "expenses")} · ${formatCents(sumCents(shown.map((e) => e.amount_cents)))}`
             : `${plural(expenses.length, "expense", "expenses")} · ${formatCents(sumCents(expenses.map((e) => e.amount_cents)))}`}

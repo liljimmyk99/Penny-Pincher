@@ -370,7 +370,7 @@ function MonthSoFar({ month, sources }: { month: string; sources: Schemas["Incom
 
   return (
     <section className="flex flex-col gap-2 border-0 border-t border-solid border-border px-5 pt-4 pb-5" aria-labelledby="so-far-h">
-      <h3 id="so-far-h" className="eyebrow m-0">
+      <h3 id="so-far-h" className="m-0 text-xs font-semibold tracking-[0.06em] text-muted-foreground uppercase">
         {heading}
       </h3>
       {body}

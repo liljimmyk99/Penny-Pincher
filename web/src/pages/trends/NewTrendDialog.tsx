@@ -4,7 +4,7 @@ import { ApiError, errorMessage, findMerchant, useApi, useCategories, useSavedTr
 import { MerchantCombobox } from "../../components/MerchantCombobox";
 import { FormField } from "@/components/FormField";
 import { Segmented } from "@/components/Segmented";
-import { Input } from "@/components/ui/input";
+import { Input, inputVariants } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EditDialog } from "../transactions/EditDialog";
 
@@ -128,8 +128,7 @@ export function NewTrendDialog({
             <MerchantCombobox
               id={control.id}
               label="Merchant"
-              // The old .field look matches Input (#169); the combobox's own input moves in #175.
-              className="field"
+              className={inputVariants()}
               value={merchant}
               invalid={!!errors.value}
               describedBy={control["aria-describedby"]}

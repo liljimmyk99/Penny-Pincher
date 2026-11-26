@@ -3,13 +3,10 @@
  * Source of truth: web/AGENTS.md "Design system" (the V2 palette, #167).
  * Never hard-code hex values anywhere else.
  *
- * Three groups, each for light (:root) and dark:
+ * Two groups, each for light (:root) and dark:
  *   1. shadcn/ui's variables (--background, --primary, --sidebar-*, ...).
  *   2. Our domain variables (--income, --saving-*, --refund-*, ...).
- *   3. Legacy aliases (--color-*, ...) that the old, hand-built CSS still reads.
- *      They point at groups 1 and 2, so old and new components share one
- *      palette. They go away with the old CSS in #180.
- * Groups 1 and 2 hold literal hex only: tokens.contrast.test.ts reads them.
+ * Both hold literal hex only: tokens.contrast.test.ts reads them.
  * src/index.css exposes groups 1 and 2 to Tailwind (bg-card, text-income, ...).
  *
  * Dark mode is the `dark` class on <html> (shadcn's convention); data-theme is
@@ -221,77 +218,4 @@
   --shadow-raised: 0 18px 48px rgb(0 0 0 / 0.45);
   --shadow-dialog: 0 24px 64px rgb(0 0 0 / 0.6);
   --sidebar-edge: #27272a;
-}
-
-/*
- * 3. Legacy aliases for the old CSS (removed in #180). They only point at the
- * tokens above, so they need no dark block: the var()s resolve per theme.
- */
-:root {
-  --color-background: var(--background);
-  --color-surface: var(--card);
-  --color-surface-soft: var(--accent); /* hover on light surfaces */
-  --color-border: var(--border);
-  --color-border-strong: var(--input); /* input and ghost-button borders */
-  --color-divider: var(--muted); /* row separators inside cards */
-  --color-text: var(--foreground);
-  --color-text-muted: var(--muted-foreground);
-  --color-text-secondary: var(--foreground); /* field labels */
-  --color-placeholder: var(--muted-foreground);
-  --color-field: var(--card);
-  --color-ghost: var(--card);
-  --color-ghost-hover: var(--accent);
-  --color-badge: var(--muted);
-  --color-primary: var(--primary);
-  --color-primary-hover: var(--primary-hover);
-  --color-focus-ring: var(--focus-ring);
-  --color-link: var(--link);
-  --color-link-hover: var(--link-hover);
-  --color-danger: var(--destructive);
-  --color-danger-hover: var(--destructive-hover);
-  --color-brand: var(--brand);
-  --color-on-brand: var(--on-brand);
-  --color-income: var(--income);
-  --color-income-btn: var(--success);
-  --color-income-btn-hover: var(--success-hover);
-  --color-saving-text: var(--saving-text);
-  --color-saving-bar: var(--saving-bar);
-  --color-spent: var(--spent);
-  --color-refund-row: var(--refund-row);
-  --color-refund-text: var(--refund-text);
-  --color-refund-pill: var(--refund-pill);
-  --color-unconfirmed-tint: var(--unconfirmed-tint);
-  --color-unconfirmed-pill: var(--unconfirmed-pill);
-  --color-unconfirmed-text: var(--unconfirmed-text);
-  --color-worse: var(--worse);
-  --color-better: var(--better);
-  --color-danger-bg: var(--danger-alert-bg);
-  --color-danger-border: var(--danger-alert-border);
-  --color-danger-text: var(--danger-alert-text);
-  --color-danger-line: var(--danger-alert-line);
-  --color-success-bg: var(--success-alert-bg);
-  --color-success-border: var(--success-alert-border);
-  --color-success-text: var(--success-alert-text);
-  --color-info-bg: var(--info-alert-bg);
-  --color-info-border: var(--info-alert-border);
-  --color-info-text: var(--info-alert-text);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-edge: var(--sidebar-edge);
-  --color-sidebar-hover: var(--sidebar-hover);
-  --color-sidebar-pressed: var(--sidebar-pressed);
-  --color-sidebar-divider: var(--sidebar-divider);
-  --color-sidebar-active: var(--sidebar-foreground); /* the light pill on the current page */
-  --color-on-sidebar: var(--sidebar-foreground);
-  --color-on-sidebar-muted: var(--sidebar-muted-foreground);
-  --color-on-sidebar-accent: var(--brand-on-sidebar);
-  --color-on-sidebar-active: var(--sidebar);
-  --color-menu-border: var(--border);
-  --color-menu-divider: var(--border);
-  --color-menu-hover: var(--accent);
-  --color-selected-bg: var(--selected);
-  --color-selected-text: var(--selected-foreground);
-  --color-selected-line: var(--primary);
-  --color-backdrop: var(--backdrop);
-  --radius-card: var(--radius-xl);
-  --radius-control: var(--radius-md);
 }

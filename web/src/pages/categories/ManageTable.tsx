@@ -180,7 +180,7 @@ export function ManageTable<T extends ManageRow>({
                 key={row.id}
                 data-dragging={row.id === dragId || undefined}
                 data-drop-target={(row.id === overId && row.id !== dragId) || undefined}
-                className="data-[dragging]:opacity-50 data-[drop-target]:shadow-[inset_0_2px_0_var(--color-ring)]"
+                className="data-[dragging]:opacity-50 data-[drop-target]:shadow-[inset_0_2px_0_var(--ring)]"
                 onDragOver={(e) => onDragOver(e, row)}
                 onDragLeave={() => overId === row.id && setOverId(null)}
                 onDrop={(e) => onDrop(e, row)}

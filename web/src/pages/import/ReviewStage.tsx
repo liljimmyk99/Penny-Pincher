@@ -137,7 +137,7 @@ export function ReviewStage({
                   {text?.title ?? code} <Badge variant="unconfirmed">{issues.length}</Badge>
                 </h3>
                 {text && <p className="m-0 text-[13px] text-muted-foreground">{text.hint}</p>}
-                <ul className="m-0 flex flex-col gap-0.5 pl-5 text-[13px] tabular-nums">
+                <ul className="m-0 flex list-disc flex-col gap-0.5 pl-5 text-[13px] tabular-nums">
                   {issues.slice(0, MAX_SHOWN).map((i) => (
                     <li key={`${i.sheet}-${i.row}-${i.column}`}>
                       {i.sheet === "expenses" ? "Expenses" : "Income"} · row {i.row} · {i.column}

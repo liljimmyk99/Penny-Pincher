@@ -4,8 +4,6 @@ import { formatMonth, monthName, shiftMonth } from "../lib/dates";
 import { cn } from "../lib/utils";
 import { Button } from "./ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-// Still holds .month-switcher for the Yearly and Trends year switchers (#176, #177).
-import "./MonthSwitcher.css";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 

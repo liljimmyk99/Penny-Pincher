@@ -10,7 +10,7 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import { Trash2Icon } from "lucide-react";
-import { AlertIcon } from "./icons";
+import { ErrorAlert } from "./LoadError";
 
 interface Props {
   open: boolean;
@@ -47,12 +47,7 @@ export function DeleteDialog({ open, title, body, extra, confirmLabel, cancelLab
             {extra && <p className="m-0 text-sm leading-[1.55] text-muted-foreground">{extra}</p>}
           </div>
         </AlertDialogHeader>
-        {error && (
-          <p role="alert" className="alert alert--danger">
-            <AlertIcon width={18} height={18} />
-            {error}
-          </p>
-        )}
+        {error && <ErrorAlert>{error}</ErrorAlert>}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={pending}>{cancelLabel}</AlertDialogCancel>
           <AlertDialogAction

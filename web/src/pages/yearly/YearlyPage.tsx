@@ -46,7 +46,7 @@ export function YearlyPage() {
       title="Yearly"
       eyebrow={String(year)}
       actions={
-        <div role="group" aria-label="Year" className="month-switcher">
+        <div role="group" aria-label="Year" className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-1">
           <Button
             variant="ghost"
             size="icon"
@@ -56,7 +56,7 @@ export function YearlyPage() {
           >
             <ChevronLeftIcon aria-hidden="true" />
           </Button>
-          <span className="month-switcher__label" aria-live="polite">{year}</span>
+          <span className="min-w-[140px] text-center text-[15px] font-semibold tabular-nums" aria-live="polite">{year}</span>
           <Button
             variant="ghost"
             size="icon"

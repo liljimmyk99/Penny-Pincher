@@ -54,6 +54,15 @@ npm run dev        # Vite dev server, proxies /v1 and /healthz to localhost:8080
 npm run lint && npm run typecheck && npm test
 ```
 
+### Adding a shadcn/ui component
+
+```bash
+cd web
+npx shadcn@latest add <name>
+```
+
+The component lands in `web/src/components/ui/` and is ours to keep. Check that its `cn` import is still `@/lib/utils`, keep the file as generated unless an app-wide rule needs an edit, and wrap it outside `ui/` for app-specific looks. Radix is imported only inside `ui/` (ESLint enforces it). The full rules are in `web/AGENTS.md`, "Adding a component".
+
 `web/.npmrc` sets `legacy-peer-deps` because npm's peer resolver currently crashes on the Vitest 4 peer set.
 
 ## Backups
