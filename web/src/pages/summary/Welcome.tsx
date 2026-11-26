@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { useTemplates } from "../../api";
-import { CheckIcon } from "../../components/icons";
+import { Check } from "lucide-react";
+import { SectionCard } from "@/components/SectionCard";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
 const HIDDEN_KEY = "penny.welcome.hidden";
 const CHECKED_KEY = "penny.welcome.categoriesChecked";
@@ -41,45 +45,51 @@ export function Welcome({ hasEntries }: { hasEntries: boolean }) {
   const doneCount = steps.filter((s) => s.done).length;
   if (doneCount === steps.length) return null;
 
+  const percent = Math.round((doneCount / steps.length) * 100);
+
   return (
-    <section className="card welcome" aria-labelledby="welcome-h">
-      <div className="welcome__head">
-        <div>
-          <p className="eyebrow">Welcome</p>
-          <h2 id="welcome-h" className="welcome__title">Let’s get you set up</h2>
-        </div>
-        <button
-          type="button"
-          className="btn btn--ghost btn--sm"
+    <SectionCard
+      eyebrow="Welcome"
+      title="Let’s get you set up"
+      action={
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => {
             write(HIDDEN_KEY);
             setHidden(true);
           }}
         >
           Hide
-        </button>
-      </div>
-      <div
-        className="welcome__progress"
-        role="progressbar"
+        </Button>
+      }
+      contentClassName="flex flex-col gap-3"
+    >
+      <Progress
+        value={percent}
         aria-label="Setup progress"
-        aria-valuemin={0}
-        aria-valuemax={steps.length}
-        aria-valuenow={doneCount}
-        aria-valuetext={`${doneCount} of ${steps.length} steps done`}
-      >
-        <span style={{ width: `${(doneCount / steps.length) * 100}%` }} />
-      </div>
-      <ol className="welcome__steps">
+        getValueLabel={() => `${doneCount} of ${steps.length} steps done`}
+      />
+      <ol className="m-0 flex list-none flex-col gap-2 p-0">
         {steps.map((s) => (
-          <li key={s.label} className={s.done ? "is-done" : undefined}>
-            <span className="welcome__tick" aria-hidden="true">{s.done && <CheckIcon width={14} height={14} />}</span>
-            <Link to={s.to} onClick={s.onGo}>{s.label}</Link>
-            {s.done && <span className="visually-hidden"> (done)</span>}
+          <li key={s.label} className="flex items-center gap-3" data-done={s.done || undefined}>
+            <span
+              className={cn(
+                "inline-flex size-[22px] items-center justify-center rounded-full border-2 border-solid border-input",
+                s.done && "border-income bg-income text-card",
+              )}
+              aria-hidden="true"
+            >
+              {s.done && <Check className="size-3.5" />}
+            </span>
+            <Link to={s.to} onClick={s.onGo} className={cn("text-link hover:text-link-hover", s.done && "text-muted-foreground line-through")}>
+              {s.label}
+            </Link>
+            {s.done && <span className="sr-only"> (done)</span>}
           </li>
         ))}
       </ol>
-      <p className="welcome__note">Yearly and Trends fill in as you log months.</p>
-    </section>
+      <p className="m-0 text-[13px] text-muted-foreground">Yearly and Trends fill in as you log months.</p>
+    </SectionCard>
   );
 }

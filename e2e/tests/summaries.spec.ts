@@ -76,8 +76,11 @@ async function openYearly(page: Page, year: number) {
 }
 
 const tile = (page: Page, label: string) =>
-  page.locator(":is(.tile, [data-slot=stat-tile])").filter({ has: page.locator(":is(.tile__label, [data-slot=stat-tile-label])", { hasText: new RegExp(`^${label}$`) }) });
-const tileValue = (page: Page, label: string) => tile(page, label).locator(":is(.tile__value, [data-slot=stat-tile-value])");
+  page
+    // StatTile (Summary #177, Yearly #176).
+    .locator("[data-slot=stat-tile]")
+    .filter({ has: page.locator("[data-slot=stat-tile-label]", { hasText: new RegExp(`^${label}$`) }) });
+const tileValue = (page: Page, label: string) => tile(page, label).locator("[data-slot=stat-tile-value]");
 
 async function expectTiles(page: Page, m: { net: string; spent: string; saved: string; left: string }) {
   await expect(tileValue(page, "Net income")).toHaveText(m.net);
@@ -89,7 +92,7 @@ async function expectTiles(page: Page, m: { net: string; spent: string; saved: s
 /** A ranked-bar row; its accessible name is "Name, amount, N% of income, <change in words>". */
 const spendingRows = (page: Page) => page.getByRole("list", { name: "Spending by category" }).getByRole("button");
 const spendingRow = (page: Page, category: string) =>
-  spendingRows(page).filter({ has: page.locator(".ranked__name, .legend__name", { hasText: new RegExp(`^${category}`) }) });
+  spendingRows(page).filter({ hasText: new RegExp(`^${category}`) });
 async function expectRow(page: Page, category: string, name: RegExp | string) {
   await expect(spendingRow(page, category)).toHaveAccessibleName(name);
 }
@@ -125,7 +128,7 @@ test("MS-1, MS-2, MS-3 January tiles, income per source and the income modal", a
   // MS-2: per-source rows and the combined total (net shown on the row).
   await expect(page.getByRole("button", { name: "Job A, $3,600.00 net, 2 entries" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Job B, $800.00 net, 1 entry" })).toBeVisible();
-  await expect(page.locator(".summary__total")).toHaveText(/All sources combined\s*\$4,400\.00/);
+  await expect(page.getByRole("listitem").filter({ hasText: /^All sources combined/ })).toHaveText(/All sources combined\s*\$4,400\.00/);
 
   // MS-3 (and the gross / taxable / net / tax-rate figures of MS-2): the modal.
   const jobA = await openJobA(page);
@@ -164,17 +167,16 @@ test("MS-4, MS-5, MS-6 January spending, change vs. December and the colours", a
   await expectRow(page, "Utilities", /worse \+\$150\.00 vs\. last month$/);
 
   // MS-6: orange for worse, blue for better, and Saving's meaning is flipped.
-  const tone = (category: string) =>
-    spendingRow(page, category).locator(".change").first().getAttribute("class");
-  expect(await tone("Food")).toContain("change--worse");
-  expect(await tone("Saving")).toContain("change--better");
-  expect(await tone("Utilities")).toContain("change--worse");
-  const colour = (category: string) =>
-    spendingRow(page, category).locator(".change").first().evaluate((el) => getComputedStyle(el).color);
+  const change = (category: string) => spendingRow(page, category).locator("[data-slot=badge][data-variant]").last();
+  const tone = (category: string) => change(category).getAttribute("data-variant");
+  expect(await tone("Food")).toBe("worse");
+  expect(await tone("Saving")).toBe("better");
+  expect(await tone("Utilities")).toBe("worse");
+  const colour = (category: string) => change(category).evaluate((el) => getComputedStyle(el).color);
   expect(await colour("Saving")).not.toBe(await colour("Food"));
   // An arrow and a sign accompany the colour, not the colour alone.
-  await expect(spendingRow(page, "Food").locator(".change").first()).toContainText("▲ +$100.00");
-  await expect(spendingRow(page, "Saving").locator(".change").first()).toContainText("▲ +$100.00");
+  await expect(change("Food")).toContainText("▲ +$100.00");
+  await expect(change("Saving")).toContainText("▲ +$100.00");
 });
 
 test("MS-7, MS-8, MS-9 December, February and March, with the month switcher", async ({ signedIn: page, api }) => {
@@ -214,7 +216,7 @@ test("MS-10 Bars and Donut show the same month; a click only highlights", async 
   await openSummary(page, "2027-01");
 
   const bars = await spendingRows(page).evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")));
-  await page.getByRole("button", { name: "Donut", exact: true }).click();
+  await page.getByRole("radio", { name: "Donut", exact: true }).click();
   await expect(page.getByRole("img", { name: "Spending by category, $2,250.00 in total" })).toBeVisible();
   expect(await spendingRows(page).evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")))).toEqual(bars);
 
@@ -225,7 +227,7 @@ test("MS-10 Bars and Donut show the same month; a click only highlights", async 
   expect(page.url()).toBe(url);
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Bars", exact: true }).click();
+  await page.getByRole("radio", { name: "Bars", exact: true }).click();
   await expect(spendingRows(page)).toHaveCount(4);
   expect(await spendingRows(page).evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")))).toEqual(bars);
   await expectTiles(page, MONTHS["2027-01"]);
@@ -335,10 +337,10 @@ test("YS-1, YS-2, YS-3 2027 tiles, averages and month table", async ({ signedIn:
   await expect(tileValue(page, "Left over")).toHaveText("$4,080.00");
 
   // YS-2: divided by the 3 months with entries, not 12 (12 would give $476.67 for Spent).
-  await expect(tile(page, "Net income").locator(":is(.tile__sub, [data-slot=stat-tile-sub])")).toContainText("$3,266.67 / month");
-  await expect(tile(page, "Spent").locator(":is(.tile__sub, [data-slot=stat-tile-sub])")).toContainText("$1,906.67 / month");
-  await expect(tile(page, "Saved & invested").locator(":is(.tile__sub, [data-slot=stat-tile-sub])")).toContainText("$333.33 / month");
-  await expect(tile(page, "Left over").locator(":is(.tile__sub, [data-slot=stat-tile-sub])")).toContainText("$1,360.00 / month");
+  await expect(tile(page, "Net income").locator("[data-slot=stat-tile-sub]")).toContainText("$3,266.67 / month");
+  await expect(tile(page, "Spent").locator("[data-slot=stat-tile-sub]")).toContainText("$1,906.67 / month");
+  await expect(tile(page, "Saved & invested").locator("[data-slot=stat-tile-sub]")).toContainText("$333.33 / month");
+  await expect(tile(page, "Left over").locator("[data-slot=stat-tile-sub]")).toContainText("$1,360.00 / month");
   await expect(page.locator("main")).not.toContainText("$476.67");
 
   // YS-3
@@ -413,7 +415,7 @@ test("YS-7, YS-8 2026 has one month; 2030 has none", async ({ signedIn: page, ap
   await expect(page.getByRole("group", { name: "2026 totals" })).toBeVisible();
   await expect(tileValue(page, "Net income")).toHaveText("$3,600.00");
   await expect(yearlyFoot(page, "Monthly average").locator("td")).toHaveText(["$3,600.00", "$1,900.00", "$1,700.00"]);
-  await expect(tile(page, "Saved & invested").locator(":is(.tile__sub, [data-slot=stat-tile-sub])")).toContainText("$400.00 / month");
+  await expect(tile(page, "Saved & invested").locator("[data-slot=stat-tile-sub]")).toContainText("$400.00 / month");
 
   // YS-8
   await openYearly(page, 2030);
@@ -445,7 +447,8 @@ test("ED-1 an empty month: clear empty state, zero tiles, no tax rate, no consol
   await expect(page.getByText("No spending logged in April.")).toBeVisible();
   // No income, so no tax rate anywhere (a "%" is fine: spending still compares with March).
   await expect(page.locator("main")).not.toContainText("Tax rate");
-  await expect(page.locator(".summary__row")).toHaveCount(0);
+  // No income source rows to open.
+  await expect(page.getByRole("region", { name: "Income" }).getByRole("button")).toHaveCount(0);
   await noBrokenNumbers(page);
   expect(errors).toEqual([]);
 });

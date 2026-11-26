@@ -1,10 +1,12 @@
 import { Link } from "react-router";
 import { errorMessage, useMonthIncome, type Schemas } from "../../api";
-import { AlertIcon } from "../../components/icons";
 import { formatShortDate, monthName } from "../../lib/dates";
 import { formatCents } from "../../lib/money";
 import { formatTaxRate } from "../../lib/taxRate";
-import { Button } from "../../components/ui/button";
+import { LoadError } from "@/components/LoadError";
+import { Button } from "@/components/ui/button";
+import { LoadingSection } from "@/components/LoadingSection";
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Dialog,
   DialogClose,
@@ -42,54 +44,46 @@ export function IncomeDialog({
           <DialogTitle>{source.name}</DialogTitle>
           <DialogDescription>Income entries in {monthName(month)}.</DialogDescription>
         </DialogHeader>
-        {income.isPending && <p className="summary__status">Loading entries…</p>}
+        {income.isPending && <LoadingSection label="entries" rows={2} />}
         {income.isError && (
-          <p role="alert" className="alert alert--danger">
-            <AlertIcon width={18} height={18} />
-            <span>
-              Couldn’t load the entries. {errorMessage(income.error)}{" "}
-              <button type="button" className="text-btn" onClick={() => void income.refetch()}>
-                Try again
-              </button>
-            </span>
-          </p>
+          <LoadError message={`Couldn’t load the entries. ${errorMessage(income.error)}`} onRetry={() => void income.refetch()} />
         )}
         {income.isSuccess && (
-          <div className="summary__scroll">
-            <table className="summary-table">
-              <thead>
-                <tr>
-                  <th scope="col">Date</th>
-                  <th scope="col">Label</th>
-                  <th scope="col" className="num">Gross</th>
-                  <th scope="col" className="num">Taxable</th>
-                  <th scope="col" className="num">Net</th>
-                  <th scope="col" className="num">Tax rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                {entries.map((e) => (
-                  <tr key={e.id}>
-                    <td>{formatShortDate(e.date)}</td>
-                    <td>{e.note ?? "—"}</td>
-                    <td className="num">{formatCents(e.gross_cents)}</td>
-                    <td className="num">{formatCents(e.gross_taxable_cents)}</td>
-                    <td className="num">{formatCents(e.net_cents)}</td>
-                    <td className="num">{formatTaxRate(e.gross_taxable_cents, e.net_cents)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <TotalRow label={source.name} totals={source} />
-                <TotalRow label="All sources combined" totals={combined} />
-              </tfoot>
-            </table>
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead scope="col">Date</TableHead>
+                <TableHead scope="col">Label</TableHead>
+                <TableHead scope="col" numeric>Gross</TableHead>
+                <TableHead scope="col" numeric>Taxable</TableHead>
+                <TableHead scope="col" numeric>Net</TableHead>
+                <TableHead scope="col" numeric>Tax rate</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {entries.map((e) => (
+                <TableRow key={e.id}>
+                  <TableCell>{formatShortDate(e.date)}</TableCell>
+                  <TableCell>{e.note ?? "—"}</TableCell>
+                  <TableCell numeric>{formatCents(e.gross_cents)}</TableCell>
+                  <TableCell numeric>{formatCents(e.gross_taxable_cents)}</TableCell>
+                  <TableCell numeric>{formatCents(e.net_cents)}</TableCell>
+                  <TableCell numeric>{formatTaxRate(e.gross_taxable_cents, e.net_cents)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+            <TableFooter>
+              <TotalRow label={source.name} totals={source} />
+              <TotalRow label="All sources combined" totals={combined} />
+            </TableFooter>
+          </Table>
         )}
         <DialogFooter>
-          <Link className="btn btn--ghost" to={`/transactions?month=${month}`} onClick={onClose}>
-            Open in Transactions
-          </Link>
+          <Button asChild variant="outline">
+            <Link to={`/transactions?month=${month}`} onClick={onClose}>
+              Open in Transactions
+            </Link>
+          </Button>
           <DialogClose asChild>
             <Button>Done</Button>
           </DialogClose>
@@ -101,14 +95,14 @@ export function IncomeDialog({
 
 function TotalRow({ label, totals }: { label: string; totals: Totals }) {
   return (
-    <tr>
-      <th scope="row" colSpan={2}>
+    <TableRow>
+      <TableHead scope="row" colSpan={2} className="text-foreground">
         {label}
-      </th>
-      <td className="num">{formatCents(totals.gross_cents)}</td>
-      <td className="num">{formatCents(totals.gross_taxable_cents)}</td>
-      <td className="num">{formatCents(totals.net_cents)}</td>
-      <td className="num">{formatTaxRate(totals.gross_taxable_cents, totals.net_cents)}</td>
-    </tr>
+      </TableHead>
+      <TableCell numeric>{formatCents(totals.gross_cents)}</TableCell>
+      <TableCell numeric>{formatCents(totals.gross_taxable_cents)}</TableCell>
+      <TableCell numeric>{formatCents(totals.net_cents)}</TableCell>
+      <TableCell numeric>{formatTaxRate(totals.gross_taxable_cents, totals.net_cents)}</TableCell>
+    </TableRow>
   );
 }

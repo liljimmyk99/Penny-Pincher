@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  errorMessage,
   useCategories,
   useIncomeSources,
   useTemplate,
@@ -30,7 +31,7 @@ export function TemplateEditor({ templateId }: { templateId: string }) {
 
   const failed = [template, categories, sources].find((q) => q.isError);
   if (failed) {
-    return <LoadError what="this template" error={failed.error} retry={() => void failed.refetch()} />;
+    return <LoadError message={`Couldn’t load this template. ${errorMessage(failed.error)}`} onRetry={() => void failed.refetch()} />;
   }
   if (!template.data || !categories.data || !sources.data) {
     return <p className="m-0 text-muted-foreground">Loading template…</p>;

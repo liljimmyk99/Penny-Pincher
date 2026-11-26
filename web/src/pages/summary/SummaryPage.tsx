@@ -1,26 +1,38 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
+import { Plus } from "lucide-react";
 import { errorMessage, useMonthlySummary, type Schemas } from "../../api";
 import { Donut } from "../../charts/Donut";
 import { RankedBars, type RankedBar } from "../../charts/RankedBars";
-import { AlertIcon, PlusIcon } from "../../components/icons";
+import { ChangeBadge } from "@/components/ChangeBadge";
+import { LoadingSection } from "@/components/LoadingSection";
 import { MonthSwitcher } from "../../components/MonthSwitcher";
+import { SectionCard } from "@/components/SectionCard";
+import { Segmented } from "@/components/Segmented";
+import { StatTile, TileRow } from "@/components/StatTile";
+import { LoadError } from "@/components/LoadError";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { toast } from "../../lib/toast";
 import { formatMonth, monthName, monthOf, todayISO } from "../../lib/dates";
 import { changeWords } from "../../lib/change";
 import { formatCents } from "../../lib/money";
 import { useMonthParam } from "../../lib/useMonthParam";
+import { cn } from "@/lib/utils";
 import { NewMonthOffer } from "../months/NewMonthOffer";
 import { UnconfirmedBanner } from "../months/UnconfirmedBanner";
 import { Page } from "../Page";
-import { ChangeBadge } from "./ChangeBadge";
 import { IncomeDialog } from "./IncomeDialog";
 import { categoryColor, donutSlices, percentOfIncome, rankedCategories } from "./summary";
 import { Welcome } from "./Welcome";
-import "./SummaryPage.css";
 
 type Summary = Schemas["MonthlySummary"];
 type View = "bars" | "donut";
+
+const VIEWS = [
+  { value: "bars", label: "Bars" },
+  { value: "donut", label: "Donut" },
+] as const;
 
 const count = new Intl.NumberFormat("en-US");
 const plural = (n: number, one: string, many: string) => `${count.format(n)} ${n === 1 ? one : many}`;
@@ -37,18 +49,10 @@ export function SummaryPage() {
   const [blank, setBlank] = useState<ReadonlySet<string>>(() => new Set());
 
   let body;
-  if (summary.isPending) body = <p className="summary__status">Loading {monthName(month)}…</p>;
+  if (summary.isPending) body = <LoadingSection label={monthName(month)} rows={4} />;
   else if (summary.isError)
     body = (
-      <p role="alert" className="alert alert--danger">
-        <AlertIcon width={18} height={18} />
-        <span>
-          Couldn’t load the summary. {errorMessage(summary.error)}{" "}
-          <button type="button" className="text-btn" onClick={() => void summary.refetch()}>
-            Try again
-          </button>
-        </span>
-      </p>
+      <LoadError message={`Couldn’t load the summary. ${errorMessage(summary.error)}`} onRetry={() => void summary.refetch()} />
     );
   else
     body = (
@@ -76,10 +80,12 @@ export function SummaryPage() {
       actions={
         <>
           <MonthSwitcher month={month} onChange={setMonth} />
-          <Link className="btn btn--primary" to={`/add?month=${month}`}>
-            <PlusIcon />
-            Add entries
-          </Link>
+          <Button asChild>
+            <Link to={`/add?month=${month}`}>
+              <Plus aria-hidden="true" />
+              Add entries
+            </Link>
+          </Button>
         </>
       }
     >
@@ -91,47 +97,46 @@ export function SummaryPage() {
 function SummaryBody({ month, data }: { month: string; data: Summary }) {
   const { income, spending } = data;
   const empty = data.is_empty;
-  const muted = empty ? " tile__value--muted" : "";
   const [openSource, setOpenSource] = useState<string | null>(null);
   const source = income.sources.find((s) => s.income_source_id === openSource);
   const previousSaving = spending.categories.filter((c) => c.is_saving).reduce((t, c) => t + c.previous_month_total_cents, 0);
 
   return (
     <>
-      <div className="tiles" role="group" aria-label={`${formatMonth(month)} totals`}>
-        <div className="tile">
-          <span className="tile__label">Net income</span>
-          <span className={`tile__value tile__value--income${muted}`}>{formatCents(income.combined.net_cents)}</span>
-          <span className="tile__sub">{plural(income.combined.entry_count, "entry", "entries")}</span>
-        </div>
-        <div className="tile">
-          <span className="tile__label">Spent</span>
-          <span className={`tile__value${muted}`}>{formatCents(spending.total_cents)}</span>
-          <span className="tile__sub">
-            <ChangeBadge current={spending.total_cents} previous={spending.previous_month_total_cents} />
-          </span>
-        </div>
-        <div className="tile">
-          <span className="tile__label">Saved &amp; invested</span>
-          <span className={`tile__value tile__value--saving${muted}`}>{formatCents(spending.saving_cents)}</span>
-          <span className="tile__sub">
-            Counted in Spent · <ChangeBadge current={spending.saving_cents} previous={previousSaving} saving />
-          </span>
-        </div>
-        <div className="tile">
-          <span className="tile__label">Left over</span>
-          <span className={`tile__value${muted}`}>{formatCents(data.left_over_cents)}</span>
-          <span className="tile__sub">Net income − spent</span>
-        </div>
-      </div>
+      <TileRow label={`${formatMonth(month)} totals`}>
+        <StatTile
+          label="Net income"
+          value={formatCents(income.combined.net_cents)}
+          tone={empty ? "muted" : "income"}
+          sub={plural(income.combined.entry_count, "entry", "entries")}
+        />
+        <StatTile
+          label="Spent"
+          value={formatCents(spending.total_cents)}
+          tone={empty ? "muted" : "default"}
+          sub={<ChangeBadge current={spending.total_cents} previous={spending.previous_month_total_cents} />}
+        />
+        <StatTile
+          label="Saved & invested"
+          value={formatCents(spending.saving_cents)}
+          tone={empty ? "muted" : "saving"}
+          sub={
+            <>
+              Counted in Spent · <ChangeBadge current={spending.saving_cents} previous={previousSaving} saving />
+            </>
+          }
+        />
+        <StatTile
+          label="Left over"
+          value={formatCents(data.left_over_cents)}
+          tone={empty ? "muted" : "default"}
+          sub="Net income − spent"
+        />
+      </TileRow>
 
-      <section className="card summary" aria-labelledby="summary-income-h">
-        <div className="summary__head">
-          <h2 id="summary-income-h">Income</h2>
-          <p className="summary__desc">Select a source to see its entries.</p>
-        </div>
+      <SectionCard title="Income" description="Select a source to see its entries.">
         <IncomeList month={month} data={data} onOpen={setOpenSource} />
-      </section>
+      </SectionCard>
 
       <SpendingPanel month={month} data={data} />
 
@@ -147,39 +152,53 @@ function SummaryBody({ month, data }: { month: string; data: Summary }) {
   );
 }
 
+/** A dashed panel for a section with nothing logged yet, with a link to add some. */
+function EmptyPanel({ children, to, action }: { children: ReactNode; to: string; action: string }) {
+  return (
+    <div className="flex flex-col items-start gap-3 rounded-xl border-2 border-dashed border-input p-5 text-muted-foreground">
+      <p className="m-0">{children}</p>
+      <Button asChild variant="outline">
+        <Link to={to}>
+          <Plus aria-hidden="true" />
+          {action}
+        </Link>
+      </Button>
+    </div>
+  );
+}
+
+const rowButton =
+  "w-full cursor-pointer rounded-md border-0 bg-transparent px-2 text-left text-foreground [font:inherit] hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/35 focus-visible:outline-none";
+
 function IncomeList({ month, data, onOpen }: { month: string; data: Summary; onOpen: (id: string) => void }) {
   const { sources, combined } = data.income;
   const used = sources.filter((s) => s.entry_count > 0);
   if (used.length === 0)
     return (
-      <div className="summary__empty">
-        <p>No income logged in {monthName(month)}. Add paychecks and one-off jobs to see where your money comes from.</p>
-        <Link className="btn btn--ghost" to={`/add?month=${month}`}>
-          <PlusIcon />
-          Add income
-        </Link>
-      </div>
+      <EmptyPanel to={`/add?month=${month}`} action="Add income">
+        No income logged in {monthName(month)}. Add paychecks and one-off jobs to see where your money comes from.
+      </EmptyPanel>
     );
   return (
-    <ul className="summary__rows">
+    <ul className="m-0 list-none p-0">
       {used.map((s) => (
         <li key={s.income_source_id}>
           <button
             type="button"
-            className="summary__row"
+            className={cn(rowButton, "grid min-h-11 grid-cols-[1fr_auto_auto] items-center gap-4 py-1")}
             aria-haspopup="dialog"
             aria-label={`${s.name}, ${formatCents(s.net_cents)} net, ${plural(s.entry_count, "entry", "entries")}`}
             onClick={() => onOpen(s.income_source_id)}
           >
-            <span className="summary__row-name">{s.name}</span>
-            <span className="summary__row-sub" aria-hidden="true">{plural(s.entry_count, "entry", "entries")}</span>
-            <span className="summary__row-amount summary__row-amount--income" aria-hidden="true">{formatCents(s.net_cents)}</span>
+            <span className="font-semibold">{s.name}</span>
+            <span className="text-[13px] text-muted-foreground" aria-hidden="true">{plural(s.entry_count, "entry", "entries")}</span>
+            <span className="min-w-24 text-right font-semibold text-income tabular-nums" aria-hidden="true">{formatCents(s.net_cents)}</span>
           </button>
         </li>
       ))}
-      <li className="summary__total">
+      <li className="mt-1.5 flex justify-between gap-4 border-t border-border px-2 pt-3 pb-1 font-semibold">
         <span>All sources combined</span>
-        <span className="summary__row-amount summary__row-amount--income">{formatCents(combined.net_cents)}</span>
+        <span className="min-w-24 text-right text-income tabular-nums">{formatCents(combined.net_cents)}</span>
       </li>
     </ul>
   );
@@ -208,25 +227,21 @@ function SpendingPanel({ month, data }: { month: string; data: Summary }) {
   let body;
   if (ranked.length === 0)
     body = (
-      <div className="summary__empty">
-        <p>No spending logged in {monthName(month)}. Log expenses as they happen, or in batches later.</p>
-        <Link className="btn btn--ghost" to={`/add?month=${month}`}>
-          <PlusIcon />
-          Add expenses
-        </Link>
-      </div>
+      <EmptyPanel to={`/add?month=${month}`} action="Add expenses">
+        No spending logged in {monthName(month)}. Log expenses as they happen, or in batches later.
+      </EmptyPanel>
     );
   else if (view === "bars")
     body = <RankedBars rows={rows} highlightedId={highlighted} onToggle={toggle} label="Spending by category" />;
   else
     body = (
-      <div className="summary__donut">
+      <div className="flex flex-wrap items-center gap-6">
         <Donut
           slices={donutSlices(ranked)}
           label={`Spending by category, ${formatCents(spending.total_cents)} in total`}
           centre={
             <>
-              <span className="summary__donut-label">Spent</span>
+              <span className="text-xs text-muted-foreground">Spent</span>
               <strong>{formatCents(spending.total_cents)}</strong>
             </>
           }
@@ -236,24 +251,13 @@ function SpendingPanel({ month, data }: { month: string; data: Summary }) {
     );
 
   return (
-    <section className="card summary" aria-labelledby="summary-spending-h">
-      <div className="summary__head">
-        <div>
-          <h2 id="summary-spending-h">Spending by category</h2>
-          <p className="summary__desc">Percent of net income, and change vs. last month. Saving is counted in Spent.</p>
-        </div>
-        {ranked.length > 0 && (
-          <div role="group" aria-label="Chart type" className="segmented">
-            {(["bars", "donut"] as const).map((v) => (
-              <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}>
-                {v === "bars" ? "Bars" : "Donut"}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+    <SectionCard
+      title="Spending by category"
+      description="Percent of net income, and change vs. last month. Saving is counted in Spent."
+      action={ranked.length > 0 && <Segmented label="Chart type" value={view} options={VIEWS} onChange={setView} />}
+    >
       {body}
-    </section>
+    </SectionCard>
   );
 }
 
@@ -268,24 +272,37 @@ function RankedLegend({
   onToggle: (id: string) => void;
 }) {
   return (
-    <ul className="legend" aria-label="Spending by category">
-      {rows.map((r) => (
-        <li key={r.id}>
-          <button
-            type="button"
-            className={`legend__row${highlightedId === r.id ? " is-highlighted" : ""}${highlightedId && highlightedId !== r.id ? " is-dimmed" : ""}`}
-            aria-pressed={highlightedId === r.id}
-            aria-label={[r.label, r.amount, r.detail, r.changeText].filter(Boolean).join(", ")}
-            onClick={() => onToggle(r.id)}
-          >
-            <span className="legend__swatch" style={{ background: r.color }} aria-hidden="true" />
-            <span className="legend__name" aria-hidden="true">{r.label}</span>
-            <span className="legend__amount" aria-hidden="true">{r.amount}</span>
-            <span className="legend__detail" aria-hidden="true">{r.detail}</span>
-            <span className="legend__change" aria-hidden="true">{r.change}</span>
-          </button>
-        </li>
-      ))}
+    <ul className="m-0 min-w-0 flex-[1_1_320px] list-none p-0" aria-label="Spending by category">
+      {rows.map((r) => {
+        const on = highlightedId === r.id;
+        return (
+          <li key={r.id}>
+            <button
+              type="button"
+              className={cn(
+                rowButton,
+                "grid min-h-11 grid-cols-[14px_minmax(80px,1fr)_auto_auto_auto] items-center gap-3 border border-solid border-transparent py-0.5",
+                on && "border-primary bg-selected hover:bg-selected",
+                highlightedId && !on && "opacity-55",
+              )}
+              data-highlighted={on || undefined}
+              data-dimmed={(highlightedId && !on) || undefined}
+              aria-pressed={on}
+              aria-label={[r.label, r.amount, r.detail, r.changeText].filter(Boolean).join(", ")}
+              onClick={() => onToggle(r.id)}
+            >
+              <span className="size-3 rounded-[3px]" style={{ background: r.color }} aria-hidden="true" />
+              <span className="flex items-center gap-2 font-semibold" aria-hidden="true">
+                {r.label}
+                {r.saving && <Badge variant="saving">Saving</Badge>}
+              </span>
+              <span className="text-[13px] font-semibold tabular-nums" aria-hidden="true">{r.amount}</span>
+              <span className="text-[13px] text-muted-foreground tabular-nums" aria-hidden="true">{r.detail}</span>
+              <span className="text-[13px]" aria-hidden="true">{r.change}</span>
+            </button>
+          </li>
+        );
+      })}
     </ul>
   );
 }

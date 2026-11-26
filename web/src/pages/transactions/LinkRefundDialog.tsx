@@ -88,7 +88,7 @@ export function LinkRefundDialog({ refund, categoryName, onClose, onLinked }: Pr
   let list;
   if (candidates.isPending) list = <p className={note}>Loading expenses…</p>;
   else if (candidates.isError)
-    list = <LoadError what="expenses" error={candidates.error} retry={() => void candidates.refetch()} />;
+    list = <LoadError message={`Couldn’t load expenses. ${errorMessage(candidates.error)}`} onRetry={() => void candidates.refetch()} />;
   else if (all.length === 0)
     list = <p className={note}>No expenses in the {LINK_WINDOW_DAYS} days before this refund.</p>;
   else if (shown.length === 0) list = <p className={note}>No expenses match “{query.trim()}”.</p>;

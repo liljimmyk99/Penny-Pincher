@@ -374,3 +374,50 @@ func TestImportEventStreamOrder(t *testing.T) {
 		t.Fatalf("events for finished import = %v", again)
 	}
 }
+
+// A running import writes batch after batch. Other writes (a session touch,
+// a cancel) must still get the write lock between batches; SQLite's busy
+// handler only polls, so a runner that re-locks at once starves them into
+// SQLITE_BUSY (the e2e IM-4 cancel failed this way). Another connection
+// with a short busy timeout writes throughout the run; every write succeeds.
+func TestImportLetsOtherWritesThrough(t *testing.T) {
+	a := runnerAPI(t, importrun.Options{})
+	rows := make([][]any, 49000)
+	for i := range rows {
+		rows[i] = []any{fmt.Sprintf("2020-%02d-%02d", i%12+1, i%28+1), "Food", fmt.Sprintf("Shop %d", i%50), "1.25"}
+	}
+	imp := a.uploadOK(tokMember, "big.xlsx", xlsx(t, rows, nil))
+	a.importJSON(a.call("POST", "/v1/imports/"+imp.Id+"/start", tokMember, ""), 202)
+
+	ctx := context.Background()
+	conn, err := a.db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if _, err := conn.ExecContext(ctx, `PRAGMA busy_timeout = 1000`); err != nil {
+		t.Fatal(err)
+	}
+	uid := a.memberID()
+	writes := 0
+	for {
+		var status string
+		if err := conn.QueryRowContext(ctx, `SELECT status FROM imports WHERE id = ?`, imp.Id).Scan(&status); err != nil {
+			t.Fatal(err)
+		}
+		if status != "running" {
+			break
+		}
+		if _, err := conn.ExecContext(ctx, `UPDATE users SET display_name = ? WHERE id = ?`, fmt.Sprint(writes), uid); err != nil {
+			t.Fatalf("write %d during the import: %v", writes, err)
+		}
+		writes++
+		time.Sleep(20 * time.Millisecond)
+	}
+	if writes < 5 {
+		t.Fatalf("only %d writes ran during the import; make the file bigger", writes)
+	}
+	if got := a.importJSON(a.call("GET", "/v1/imports/"+imp.Id, tokMember, ""), 200); got.Status != "completed" {
+		t.Fatalf("status = %s, want completed", got.Status)
+	}
+}

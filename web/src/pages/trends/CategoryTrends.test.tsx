@@ -36,7 +36,7 @@ describe("TrendsPage by category", () => {
     const tiles = screen.getByRole("group", { name: /^All spending,/ });
     // All spending went up vs. last year: worse (orange), with arrow and sign.
     const yoy = within(tiles).getByText(/Worse: \+\$2\.00/);
-    expect(yoy.closest(".change")).toHaveClass("change--worse");
+    expect(yoy.closest("[data-slot=badge]")).toHaveAttribute("data-variant", "worse");
     expect(within(tiles).getAllByText(/▲ \+\$2\.00/).length).toBeGreaterThan(0);
 
     const movers = screen.getByRole("list", { name: /Biggest movers/ });
@@ -53,7 +53,7 @@ describe("TrendsPage by category", () => {
     await user.click(within(movers).getByRole("button", { name: /^Saving/ }));
     expect(within(screen.getByRole("group", { name: "Category" })).getByRole("button", { name: /^Saving/ })).toHaveAttribute("aria-pressed", "true");
     const tiles = screen.getByRole("group", { name: /^Saving,/ });
-    expect(within(tiles).getByText(/Worse: −\$1\.00/).closest(".change")).toHaveClass("change--worse");
+    expect(within(tiles).getByText(/Worse: −\$1\.00/).closest("[data-slot=badge]")).toHaveAttribute("data-variant", "worse");
   });
 
   it("clicking a month in the paired bars selects it", async () => {

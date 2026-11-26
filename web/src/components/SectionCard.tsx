@@ -1,52 +1,56 @@
-import type { ReactNode } from "react";
-import { CardDescription, CardHeader } from "@/components/ui/card";
+import { useId, type ReactNode } from "react";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 /**
- * A screen section on the shadcn Card (#176): an `h2` title (the 18px/600
- * section title) labelling the section, an optional description and header
- * action, then the body. Tables inside run edge to edge; pad other content with
- * `px-6`, as CardContent does.
+ * A titled section of a screen on Card (#177): a region named by its `h2`
+ * (the 18px/600 section title), an optional description and an action on the
+ * right of the header (a toggle or a button), then the content.
+ *
+ * `flush` (#176) drops the content's side padding and stacks it 16px apart, so a
+ * Table runs edge to edge; pad anything else in it with `px-5`.
  */
 export function SectionCard({
-  id,
+  id: givenId,
+  flush = false,
   title,
+  eyebrow,
   description,
   action,
-  className,
-  headerClassName,
   children,
+  className,
+  contentClassName,
 }: {
-  /** Id of the heading; the section is labelled by it. */
-  id: string;
+  /** Id of the heading, when something else refers to it; generated otherwise. */
+  id?: string;
+  /** Edge-to-edge content (tables), stacked 16px apart. */
+  flush?: boolean;
   title: ReactNode;
+  /** A small uppercase line above the title (not part of the region's name). */
+  eyebrow?: ReactNode;
   description?: ReactNode;
-  /** Controls at the end of the header (a search field, say). */
   action?: ReactNode;
+  children?: ReactNode;
   className?: string;
-  headerClassName?: string;
-  children: ReactNode;
+  contentClassName?: string;
 }) {
+  const generatedId = useId();
+  const id = givenId ?? generatedId;
   return (
-    // A <section> drawn as the Card (same classes as ui/card), so it is a named region.
-    <section
-      data-slot="card"
-      aria-labelledby={id}
-      className={cn(
-        "flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card py-5 text-card-foreground",
-        className,
-      )}
-    >
-      <CardHeader className={cn("flex flex-wrap items-center justify-between gap-x-4 gap-y-2", headerClassName)}>
-        <div className="flex min-w-0 flex-col gap-1">
-          <h2 id={id} className="m-0 text-lg leading-tight font-semibold">
+    <Card role="region" aria-labelledby={id} className={cn("min-w-0 gap-4 py-5", className)}>
+      <CardHeader className="gap-1 px-5">
+        <CardTitle>
+          {eyebrow && (
+            <p className="m-0 mb-1 text-xs font-semibold tracking-[0.06em] text-muted-foreground uppercase">{eyebrow}</p>
+          )}
+          <h2 id={id} className="m-0 [font:inherit]">
             {title}
           </h2>
-          {description && <CardDescription className="max-w-[640px] text-[13px]">{description}</CardDescription>}
-        </div>
-        {action}
+        </CardTitle>
+        {description && <CardDescription className="text-[13px]">{description}</CardDescription>}
+        {action && <CardAction>{action}</CardAction>}
       </CardHeader>
-      {children}
-    </section>
+      <CardContent className={cn("min-w-0 px-5", flush && "flex flex-col gap-4 px-0", contentClassName)}>{children}</CardContent>
+    </Card>
   );
 }

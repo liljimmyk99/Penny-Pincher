@@ -312,6 +312,21 @@ kbd {
   color: var(--color-refund-text);
 }
 
+/* Moved from SummaryPage.css (#177) for Yearly until #176 puts it on StatTile. */
+.tile__value--income {
+  color: var(--color-income);
+}
+
+.tile__value--saving {
+  color: var(--color-saving-text);
+}
+
+.tile__value--muted,
+.tile__value--income.tile__value--muted,
+.tile__value--saving.tile__value--muted {
+  color: var(--color-text-muted);
+}
+
 .tile__sub {
   font-size: 13px;
   color: var(--color-text-muted);

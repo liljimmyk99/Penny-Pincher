@@ -72,7 +72,7 @@ export function TemplatesPage() {
               Your templates
             </h2>
             {list.isPending && <p className="m-0 text-muted-foreground">Loading templates…</p>}
-            {list.isError && <LoadError what="templates" error={list.error} retry={() => void list.refetch()} />}
+            {list.isError && <LoadError message={`Couldn’t load templates. ${errorMessage(list.error)}`} onRetry={() => void list.refetch()} />}
             {templates.length > 0 && (
               <ul className="m-0 flex list-none flex-col gap-1 p-0 max-[1400px]:flex-row max-[1400px]:flex-wrap">
                 {templates.map((t) => {

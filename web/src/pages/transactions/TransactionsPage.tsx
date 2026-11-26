@@ -217,7 +217,7 @@ export function TransactionsPage() {
 
 /** Muted text for an empty cell or a status line. */
 const muted = "text-muted-foreground";
-const statusLine = "m-0 px-6 pb-1 text-muted-foreground";
+const statusLine = "m-0 px-5 pb-1 text-muted-foreground";
 
 function RowActions({
   name,
@@ -283,7 +283,7 @@ function IncomeSection({
   let body;
   if (income.isPending) body = <p className={statusLine}>Loading income…</p>;
   else if (income.isError)
-    body = <LoadError className="mx-6 w-auto" what="this month’s income" error={income.error} retry={() => void income.refetch()} />;
+    body = <LoadError className="mx-5 w-auto" message={`Couldn’t load this month’s income. ${errorMessage(income.error)}`} onRetry={() => void income.refetch()} />;
   else if (entries.length === 0)
     body = (
       <p className={statusLine}>
@@ -356,7 +356,7 @@ function IncomeSection({
   }
 
   return (
-    <SectionCard
+    <SectionCard flush
       id="tx-income-h"
       title={
         <>
@@ -391,22 +391,17 @@ function SpendingSections({ month, categoryFilter, ...rest }: SpendingProps) {
 
   if (expenses.isPending || categories.isPending)
     return (
-      <SectionCard id="tx-exp-h" title="Expenses">
+      <SectionCard flush id="tx-exp-h" title="Expenses">
         <p className={statusLine}>Loading expenses…</p>
       </SectionCard>
     );
   if (expenses.isError || categories.isError)
     return (
-      <SectionCard id="tx-exp-h" title="Expenses">
-        <LoadError
-          className="mx-6 w-auto"
-          what="this month’s expenses"
-          error={expenses.error ?? categories.error}
-          retry={() => {
+      <SectionCard flush id="tx-exp-h" title="Expenses">
+        <LoadError className="mx-5 w-auto" message={`Couldn’t load this month’s expenses. ${errorMessage(expenses.error ?? categories.error)}`} onRetry={() => {
             if (expenses.isError) void expenses.refetch();
             if (categories.isError) void categories.refetch();
-          }}
-        />
+          }} />
       </SectionCard>
     );
 
@@ -458,7 +453,7 @@ function CategorySection({
 }) {
   const max = Math.max(0, ...totals.map((t) => t.totalCents));
   return (
-    <SectionCard
+    <SectionCard flush
       id="tx-cat-h"
       title="Spending by category"
       description={totals.length > 0 ? "Choose a category to filter the expense list." : undefined}
@@ -689,7 +684,7 @@ function ExpenseSection({
     );
 
   return (
-    <SectionCard
+    <SectionCard flush
       id="tx-exp-h"
       title={
         <>

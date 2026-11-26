@@ -17,21 +17,21 @@
   min-height: var(--control-height);
   padding: 4px 8px;
   border: 1px solid transparent;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-md);
   background: none;
-  color: var(--color-text);
+  color: var(--foreground);
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
 .ranked__row:hover {
-  background: var(--color-surface-soft);
+  background: var(--accent);
 }
 
 .ranked__row.is-highlighted {
-  background: var(--color-selected-bg);
-  border-color: var(--color-selected-line);
+  background: var(--selected);
+  border-color: var(--primary);
 }
 
 .ranked__row.is-dimmed {
@@ -50,7 +50,7 @@
 .ranked__track {
   height: 12px;
   border-radius: var(--radius-pill);
-  background: var(--color-divider);
+  background: var(--muted);
   overflow: hidden;
 }
 
@@ -68,7 +68,7 @@
 
 .ranked__detail {
   font-size: 13px;
-  color: var(--color-text-muted);
+  color: var(--muted-foreground);
   font-variant-numeric: tabular-nums;
 }
 
@@ -109,7 +109,7 @@
   width: calc(var(--size) * 0.62);
   height: calc(var(--size) * 0.62);
   border-radius: 50%;
-  background: var(--color-surface);
+  background: var(--card);
   text-align: center;
 }
 
@@ -136,9 +136,9 @@
   width: 100%;
   padding: 6px 2px;
   border: 1px solid transparent;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-md);
   background: none;
-  color: var(--color-text);
+  color: var(--foreground);
   font: inherit;
 }
 
@@ -147,8 +147,8 @@ button.paired__group {
 }
 
 button.paired__group:hover {
-  background: var(--color-surface-soft);
-  border-color: var(--color-border);
+  background: var(--accent);
+  border-color: var(--border);
 }
 
 .paired__bars {
@@ -157,7 +157,7 @@ button.paired__group:hover {
   justify-content: center;
   gap: 3px;
   height: 160px;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--border);
 }
 
 .paired__bar {
@@ -168,18 +168,18 @@ button.paired__group:hover {
 }
 
 .paired__bar--a {
-  background: var(--color-income);
+  background: var(--income);
 }
 
 .paired__bar--b {
-  background: var(--color-spent);
+  background: var(--spent);
 }
 
 .paired__label {
   text-align: center;
   font-size: 12px;
   font-weight: 700;
-  color: var(--color-text-muted);
+  color: var(--muted-foreground);
 }
 
 .paired__legend {
@@ -187,7 +187,7 @@ button.paired__group:hover {
   gap: var(--space-4);
   margin: 8px 0 0;
   font-size: 13px;
-  color: var(--color-text-muted);
+  color: var(--muted-foreground);
 }
 
 .paired__swatch {
@@ -217,19 +217,19 @@ button.paired__group:hover {
   align-items: flex-end;
   justify-content: center;
   height: 160px;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--border);
 }
 
 .period__bar {
   display: block;
   width: min(22px, 60%);
   border-radius: 4px 4px 0 0;
-  background: var(--color-spent);
+  background: var(--spent);
 }
 
 .paired__group.is-selected {
-  background: var(--color-selected-bg);
-  border-color: var(--color-selected-line);
+  background: var(--selected);
+  border-color: var(--primary);
 }
 
 .spark {
@@ -245,16 +245,16 @@ button.paired__group:hover {
   flex: 1;
   min-height: 0;
   border-radius: 2px 2px 0 0;
-  background: var(--color-spent);
+  background: var(--spent);
 }
 
 /* This year vs. last year: last year is the quieter bar. */
 .paired--years .paired__bar--a {
-  background: var(--color-spent);
+  background: var(--spent);
 }
 
 .paired--years .paired__bar--b {
-  background: var(--color-border-strong, var(--color-text-muted));
+  background: var(--input, var(--muted-foreground));
   opacity: 0.55;
 }
 
@@ -274,22 +274,22 @@ button.paired__group:hover {
   width: 100%;
   padding: 6px 8px;
   border: 1px solid transparent;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-md);
   background: none;
-  color: var(--color-text);
+  color: var(--foreground);
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
 .diverging__row:hover {
-  background: var(--color-surface-soft);
-  border-color: var(--color-border);
+  background: var(--accent);
+  border-color: var(--border);
 }
 
 .diverging__row.is-selected {
-  background: var(--color-selected-bg);
-  border-color: var(--color-selected-line);
+  background: var(--selected);
+  border-color: var(--primary);
 }
 
 .diverging__track {
@@ -304,7 +304,7 @@ button.paired__group:hover {
   top: -4px;
   bottom: -4px;
   width: 1px;
-  background: var(--color-text-muted);
+  background: var(--muted-foreground);
 }
 
 .diverging__bar {
@@ -324,9 +324,9 @@ button.paired__group:hover {
 }
 
 .diverging__bar--worse {
-  background: var(--color-worse);
+  background: var(--worse);
 }
 
 .diverging__bar--better {
-  background: var(--color-better);
+  background: var(--better);
 }

@@ -37,3 +37,12 @@ export function StatTile({ label, value, sub, tone = "default", className }: Sta
     </Card>
   );
 }
+
+/** A row of summary tiles: a named group, 16px apart, wrapping on narrow windows. */
+export function TileRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div role="group" aria-label={label} className="flex flex-wrap gap-4">
+      {children}
+    </div>
+  );
+}

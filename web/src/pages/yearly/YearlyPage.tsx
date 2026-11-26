@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { useYearlySummary } from "../../api";
+import { errorMessage, useYearlySummary } from "../../api";
 import { PairedBars } from "../../charts/PairedBars";
 import { RankedBars, type RankedBar } from "../../charts/RankedBars";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
@@ -38,7 +38,7 @@ export function YearlyPage() {
   let body;
   if (summary.isPending) body = <p className="m-0 text-muted-foreground">Loading {year}…</p>;
   else if (summary.isError)
-    body = <LoadError what="the yearly summary" error={summary.error} retry={() => void summary.refetch()} />;
+    body = <LoadError message={`Couldn’t load the yearly summary. ${errorMessage(summary.error)}`} onRetry={() => void summary.refetch()} />;
   else body = <YearlyBody key={year} data={summary.data} />;
 
   return (
@@ -119,7 +119,7 @@ function IncomeVsSpent({ data }: { data: Yearly }) {
     name: `${monthName(m.month)}: net income ${formatCents(m.net_cents)}, spent ${formatCents(m.spent_cents)}. Open ${monthName(m.month)} summary`,
   }));
   return (
-    <SectionCard id="yearly-pairs-h" title="Income vs. spent" description="Net income and spending per month. Select a month to open its summary.">
+    <SectionCard flush id="yearly-pairs-h" title="Income vs. spent" description="Net income and spending per month. Select a month to open its summary.">
       <PairedBars
         groups={groups}
         aName="Net income"
@@ -145,7 +145,7 @@ function CategoryAverages({ data }: { data: Yearly }) {
     detail: `${formatCents(c.total_cents)} for the year`,
   }));
   return (
-    <SectionCard
+    <SectionCard flush
       id="yearly-cats-h"
       title="Monthly average by category"
       description={
@@ -175,7 +175,7 @@ function MonthTable({ data }: { data: Yearly }) {
   const { totals } = data;
   const cell = (cents: number, has: boolean) => (has ? formatCents(cents) : <span aria-label="none">—</span>);
   return (
-    <SectionCard id="yearly-table-h" title="Month by month" description="Select a month to open its summary.">
+    <SectionCard flush id="yearly-table-h" title="Month by month" description="Select a month to open its summary.">
       <Table aria-labelledby="yearly-table-h" className="min-w-[520px]">
         <TableHeader>
           <TableRow className="hover:bg-transparent">

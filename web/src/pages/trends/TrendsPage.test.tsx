@@ -56,6 +56,17 @@ function renderPage(list = [saved]) {
   return { posted };
 }
 
+describe("TrendsPage tabs", () => {
+  it("shows Custom trends and By category as tabs", async () => {
+    renderPage();
+    const custom = await screen.findByRole("tab", { name: "Custom trends" });
+    expect(custom).toHaveAttribute("aria-selected", "true");
+    await userEvent.click(screen.getByRole("tab", { name: "By category" }));
+    expect(screen.getByRole("tab", { name: "By category" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tabpanel", { name: "By category" })).toBeInTheDocument();
+  });
+});
+
 describe("TrendsPage custom trends", () => {
   it("lists saved trends and shows the selected trend's tiles and text alternatives", async () => {
     renderPage();
@@ -72,7 +83,10 @@ describe("TrendsPage custom trends", () => {
   it("switches to Count", async () => {
     renderPage();
     await screen.findByRole("group", { name: "Trend totals" });
-    await userEvent.click(screen.getByRole("button", { name: "Count" }));
+    const measure = screen.getByRole("radiogroup", { name: "Measure" });
+    expect(within(measure).getByRole("radio", { name: "Amount" })).toHaveAttribute("aria-checked", "true");
+    await userEvent.click(within(measure).getByRole("radio", { name: "Count" }));
+    expect(within(measure).getByRole("radio", { name: "Count" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("list", { name: "Coffee, count per month" })).toBeInTheDocument();
   });
 
@@ -80,7 +94,8 @@ describe("TrendsPage custom trends", () => {
     renderPage();
     const bars = await screen.findAllByRole("button", { name: /Show entries/ });
     await userEvent.click(bars[11]);
-    expect(await screen.findByText("$15.00", { selector: ".trends__row-amount" })).toBeInTheDocument();
+    const entries = (await screen.findByRole("heading", { name: /entries$/ })).closest("[aria-live]") as HTMLElement;
+    expect(await within(entries).findByText("$15.00")).toBeInTheDocument();
     expect(screen.queryByText("Other")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("link", { name: "Open in Transactions" }));
     expect(screen.getByTestId("where")).toHaveTextContent(`/transactions?month=${month}&q=Beans`);
@@ -90,10 +105,13 @@ describe("TrendsPage custom trends", () => {
     const { posted } = renderPage([]);
     await userEvent.click(await screen.findByRole("button", { name: "New trend" }));
     await userEvent.type(screen.getByLabelText("Name"), "Gym");
-    await userEvent.selectOptions(screen.getByLabelText("Match by"), "note");
+    await userEvent.click(screen.getByRole("combobox", { name: "Match by" }));
+    await userEvent.click(await screen.findByRole("option", { name: "Note contains" }));
     await userEvent.type(screen.getByLabelText("Note contains"), "membership");
+    const dialog = screen.getByRole("dialog", { name: "New trend" });
+    await userEvent.click(within(dialog).getByRole("radio", { name: "Count" }));
     await userEvent.click(screen.getByRole("button", { name: "Save trend" }));
-    await vi.waitFor(() => expect(posted).toEqual([{ name: "Gym", match_type: "note", match_text: "membership", measure: "amount" }]));
+    await vi.waitFor(() => expect(posted).toEqual([{ name: "Gym", match_type: "note", match_text: "membership", measure: "count" }]));
   });
 
   it("asks for a value before saving", async () => {

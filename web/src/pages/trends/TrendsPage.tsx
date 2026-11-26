@@ -10,7 +10,17 @@ import {
   type Schemas,
 } from "../../api";
 import { PeriodBars, Sparkline } from "../../charts/PeriodBars";
-import { AlertIcon, PlusIcon } from "../../components/icons";
+import { Plus } from "lucide-react";
+import { ChangeText } from "@/components/ChangeBadge";
+import { LoadingSection } from "@/components/LoadingSection";
+import { SectionCard } from "@/components/SectionCard";
+import { Segmented } from "@/components/Segmented";
+import { StatTile, TileRow } from "@/components/StatTile";
+import { LoadError } from "@/components/LoadError";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import { formatMonth, formatShortDate, monthName, todayISO } from "../../lib/dates";
 import { changeTone } from "../../lib/change";
 import { formatCents } from "../../lib/money";
@@ -26,7 +36,6 @@ import {
   valueOf,
   type Measure,
 } from "./trends";
-import "./TrendsPage.css";
 
 type Trend = Schemas["SavedTrend"];
 
@@ -34,6 +43,10 @@ const count = new Intl.NumberFormat("en-US");
 const formatValue = (v: number, m: Measure) => (m === "count" ? count.format(v) : formatCents(v));
 const measureLabel = (m: Measure) => (m === "count" ? "Count" : "Amount");
 const shortMonth = (month: string) => monthName(month).slice(0, 3);
+const MEASURES = [
+  { value: "amount", label: "Amount" },
+  { value: "count", label: "Count" },
+] as const;
 
 /** Names for a trend's match, from the merchant and category lists. */
 function useMatchNames(t: Trend | undefined) {
@@ -54,29 +67,18 @@ export function TrendsPage() {
 
   return (
     <Page title="Trends" eyebrow="Spending over time">
-      <div role="tablist" aria-label="Trend views" className="trends__tabs">
-        {([["custom", "Custom trends"], ["category", "By category"]] as const).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            id={`trends-tab-${id}`}
-            aria-selected={tab === id}
-            aria-controls="trends-panel"
-            className={`trends__tab${tab === id ? " is-active" : ""}`}
-            onClick={() => setTab(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <div role="tabpanel" id="trends-panel" aria-labelledby={`trends-tab-${tab}`}>
-        {tab === "custom" ? (
+      <Tabs value={tab} onValueChange={(v) => setTab(v === "category" ? "category" : "custom")} className="gap-4">
+        <TabsList variant="line" aria-label="Trend views" className="w-full justify-start border-b border-solid border-x-0 border-t-0 border-border">
+          <TabsTrigger value="custom" className="flex-none px-4">Custom trends</TabsTrigger>
+          <TabsTrigger value="category" className="flex-none px-4">By category</TabsTrigger>
+        </TabsList>
+        <TabsContent value="custom">
           <CustomTrends />
-        ) : (
+        </TabsContent>
+        <TabsContent value="category">
           <CategoryTrends />
-        )}
-      </div>
+        </TabsContent>
+      </Tabs>
     </Page>
   );
 }
@@ -90,35 +92,31 @@ function CustomTrends() {
   const select = (id: string) => setParams((p) => { p.set("trend", id); return p; }, { replace: true });
 
   return (
-    <div className="trends">
-      <section className="card trends__list" aria-labelledby="trends-list-h">
-        <div className="trends__list-head">
-          <h2 id="trends-list-h">Saved trends</h2>
-          <button type="button" className="btn btn--primary btn--sm" onClick={() => setCreating(true)}>
-            <PlusIcon />
+    <div className="grid items-start gap-4 min-[900px]:grid-cols-[minmax(240px,320px)_minmax(0,1fr)]">
+      <SectionCard
+        title="Saved trends"
+        action={
+          <Button size="sm" onClick={() => setCreating(true)}>
+            <Plus aria-hidden="true" />
             New trend
-          </button>
-        </div>
+          </Button>
+        }
+        contentClassName="px-3"
+      >
         {saved.isPending ? (
-          <p className="trends__status">Loading trends…</p>
+          <LoadingSection label="trends" rows={3} />
         ) : saved.isError ? (
-          <p role="alert" className="alert alert--danger trends__alert">
-            <AlertIcon width={18} height={18} />
-            <span>
-              Couldn’t load saved trends. {errorMessage(saved.error)}{" "}
-              <button type="button" className="text-btn" onClick={() => void saved.refetch()}>Try again</button>
-            </span>
-          </p>
+          <LoadError message={`Couldn’t load saved trends. ${errorMessage(saved.error)}`} onRetry={() => void saved.refetch()} />
         ) : saved.data.length === 0 ? (
-          <p className="trends__status">No saved trends yet. Create one to follow a merchant, category or note over time.</p>
+          <p className="m-0 px-2 text-muted-foreground">No saved trends yet. Create one to follow a merchant, category or note over time.</p>
         ) : (
-          <ul className="trends__items">
+          <ul className="m-0 flex list-none flex-col gap-1 p-0">
             {saved.data.map((t) => (
               <TrendItem key={t.id} trend={t} selected={t.id === selected?.id} onSelect={() => select(t.id)} />
             ))}
           </ul>
         )}
-      </section>
+      </SectionCard>
 
       {selected ? <TrendDetail key={selected.id} trend={selected} /> : <div />}
 
@@ -142,14 +140,22 @@ function TrendItem({ trend, selected, onSelect }: { trend: Trend; selected: bool
   const values = (data.data?.buckets ?? []).map((b) => valueOf(b, trend.measure));
   return (
     <li>
-      <button type="button" className={`trends__item${selected ? " is-selected" : ""}`} aria-pressed={selected} onClick={onSelect}>
-        <span className="trends__item-text">
-          <span className="trends__item-name">{trend.name}</span>
-          <span className="trends__item-meta">{match} · {measureLabel(trend.measure)}</span>
+      <button
+        type="button"
+        className={cn(
+          "flex w-full cursor-pointer items-center gap-3 rounded-md border border-solid border-transparent bg-transparent px-2 py-2.5 text-left text-foreground [font:inherit] hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/35 focus-visible:outline-none",
+          selected && "border-primary bg-selected text-selected-foreground hover:bg-selected",
+        )}
+        aria-pressed={selected}
+        onClick={onSelect}
+      >
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="font-semibold">{trend.name}</span>
+          <span className="text-[13px] text-muted-foreground">{match} · {measureLabel(trend.measure)}</span>
         </span>
         {values.length > 0 && <Sparkline values={values} />}
         {values.length > 0 && (
-          <span className="visually-hidden">
+          <span className="sr-only">
             Last {values.length} months, {measureLabel(trend.measure).toLowerCase()}:{" "}
             {values.map((v) => formatValue(v, trend.measure)).join(", ")}.
           </span>
@@ -167,18 +173,17 @@ function TrendDetail({ trend }: { trend: Trend }) {
   const [measure, setMeasure] = useState<Measure>(trend.measure);
   const [month, setMonth] = useState<string | null>(null);
 
-  if (data.isPending) return <section className="card trends__detail"><p className="trends__status">Loading {trend.name}…</p></section>;
+  if (data.isPending)
+    return (
+      <SectionCard title={trend.name}>
+        <LoadingSection label={trend.name} rows={4} />
+      </SectionCard>
+    );
   if (data.isError)
     return (
-      <section className="card trends__detail">
-        <p role="alert" className="alert alert--danger trends__alert">
-          <AlertIcon width={18} height={18} />
-          <span>
-            Couldn’t load this trend. {errorMessage(data.error)}{" "}
-            <button type="button" className="text-btn" onClick={() => void data.refetch()}>Try again</button>
-          </span>
-        </p>
-      </section>
+      <SectionCard title={trend.name}>
+        <LoadError message={`Couldn’t load this trend. ${errorMessage(data.error)}`} onRetry={() => void data.refetch()} />
+      </SectionCard>
     );
 
   const buckets = data.data.buckets;
@@ -192,70 +197,69 @@ function TrendDetail({ trend }: { trend: Trend }) {
   const tone = changeTone(delta, false);
   const mName = names.merchant;
 
+  const deltaText = `${delta > 0 ? "▲ +" : "▼ −"}${fmt(Math.abs(delta))}`;
+
   return (
-    <section className="card trends__detail" aria-labelledby="trend-h">
-      <div className="trends__detail-head">
-        <h2 id="trend-h">{trend.name}</h2>
-        <div role="group" aria-label="Measure" className="trends__toggle">
-          {(["amount", "count"] as const).map((m) => (
-            <button key={m} type="button" aria-pressed={measure === m} className={measure === m ? "is-active" : undefined} onClick={() => setMeasure(m)}>
-              {measureLabel(m)}
-            </button>
-          ))}
-        </div>
-      </div>
-      <ul className="trends__pills" aria-label="Definition">
-        <li className="badge">{describeMatch(trend, mName, names.category)}</li>
-        <li className="badge">{stats.since ? `Tracking since ${formatMonth(stats.since)}` : "No matches yet"}</li>
+    <SectionCard
+      title={trend.name}
+      action={<Segmented label="Measure" value={measure} options={MEASURES} onChange={setMeasure} />}
+      contentClassName="flex flex-col gap-4"
+    >
+      <ul className="m-0 flex list-none flex-wrap gap-2 p-0" aria-label="Definition">
+        <li>
+          <Badge variant="secondary">{describeMatch(trend, mName, names.category)}</Badge>
+        </li>
+        <li>
+          <Badge variant="secondary">{stats.since ? `Tracking since ${formatMonth(stats.since)}` : "No matches yet"}</Badge>
+        </li>
       </ul>
 
-      <div className="tiles trends__tiles" role="group" aria-label="Trend totals">
-        <div className="tile">
-          <span className="tile__label">Year to date</span>
-          <span className="tile__value">{fmt(stats.ytd)}</span>
-          <span className="tile__sub">{currentMonth.slice(0, 4)}</span>
-        </div>
-        <div className="tile">
-          <span className="tile__label">Monthly average</span>
-          <span className="tile__value">{fmt(stats.monthlyAverage)}</span>
-          <span className="tile__sub">
-            {tone === "none" ? (
+      <TileRow label="Trend totals">
+        <StatTile label="Year to date" value={fmt(stats.ytd)} sub={currentMonth.slice(0, 4)} />
+        <StatTile
+          label="Monthly average"
+          value={fmt(stats.monthlyAverage)}
+          sub={
+            tone === "none" ? (
               `${monthName(currentMonth)} same as last month`
             ) : (
-              <span className={`change change--${tone}`}>
-                <span aria-hidden="true">{delta > 0 ? "▲ +" : "▼ −"}{fmt(Math.abs(delta))}</span>
-                <span className="visually-hidden">
-                  {tone === "worse" ? "Worse" : "Better"}: {delta > 0 ? "+" : "−"}{fmt(Math.abs(delta))} this month vs. last month
-                </span>
-              </span>
-            )}
-            {tone !== "none" && " this month vs. last"}
-          </span>
-        </div>
-        <div className="tile">
-          <span className="tile__label">Peak month</span>
-          <span className="tile__value">{stats.peak ? fmt(stats.peak.value) : "—"}</span>
-          <span className="tile__sub">{stats.peak ? formatMonth(stats.peak.period) : "No matches yet"}</span>
-        </div>
-        <div className="tile">
-          <span className="tile__label">Average per visit</span>
-          <span className="tile__value">{stats.perVisitCents === null ? "—" : formatCents(stats.perVisitCents)}</span>
-          <span className="tile__sub">Last {buckets.length} months</span>
-        </div>
-      </div>
+              <>
+                <ChangeText
+                  tone={tone}
+                  text={deltaText}
+                  words={`${tone === "worse" ? "Worse" : "Better"}: ${delta > 0 ? "+" : "−"}${fmt(Math.abs(delta))} this month vs. last month`}
+                />{" "}
+                this month vs. last
+              </>
+            )
+          }
+        />
+        <StatTile
+          label="Peak month"
+          value={stats.peak ? fmt(stats.peak.value) : "—"}
+          sub={stats.peak ? formatMonth(stats.peak.period) : "No matches yet"}
+        />
+        <StatTile
+          label="Average per visit"
+          value={stats.perVisitCents === null ? "—" : formatCents(stats.perVisitCents)}
+          sub={`Last ${buckets.length} months`}
+        />
+      </TileRow>
 
-      <h3 className="trends__chart-h">Per month · {measureLabel(measure)}</h3>
-      <PeriodBars
-        bars={bars}
-        selectedId={month}
-        onSelect={(id) => setMonth((m) => (m === id ? null : id))}
-        label={`${trend.name}, ${measureLabel(measure).toLowerCase()} per month`}
-        summary={`${trend.name}, ${measureLabel(measure).toLowerCase()} per month over the last ${buckets.length} months. ${
-          stats.peak ? `Peak ${formatMonth(stats.peak.period)}: ${fmt(stats.peak.value)}.` : "No matches yet."
-        } Select a month to list its entries.`}
-      />
+      <div>
+        <h3 className="m-0 mb-2 text-sm font-semibold">Per month · {measureLabel(measure)}</h3>
+        <PeriodBars
+          bars={bars}
+          selectedId={month}
+          onSelect={(id) => setMonth((m) => (m === id ? null : id))}
+          label={`${trend.name}, ${measureLabel(measure).toLowerCase()} per month`}
+          summary={`${trend.name}, ${measureLabel(measure).toLowerCase()} per month over the last ${buckets.length} months. ${
+            stats.peak ? `Peak ${formatMonth(stats.peak.period)}: ${fmt(stats.peak.value)}.` : "No matches yet."
+          } Select a month to list its entries.`}
+        />
+      </div>
       {month && <MonthEntries key={month} trend={trend} month={month} merchantName={mName} />}
-    </section>
+    </SectionCard>
   );
 }
 
@@ -265,34 +269,47 @@ function MonthEntries({ trend, month, merchantName }: { trend: Trend; month: str
   const rows = (expenses.data ?? []).filter((e) => matchesTrend(e, trend));
   const catName = (id: string) => categories.data?.find((c) => c.id === id)?.name ?? "—";
   return (
-    <div className="trends__entries" aria-live="polite">
-      <div className="trends__entries-head">
-        <h3>{formatMonth(month)} entries</h3>
-        <Link className="btn btn--ghost btn--sm" to={transactionsLink(trend, month, merchantName)}>
-          Open in Transactions
-        </Link>
+    <div className="border-t border-solid border-x-0 border-b-0 border-border pt-3" aria-live="polite">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className="m-0 text-base font-semibold">{formatMonth(month)} entries</h3>
+        <Button asChild variant="outline" size="sm">
+          <Link to={transactionsLink(trend, month, merchantName)}>Open in Transactions</Link>
+        </Button>
       </div>
       {expenses.isPending ? (
-        <p className="trends__status">Loading entries…</p>
+        <LoadingSection label="entries" rows={2} className="mt-2" />
       ) : expenses.isError ? (
-        <p role="alert" className="alert alert--danger trends__alert">
-          <AlertIcon width={18} height={18} />
-          Couldn’t load entries. {errorMessage(expenses.error)}
-        </p>
+        <div className="mt-2">
+          <LoadError message={`Couldn’t load entries. ${errorMessage(expenses.error)}`} />
+        </div>
       ) : rows.length === 0 ? (
-        <p className="trends__status">No matching entries in {monthName(month)}.</p>
+        <p className="m-0 mt-2 text-muted-foreground">No matching entries in {monthName(month)}.</p>
       ) : (
-        <ul className="trends__rows">
-          {rows.map((e) => (
-            <li key={e.id} className={e.amount_cents < 0 ? "is-refund" : undefined}>
-              <span className="trends__row-date">{formatShortDate(e.date)}</span>
-              <span className="trends__row-main">
-                {e.merchant.name}
-                <span className="trends__row-sub">{catName(e.category_id)}{e.note ? ` · ${e.note}` : ""}{e.amount_cents < 0 ? " · Refund" : ""}</span>
-              </span>
-              <span className="trends__row-amount">{formatCents(e.amount_cents)}</span>
-            </li>
-          ))}
+        <ul className="m-0 mt-2 list-none p-0">
+          {rows.map((e) => {
+            const refund = e.amount_cents < 0;
+            return (
+              <li
+                key={e.id}
+                data-refund={refund || undefined}
+                className={cn(
+                  "grid grid-cols-[60px_minmax(0,1fr)_auto] gap-3 border-b border-solid border-x-0 border-t-0 border-border px-2 py-2 tabular-nums",
+                  refund && "bg-refund-row text-refund-text",
+                )}
+              >
+                <span className={refund ? undefined : "text-muted-foreground"}>{formatShortDate(e.date)}</span>
+                <span className="flex flex-col font-semibold">
+                  {e.merchant.name}
+                  <span className={cn("text-[13px] font-normal", !refund && "text-muted-foreground")}>
+                    {catName(e.category_id)}
+                    {e.note ? ` · ${e.note}` : ""}
+                    {refund ? " · Refund" : ""}
+                  </span>
+                </span>
+                <span className="font-semibold">{formatCents(e.amount_cents)}</span>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

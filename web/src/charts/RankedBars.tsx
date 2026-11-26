@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { barWidth } from "../pages/summary/summary";
+import { Badge } from "@/components/ui/badge";
 import "./charts.css";
 
 export interface RankedBar {
@@ -46,7 +47,7 @@ export function RankedBars({
           >
             <span className="ranked__name">
               {r.label}
-              {r.saving && <span className="badge badge--saving">Saving</span>}
+              {r.saving && <Badge variant="saving">Saving</Badge>}
             </span>
             <span className="ranked__track" aria-hidden="true">
               <span className="ranked__bar" style={{ width: `${barWidth(r.cents, max)}%`, background: r.color }} />

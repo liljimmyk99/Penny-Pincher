@@ -118,7 +118,7 @@ function CategoriesSection({ year, onDelete }: { year: number; onDelete: (row: C
     (stats.data ?? []).reduce((total, s) => total + pick(s), 0);
 
   return (
-    <SectionCard
+    <SectionCard flush
       id="categories-h"
       title="Expense categories"
       description="Drag to reorder. The order here is the order on Summary, Templates and the entry form."
@@ -191,7 +191,7 @@ function SourcesSection({ year, onDelete }: { year: number; onDelete: (row: Sour
     (stats.data ?? []).reduce((total, s) => total + pick(s), 0);
 
   return (
-    <SectionCard
+    <SectionCard flush
       id="sources-h"
       title="Income sources"
       description="Each income entry records gross, taxable and net pay. Tax rate is calculated from gross taxable and net."
@@ -247,16 +247,16 @@ interface QueryState {
 /** Shows loading and error states for a section's list. */
 function Loadable({ query, what, children }: { query: QueryState; what: string; children: ReactNode }) {
   if (query.isPending) return <p className="m-0 px-6 text-muted-foreground">Loading {what}…</p>;
-  if (query.isError) return <LoadError className="mx-6 w-auto" what={what} error={query.error} retry={() => void query.refetch()} />;
+  if (query.isError) return <LoadError className="mx-5 w-auto" message={`Couldn’t load ${what}. ${errorMessage(query.error)}`} onRetry={() => void query.refetch()} />;
   return <>{children}</>;
 }
 
 function StatsError({ query }: { query: QueryState }) {
   if (!query.isError) return null;
-  return <LoadError className="mx-6 w-auto" what="totals" error={query.error} retry={() => void query.refetch()} />;
+  return <LoadError className="mx-5 w-auto" message={`Couldn’t load totals. ${errorMessage(query.error)}`} onRetry={() => void query.refetch()} />;
 }
 
 function ReorderError({ error }: { error: unknown }) {
   if (!error) return null;
-  return <ErrorAlert className="mx-6 w-auto">Couldn’t save the new order. {errorMessage(error)}</ErrorAlert>;
+  return <ErrorAlert className="mx-5 w-auto">Couldn’t save the new order. {errorMessage(error)}</ErrorAlert>;
 }
