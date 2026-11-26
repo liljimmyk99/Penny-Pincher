@@ -10,14 +10,16 @@ import {
   type Schemas,
 } from "../../api";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AlertIcon, InfoIcon } from "../../components/icons";
+import { InfoIcon } from "lucide-react";
+import { ErrorAlert, LoadError } from "../../components/LoadError";
+import { SectionCard } from "../../components/SectionCard";
+import { Badge } from "@/components/ui/badge";
 import { formatCents } from "../../lib/money";
 import { formatTaxRate } from "../../lib/taxRate";
 import { Page } from "../Page";
 import { AddForm } from "./AddForm";
 import { DeleteDialog } from "../../components/DeleteDialog";
 import { ManageTable, type Column } from "./ManageTable";
-import "./CategoriesPage.css";
 
 type CategoryRow = Schemas["Category"] & { locked: boolean; stats?: Schemas["CategoryStats"] };
 type SourceRow = Schemas["IncomeSource"] & { locked: boolean; stats?: Schemas["IncomeSourceStats"] };
@@ -26,6 +28,7 @@ type DeleteTarget = { kind: "category"; row: CategoryRow } | { kind: "source"; r
 
 const count = new Intl.NumberFormat("en-US");
 const PENDING = "—";
+const noteClass = "m-0 flex items-start gap-2 px-6 text-[13px] text-muted-foreground";
 
 /** Manage expense categories and income sources (web/AGENTS.md "Categories & sources"). */
 export function CategoriesPage({ year = new Date().getFullYear() }: { year?: number }) {
@@ -55,7 +58,7 @@ export function CategoriesPage({ year = new Date().getFullYear() }: { year?: num
   return (
     <Page title="Categories & sources" eyebrow={`Manage · totals for ${year}`}>
       <TooltipProvider delayDuration={200}>
-        <p id="reorder-help" className="visually-hidden">
+        <p id="reorder-help" className="sr-only">
           Use the arrow keys, Home or End to move this row. The order is used everywhere.
         </p>
         <CategoriesSection year={year} onDelete={(row) => askDelete({ kind: "category", row })} />
@@ -115,11 +118,11 @@ function CategoriesSection({ year, onDelete }: { year: number; onDelete: (row: C
     (stats.data ?? []).reduce((total, s) => total + pick(s), 0);
 
   return (
-    <section className="card manage" aria-labelledby="categories-h">
-      <div className="manage__head">
-        <h2 id="categories-h">Expense categories</h2>
-        <p className="manage__desc">Drag to reorder. The order here is the order on Summary, Templates and the entry form.</p>
-      </div>
+    <SectionCard
+      id="categories-h"
+      title="Expense categories"
+      description="Drag to reorder. The order here is the order on Summary, Templates and the entry form."
+    >
       <Loadable query={list} what="categories">
         <ManageTable
           caption="Expense categories"
@@ -129,8 +132,8 @@ function CategoriesSection({ year, onDelete }: { year: number; onDelete: (row: C
           columns={columns}
           badges={(r) => (
             <>
-              {r.is_saving && <span className="badge badge--saving">Counted as savings</span>}
-              {r.locked && <span className="badge">Default</span>}
+              {r.is_saving && <Badge variant="saving">Counted as savings</Badge>}
+              {r.locked && <Badge variant="secondary">Default</Badge>}
             </>
           )}
           footer={{
@@ -146,8 +149,8 @@ function CategoriesSection({ year, onDelete }: { year: number; onDelete: (row: C
         <StatsError query={stats} />
         <ReorderError error={reorder.error} />
       </Loadable>
-      <p className="manage__note">
-        <InfoIcon />
+      <p className={noteClass}>
+        <InfoIcon aria-hidden="true" className="mt-0.5 size-4 flex-none" />
         <span>
           Deleting a category moves its expenses and template items to <b>Other</b>. Other can’t be renamed or deleted.
         </span>
@@ -158,7 +161,7 @@ function CategoriesSection({ year, onDelete }: { year: number; onDelete: (row: C
         action="Add category"
         onAdd={(name) => create.mutateAsync(name)}
       />
-    </section>
+    </SectionCard>
   );
 }
 
@@ -188,13 +191,11 @@ function SourcesSection({ year, onDelete }: { year: number; onDelete: (row: Sour
     (stats.data ?? []).reduce((total, s) => total + pick(s), 0);
 
   return (
-    <section className="card manage" aria-labelledby="sources-h">
-      <div className="manage__head">
-        <h2 id="sources-h">Income sources</h2>
-        <p className="manage__desc">
-          Each income entry records gross, taxable and net pay. Tax rate is calculated from gross taxable and net.
-        </p>
-      </div>
+    <SectionCard
+      id="sources-h"
+      title="Income sources"
+      description="Each income entry records gross, taxable and net pay. Tax rate is calculated from gross taxable and net."
+    >
       <Loadable query={list} what="income sources">
         <ManageTable
           caption="Income sources"
@@ -202,7 +203,7 @@ function SourcesSection({ year, onDelete }: { year: number; onDelete: (row: Sour
           renameLabel="Source name"
           rows={rows}
           columns={columns}
-          badges={(r) => r.locked && <span className="badge">Default</span>}
+          badges={(r) => r.locked && <Badge variant="secondary">Default</Badge>}
           footer={{
             label: "All sources",
             cells: stats.data
@@ -224,15 +225,15 @@ function SourcesSection({ year, onDelete }: { year: number; onDelete: (row: Sour
         <StatsError query={stats} />
         <ReorderError error={reorder.error} />
       </Loadable>
-      <p className="manage__note">
-        <InfoIcon />
+      <p className={noteClass}>
+        <InfoIcon aria-hidden="true" className="mt-0.5 size-4 flex-none" />
         <span>
           A source with income entries can be renamed but not deleted. Deleting an unused source moves its template
           items to <b>Other</b>.
         </span>
       </p>
       <AddForm label="New source name" placeholder="e.g. Freelance" action="Add source" onAdd={(name) => create.mutateAsync(name)} />
-    </section>
+    </SectionCard>
   );
 }
 
@@ -245,44 +246,17 @@ interface QueryState {
 
 /** Shows loading and error states for a section's list. */
 function Loadable({ query, what, children }: { query: QueryState; what: string; children: ReactNode }) {
-  if (query.isPending) return <p className="manage__status">Loading {what}…</p>;
-  if (query.isError) {
-    return (
-      <div role="alert" className="alert alert--danger manage__alert">
-        <AlertIcon width={18} height={18} />
-        <span>
-          Couldn’t load {what}. {errorMessage(query.error)}{" "}
-          <button type="button" className="text-btn" onClick={() => void query.refetch()}>
-            Try again
-          </button>
-        </span>
-      </div>
-    );
-  }
+  if (query.isPending) return <p className="m-0 px-6 text-muted-foreground">Loading {what}…</p>;
+  if (query.isError) return <LoadError className="mx-6 w-auto" what={what} error={query.error} retry={() => void query.refetch()} />;
   return <>{children}</>;
 }
 
 function StatsError({ query }: { query: QueryState }) {
   if (!query.isError) return null;
-  return (
-    <div role="alert" className="alert alert--danger manage__alert">
-      <AlertIcon width={18} height={18} />
-      <span>
-        Couldn’t load totals. {errorMessage(query.error)}{" "}
-        <button type="button" className="text-btn" onClick={() => void query.refetch()}>
-          Try again
-        </button>
-      </span>
-    </div>
-  );
+  return <LoadError className="mx-6 w-auto" what="totals" error={query.error} retry={() => void query.refetch()} />;
 }
 
 function ReorderError({ error }: { error: unknown }) {
   if (!error) return null;
-  return (
-    <p role="alert" className="alert alert--danger manage__alert">
-      <AlertIcon width={18} height={18} />
-      Couldn’t save the new order. {errorMessage(error)}
-    </p>
-  );
+  return <ErrorAlert className="mx-6 w-auto">Couldn’t save the new order. {errorMessage(error)}</ErrorAlert>;
 }

@@ -248,7 +248,7 @@ describe("Categories & sources", () => {
     );
     await waitFor(() => expect(rowNames(categoriesTable())).toEqual(["Food", "Saving", "Housing", "Other", "All categories"]));
     expect(screen.getByRole("button", { name: "Reorder Saving" })).toHaveFocus();
-    expect(within(categoriesTable().parentElement!).getByRole("status")).toHaveTextContent(
+    expect(within(screen.getByRole("region", { name: "Expense categories" })).getByRole("status")).toHaveTextContent(
       "Saving moved to position 2 of 3.",
     );
 

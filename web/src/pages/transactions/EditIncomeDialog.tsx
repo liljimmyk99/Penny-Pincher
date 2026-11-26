@@ -4,7 +4,10 @@ import { formatShortDate, isDate } from "../../lib/dates";
 import { NOTE_MAX } from "../../lib/limits";
 import { centsToInput, parseCents } from "../../lib/money";
 import { formatTaxRate } from "../../lib/taxRate";
-import { EditDialog, FormField } from "./EditDialog";
+import { MoneyInput } from "../../components/MoneyInput";
+import { Input } from "../../components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { EditDialog, FieldGrid, FormField, Optional } from "./EditDialog";
 import { invalidProps, serverErrors } from "./form";
 
 type MoneyField = "gross" | "taxable" | "net";
@@ -118,14 +121,11 @@ export function EditIncomeDialog({ entry, onClose }: { entry: Schemas["IncomeEnt
 
   const moneyInput = (f: MoneyField, label: string) => (
     <FormField id={id(f)} label={label} error={errors[f]}>
-      <input
+      <MoneyInput
         id={id(f)}
-        className="field field--num"
-        type="text"
-        inputMode="decimal"
         value={money[f]}
-        onChange={(ev) => {
-          setMoney((m) => ({ ...m, [f]: ev.target.value }));
+        onValueChange={(text) => {
+          setMoney((m) => ({ ...m, [f]: text }));
           clear(f, ...(f === "gross" ? (["taxable", "net"] as Field[]) : []));
         }}
         {...invalidProps(id(f), errors[f])}
@@ -143,29 +143,30 @@ export function EditIncomeDialog({ entry, onClose }: { entry: Schemas["IncomeEnt
       onSubmit={() => void save()}
       onClose={onClose}
     >
-      <div className="edit-form__grid">
+      <FieldGrid>
         <FormField id={id("source")} label="Source" error={errors.source}>
-          <select
-            id={id("source")}
-            className="field"
+          <Select
             value={sourceId}
-            onChange={(e) => {
-              setSourceId(e.target.value);
+            onValueChange={(v) => {
+              setSourceId(v);
               clear("source");
             }}
-            {...invalidProps(id("source"), errors.source)}
           >
-            {(sources.data ?? []).map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger id={id("source")} className="w-full" {...invalidProps(id("source"), errors.source)}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(sources.data ?? []).map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </FormField>
         <FormField id={id("date")} label="Date" error={errors.date}>
-          <input
+          <Input
             id={id("date")}
-            className="field"
             type="date"
             required
             value={date}
@@ -180,15 +181,14 @@ export function EditIncomeDialog({ entry, onClose }: { entry: Schemas["IncomeEnt
           id={id("note")}
           label={
             <>
-              Label <span className="edit-form__optional">optional</span>
+              Label <Optional />
             </>
           }
           error={errors.note}
           wide
         >
-          <input
+          <Input
             id={id("note")}
-            className="field"
             type="text"
             maxLength={NOTE_MAX}
             value={note}
@@ -202,11 +202,11 @@ export function EditIncomeDialog({ entry, onClose }: { entry: Schemas["IncomeEnt
         {moneyInput("gross", "Gross")}
         {moneyInput("taxable", "Gross taxable")}
         {moneyInput("net", "Net")}
-        <div className="edit-form__rate">
-          <span className="field-label">Tax rate</span>
-          <strong aria-live="polite">{rate}</strong>
+        <div className="flex flex-col justify-end gap-1.5 rounded-md bg-muted px-3 py-2">
+          <span className="text-[13px] font-medium text-muted-foreground">Tax rate</span>
+          <strong aria-live="polite" className="text-base font-bold tabular-nums">{rate}</strong>
         </div>
-      </div>
+      </FieldGrid>
     </EditDialog>
   );
 }

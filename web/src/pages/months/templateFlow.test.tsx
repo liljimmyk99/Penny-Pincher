@@ -317,7 +317,7 @@ describe("new month: start from a template", () => {
     // Day 31 lands on April 30 (the backend clamps; the client shows its date).
     await waitFor(() => expect(expenseRows()).toHaveLength(2));
     for (const row of [...expenseRows(), ...incomeRows()]) {
-      expect(row).toHaveClass("is-unconfirmed");
+      expect(row).toHaveAttribute("data-variant", "unconfirmed");
       expect(row).toHaveTextContent("Unconfirmed · from template");
     }
     expect(expenseRows()[0]).toHaveTextContent("Apr 30Brokerage");
@@ -330,14 +330,14 @@ describe("new month: start from a template", () => {
 
     await user.click(screen.getByRole("button", { name: /^Confirm expense Rent/ }));
     expect(backend.calls.at(-1)).toMatchObject({ method: "PATCH", body: { confirmed: true } });
-    await waitFor(() => expect(expenseRows()[1]).not.toHaveClass("is-unconfirmed"));
+    await waitFor(() => expect(expenseRows()[1]).not.toHaveAttribute("data-variant", "unconfirmed"));
     expect(within(expenseRows()[1]).queryByRole("button", { name: /^Confirm/ })).not.toBeInTheDocument();
     expect(await banner()).toHaveTextContent(/^2 items copied/);
 
     await user.click(within(await banner()).getByRole("button", { name: "Confirm all as-is" }));
     expect(posts(backend, /confirm-all$/)).toHaveLength(1);
     await waitFor(() => expect(screen.queryByRole("region", { name: "Unconfirmed items" })).not.toBeInTheDocument());
-    for (const row of [...expenseRows(), ...incomeRows()]) expect(row).not.toHaveClass("is-unconfirmed");
+    for (const row of [...expenseRows(), ...incomeRows()]) expect(row).not.toHaveAttribute("data-variant", "unconfirmed");
     expect(screen.getByText("Confirmed 2 items in April")).toBeInTheDocument();
   });
 

@@ -16,12 +16,14 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-h1 {
+/* :where() skips headings drawn with Tailwind (data-slot), which these
+   unlayered rules would otherwise beat (#176). */
+h1:where(:not([data-slot])) {
   font: var(--text-page-title);
   margin: 0;
 }
 
-h2 {
+h2:where(:not([data-slot])) {
   font: var(--text-section-title);
   margin: 0;
 }

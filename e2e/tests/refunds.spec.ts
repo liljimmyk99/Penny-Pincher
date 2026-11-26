@@ -5,7 +5,7 @@ import { formatMonth, monthName, monthOf, shiftMonth, todayIn } from "../support
 
 const thisMonth = () => monthOf(todayIn(undefined));
 const lastMonth = () => shiftMonth(thisMonth(), -1);
-const rows = (page: Page) => page.locator("table.tx-table--expenses tbody tr");
+const rows = (page: Page) => page.getByRole("table", { name: "Expenses" }).locator("tbody tr");
 const row = (page: Page, merchant: string, kind: "expense" | "refund") =>
   rows(page).filter({ has: page.getByRole("button", { name: new RegExp(`^Edit ${kind} ${merchant}`) }) });
 
@@ -17,13 +17,13 @@ test("a refund looks different from an expense", async ({ signedIn: page, api })
 
   const expense = row(page, "Corner Store", "expense");
   const refund = row(page, "Corner Store", "refund");
-  await expect(refund).toHaveClass(/is-refund/);
-  await expect(expense).not.toHaveClass(/is-refund/);
-  await expect(refund.locator(".tx-table__amount")).toHaveText("−$15.00");
-  await expect(refund.locator(".pill")).toHaveText("Not linked");
+  await expect(refund).toHaveAttribute("data-refund", "true");
+  await expect(expense).not.toHaveAttribute("data-refund");
+  await expect(refund.locator("[data-col=amount]")).toHaveText("−$15.00");
+  await expect(refund.locator("[data-tag]")).toHaveText("Not linked");
 
   // Not only a class: the refund's amount is drawn in a different colour.
-  const color = (l: ReturnType<typeof row>) => l.locator(".tx-table__amount").evaluate((el) => getComputedStyle(el).color);
+  const color = (l: ReturnType<typeof row>) => l.locator("[data-col=amount]").evaluate((el) => getComputedStyle(el).color);
   expect(await color(refund)).not.toBe(await color(expense));
 });
 
@@ -55,7 +55,7 @@ test("a refund linked to last month's expense counts this month; the original sh
   // This month: the refund is here, tagged with its original's month, and lowers this month's spending.
   await page.goto(`/transactions?month=${thisMonth()}`);
   const r = row(page, "Gadget Shop", "refund");
-  await expect(r.locator(".pill")).toHaveText(`From ${monthName(lastMonth())}${lastMonth().slice(0, 4) === thisMonth().slice(0, 4) ? "" : ` ${lastMonth().slice(0, 4)}`}`);
+  await expect(r.locator("[data-tag]")).toHaveText(`From ${monthName(lastMonth())}${lastMonth().slice(0, 4) === thisMonth().slice(0, 4) ? "" : ` ${lastMonth().slice(0, 4)}`}`);
   await expect(r.locator(".tx-refund-for")).toContainText("Refund for Gadget Shop");
   await expect(page.locator(".cat-rows button.cat-row").filter({ hasText: "Entertainment" })).toContainText("−$30.00");
   const tiles = page.getByRole("region", { name: "Refunds this month" });
@@ -65,7 +65,7 @@ test("a refund linked to last month's expense counts this month; the original sh
   // Last month: the original keeps its amount and shows the net after the partial refund.
   await page.getByRole("button", { name: `Previous month, ${formatMonth(lastMonth())}` }).click();
   const o = row(page, "Gadget Shop", "expense");
-  await expect(o.locator(".tx-table__amount")).toHaveText("$100.00");
+  await expect(o.locator("[data-col=amount]")).toHaveText("$100.00");
   await expect(o.locator(".tx-refunded")).toContainText("Partly refunded · −$30.00");
   await expect(o.locator(".tx-refunded")).toContainText("net $70.00");
   await expect(page.locator(".cat-rows button.cat-row").filter({ hasText: "Entertainment" })).toContainText("$100.00");
@@ -92,7 +92,7 @@ test("deleting the original keeps the refund, unlinked", async ({ signedIn: page
   expect(await api.expense(refund.id)).toMatchObject({ amount_cents: -2000, refunded_expense_id: null });
   await page.goto(`/transactions?month=${thisMonth()}`);
   const r = row(page, "Return Desk", "refund");
-  await expect(r.locator(".tx-table__amount")).toHaveText("−$20.00");
-  await expect(r.locator(".pill")).toHaveText("Not linked");
+  await expect(r.locator("[data-col=amount]")).toHaveText("−$20.00");
+  await expect(r.locator("[data-tag]")).toHaveText("Not linked");
   await expect(r.getByRole("button", { name: /^Link refund/ })).toBeVisible();
 });

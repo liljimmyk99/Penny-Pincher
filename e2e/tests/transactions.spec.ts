@@ -7,8 +7,8 @@ import { parseMoney } from "../support/money";
 const thisMonth = () => monthOf(todayIn(undefined));
 const lastMonth = () => shiftMonth(thisMonth(), -1);
 
-const expenseRow = (page: Page, merchant: string) => page.locator("table.tx-table--expenses tbody tr").filter({ hasText: merchant });
-const footer = (page: Page) => page.locator(".tx__footer");
+const expenseRow = (page: Page, merchant: string) => page.getByRole("table", { name: "Expenses" }).locator("tbody tr").filter({ hasText: merchant });
+const footer = (page: Page) => page.getByRole("region", { name: /^Expenses/ }).getByRole("status");
 const categoryButton = (page: Page, name: string) => page.locator(".cat-rows button.cat-row").filter({ hasText: name });
 
 /** Marks the document, so a later check can tell whether the page reloaded. */
@@ -104,7 +104,7 @@ test("the category filter works and category totals add up to the grand total", 
   // Filtering by Food shows only Food, by the row button or the chip.
   await categoryButton(page, "Food").click();
   await expect(page).toHaveURL(/category=/);
-  const rows = page.locator("table.tx-table--expenses tbody tr");
+  const rows = page.getByRole("table", { name: "Expenses" }).locator("tbody tr");
   await expect(rows).toHaveCount(2);
   await expect(rows.filter({ hasText: "Food" })).toHaveCount(2);
   await expect(footer(page)).toHaveText("Showing 2 of 6 expenses · $25.00");

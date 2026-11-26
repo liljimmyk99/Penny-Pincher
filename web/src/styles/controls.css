@@ -101,6 +101,11 @@ input:where(:not([data-slot])) {
   font-size: 15px;
 }
 
+/* Moved from TransactionsPage.css (#176) for the screens still on .field. */
+select.field {
+  cursor: pointer;
+}
+
 .field::placeholder {
   color: var(--color-placeholder);
 }

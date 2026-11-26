@@ -10,9 +10,19 @@ import {
   useMonthIncome,
   type Schemas,
 } from "../../api";
+import { CheckIcon, CopyIcon, LinkIcon, PencilIcon, PlusIcon, SearchIcon, Trash2Icon } from "lucide-react";
 import { DeleteDialog } from "../../components/DeleteDialog";
-import { AlertIcon, CheckIcon, CopyIcon, LinkIcon, PencilIcon, PlusIcon, SearchIcon, TrashIcon } from "../../components/icons";
+import { ErrorAlert, LoadError } from "../../components/LoadError";
 import { MonthSwitcher } from "../../components/MonthSwitcher";
+import { SectionCard } from "../../components/SectionCard";
+import { StatTile } from "../../components/StatTile";
+import { UnconfirmedBadge } from "../../components/UnconfirmedBadge";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Toggle } from "@/components/ui/toggle";
+import { cn } from "@/lib/utils";
 import { toast } from "../../lib/toast";
 import { formatShortDate, monthName, monthOf } from "../../lib/dates";
 import { formatCents } from "../../lib/money";
@@ -36,7 +46,6 @@ import {
   type RefundFilter,
 } from "./refunds";
 import { barPercent, categoryTotals, incomeTotals, matchesSearch, shareOf, sumCents } from "./totals";
-import "./TransactionsPage.css";
 
 type Target = { kind: "expense"; item: Schemas["Expense"] } | { kind: "income"; item: Schemas["IncomeEntry"] };
 
@@ -49,6 +58,14 @@ const REFUND_FILTERS: { value: RefundFilter | null; label: string }[] = [
   { value: "unlinked", label: "Not linked" },
 ];
 const asRefundFilter = (v: string | null): RefundFilter | null => (v === "refunds" || v === "unlinked" ? v : null);
+
+/** Each refund tag's badge (web/AGENTS.md "Refunds"). */
+const TAG_VARIANT = {
+  full: "refund",
+  partial: "refund",
+  earlier: "selected",
+  unlinked: "secondary",
+} as const satisfies Record<NonNullable<ReturnType<typeof refundTag>>["kind"], string>;
 
 /** Where a refund's "Refund for" link points: the original's row in its own month. */
 const expenseAnchor = (id: string) => `expense-${id}`;
@@ -117,32 +134,24 @@ export function TransactionsPage() {
       actions={
         <>
           <MonthSwitcher month={month} onChange={setMonth} />
-          <button type="button" className="btn btn--ghost" onClick={() => setMonthDialog("apply")}>
-            <CopyIcon />
+          <Button variant="ghost" onClick={() => setMonthDialog("apply")}>
+            <CopyIcon aria-hidden="true" />
             Apply template…
-          </button>
-          <button
-            type="button"
-            className="btn btn--ghost"
-            disabled={!loaded || isEmpty}
-            onClick={() => setMonthDialog("save")}
-          >
+          </Button>
+          <Button variant="ghost" disabled={!loaded || isEmpty} onClick={() => setMonthDialog("save")}>
             Save as template…
-          </button>
-          <Link className="btn btn--primary" to={`/add?month=${month}`}>
-            <PlusIcon />
-            Add entries
-          </Link>
+          </Button>
+          <Button asChild>
+            <Link to={`/add?month=${month}`}>
+              <PlusIcon aria-hidden="true" />
+              Add entries
+            </Link>
+          </Button>
         </>
       }
     >
       <UnconfirmedBanner month={month} />
-      {confirmError && (
-        <p role="alert" className="alert alert--danger">
-          <AlertIcon width={18} height={18} />
-          {confirmError}
-        </p>
-      )}
+      {confirmError && <ErrorAlert>{confirmError}</ErrorAlert>}
       {isEmpty && !blank.has(month) && (
         <NewMonthOffer
           key={month}
@@ -206,28 +215,9 @@ export function TransactionsPage() {
   );
 }
 
-function LoadError({ what, error, retry }: { what: string; error: unknown; retry: () => void }) {
-  return (
-    <p role="alert" className="alert alert--danger tx__alert">
-      <AlertIcon width={18} height={18} />
-      <span>
-        Couldn’t load {what}. {errorMessage(error)}{" "}
-        <button type="button" className="text-btn" onClick={retry}>
-          Try again
-        </button>
-      </span>
-    </p>
-  );
-}
-
-function UnconfirmedPill() {
-  return (
-    <span className="pill-unconfirmed">
-      <i aria-hidden="true" />
-      Unconfirmed · from template
-    </span>
-  );
-}
+/** Muted text for an empty cell or a status line. */
+const muted = "text-muted-foreground";
+const statusLine = "m-0 px-6 pb-1 text-muted-foreground";
 
 function RowActions({
   name,
@@ -244,24 +234,30 @@ function RowActions({
   onConfirm?: () => void;
 }) {
   return (
-    <div className="tx-table__buttons">
+    <div className="inline-flex items-center justify-end gap-1">
       {onConfirm && (
-        <button type="button" className="btn btn--ghost btn--xs tx-confirm" aria-label={`Confirm ${name}`} onClick={onConfirm}>
-          <CheckIcon width={14} height={14} />
+        <Button variant="outline" size="sm" className="border-brand text-unconfirmed-text hover:text-unconfirmed-text" aria-label={`Confirm ${name}`} onClick={onConfirm}>
+          <CheckIcon aria-hidden="true" />
           Confirm
-        </button>
+        </Button>
       )}
       {onLink && (
-        <button type="button" className="btn btn--ghost btn--xs" aria-label={`Link ${name}`} onClick={onLink}>
+        <Button variant="outline" size="sm" aria-label={`Link ${name}`} onClick={onLink}>
           Link…
-        </button>
+        </Button>
       )}
-      <button type="button" className="icon-btn" aria-label={`Edit ${name}`} onClick={onEdit}>
-        <PencilIcon />
-      </button>
-      <button type="button" className="icon-btn icon-btn--danger" aria-label={`Delete ${name}`} onClick={onDelete}>
-        <TrashIcon />
-      </button>
+      <Button variant="ghost" size="icon-sm" aria-label={`Edit ${name}`} onClick={onEdit}>
+        <PencilIcon aria-hidden="true" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        className="hover:bg-danger-alert hover:text-danger-alert-foreground"
+        aria-label={`Delete ${name}`}
+        onClick={onDelete}
+      >
+        <Trash2Icon aria-hidden="true" />
+      </Button>
     </div>
   );
 }
@@ -285,90 +281,91 @@ function IncomeSection({
   const entries = income.data ?? [];
 
   let body;
-  if (income.isPending) body = <p className="tx__status">Loading income…</p>;
-  else if (income.isError) body = <LoadError what="this month’s income" error={income.error} retry={() => void income.refetch()} />;
+  if (income.isPending) body = <p className={statusLine}>Loading income…</p>;
+  else if (income.isError)
+    body = <LoadError className="mx-6 w-auto" what="this month’s income" error={income.error} retry={() => void income.refetch()} />;
   else if (entries.length === 0)
     body = (
-      <p className="tx__status">
+      <p className={statusLine}>
         No income logged in {monthName(month)}. <Link to={`/add?month=${month}`}>Add income</Link>
       </p>
     );
   else {
     const total = incomeTotals(entries);
     body = (
-      <div className="tx-table__scroll">
-        <table className="tx-table tx-table--income">
-          <thead>
-            <tr>
-              <th scope="col">Date</th>
-              <th scope="col">Source</th>
-              <th scope="col">Label</th>
-              <th scope="col" className="num">Gross</th>
-              <th scope="col" className="num">Taxable</th>
-              <th scope="col" className="num">Net</th>
-              <th scope="col" className="num">Tax rate</th>
-              <th scope="col" className="tx-table__actions-col">
-                <span className="visually-hidden">Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((e) => {
-              const name = `${sourceName(e.income_source_id)}${e.note ? ` ${e.note}` : ""}, ${formatShortDate(e.date)}`;
-              return (
-                <tr key={e.id} className={e.confirmed ? undefined : "is-unconfirmed"}>
-                  <td className="tx-table__date">{formatShortDate(e.date)}</td>
-                  <td>
-                    <span className="tag tag--income">{sourceName(e.income_source_id)}</span>
-                  </td>
-                  <td>
-                    <div className="tx-table__main">
-                      <span>{e.note ?? <span className="tx__muted">—</span>}</span>
-                      {!e.confirmed && <UnconfirmedPill />}
-                    </div>
-                  </td>
-                  <td className="num">{formatCents(e.gross_cents)}</td>
-                  <td className="num">{formatCents(e.gross_taxable_cents)}</td>
-                  <td className="num tx-table__net">{formatCents(e.net_cents)}</td>
-                  <td className="num">{formatTaxRate(e.gross_taxable_cents, e.net_cents)}</td>
-                  <td className="tx-table__actions">
-                    <RowActions
-                      name={`income ${name}`}
-                      onEdit={() => onEdit(e)}
-                      onDelete={() => onDelete(e)}
-                      onConfirm={e.confirmed ? undefined : () => onConfirm(e)}
-                    />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-          <tfoot>
-            <tr>
-              <th scope="row" colSpan={3}>
-                Total
-              </th>
-              <td className="num">{formatCents(total.grossCents)}</td>
-              <td className="num">{formatCents(total.taxableCents)}</td>
-              <td className="num tx-table__net">{formatCents(total.netCents)}</td>
-              <td className="num">{formatTaxRate(total.taxableCents, total.netCents)}</td>
-              <td />
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+      <Table aria-label="Income entries" className="min-w-[820px]">
+        <TableHeader>
+          <TableRow>
+            <TableHead scope="col" className="pl-6">Date</TableHead>
+            <TableHead scope="col">Source</TableHead>
+            <TableHead scope="col">Label</TableHead>
+            <TableHead scope="col" numeric>Gross</TableHead>
+            <TableHead scope="col" numeric>Taxable</TableHead>
+            <TableHead scope="col" numeric>Net</TableHead>
+            <TableHead scope="col" numeric>Tax rate</TableHead>
+            <TableHead scope="col" className="w-[104px] pr-6">
+              <span className="sr-only">Actions</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {entries.map((e) => {
+            const name = `${sourceName(e.income_source_id)}${e.note ? ` ${e.note}` : ""}, ${formatShortDate(e.date)}`;
+            return (
+              <TableRow key={e.id} variant={e.confirmed ? "default" : "unconfirmed"}>
+                <TableCell data-col="date" className={cn("pl-6", muted)}>{formatShortDate(e.date)}</TableCell>
+                <TableCell>
+                  <Badge variant="income">{sourceName(e.income_source_id)}</Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span>{e.note ?? <span className={muted}>—</span>}</span>
+                    {!e.confirmed && <UnconfirmedBadge />}
+                  </div>
+                </TableCell>
+                <TableCell numeric>{formatCents(e.gross_cents)}</TableCell>
+                <TableCell numeric>{formatCents(e.gross_taxable_cents)}</TableCell>
+                <TableCell numeric className="font-semibold text-income">{formatCents(e.net_cents)}</TableCell>
+                <TableCell numeric>{formatTaxRate(e.gross_taxable_cents, e.net_cents)}</TableCell>
+                <TableCell className="pr-6 text-right">
+                  <RowActions
+                    name={`income ${name}`}
+                    onEdit={() => onEdit(e)}
+                    onDelete={() => onDelete(e)}
+                    onConfirm={e.confirmed ? undefined : () => onConfirm(e)}
+                  />
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+        <TableFooter>
+          <TableRow className="hover:bg-transparent">
+            <TableHead scope="row" colSpan={3} className="pl-6 text-foreground">
+              Total
+            </TableHead>
+            <TableCell numeric>{formatCents(total.grossCents)}</TableCell>
+            <TableCell numeric>{formatCents(total.taxableCents)}</TableCell>
+            <TableCell numeric className="text-income">{formatCents(total.netCents)}</TableCell>
+            <TableCell numeric>{formatTaxRate(total.taxableCents, total.netCents)}</TableCell>
+            <TableCell className="pr-6" />
+          </TableRow>
+        </TableFooter>
+      </Table>
     );
   }
 
   return (
-    <section className="card tx" aria-labelledby="tx-income-h">
-      <div className="tx__head">
-        <h2 id="tx-income-h">
-          Income {income.data && <span className="tx__count">· {plural(entries.length, "entry", "entries")}</span>}
-        </h2>
-      </div>
+    <SectionCard
+      id="tx-income-h"
+      title={
+        <>
+          Income {income.data && <span className="font-medium text-muted-foreground">· {plural(entries.length, "entry", "entries")}</span>}
+        </>
+      }
+    >
       {body}
-    </section>
+    </SectionCard>
   );
 }
 
@@ -394,20 +391,15 @@ function SpendingSections({ month, categoryFilter, ...rest }: SpendingProps) {
 
   if (expenses.isPending || categories.isPending)
     return (
-      <section className="card tx" aria-labelledby="tx-exp-h">
-        <div className="tx__head">
-          <h2 id="tx-exp-h">Expenses</h2>
-        </div>
-        <p className="tx__status">Loading expenses…</p>
-      </section>
+      <SectionCard id="tx-exp-h" title="Expenses">
+        <p className={statusLine}>Loading expenses…</p>
+      </SectionCard>
     );
   if (expenses.isError || categories.isError)
     return (
-      <section className="card tx" aria-labelledby="tx-exp-h">
-        <div className="tx__head">
-          <h2 id="tx-exp-h">Expenses</h2>
-        </div>
+      <SectionCard id="tx-exp-h" title="Expenses">
         <LoadError
+          className="mx-6 w-auto"
           what="this month’s expenses"
           error={expenses.error ?? categories.error}
           retry={() => {
@@ -415,7 +407,7 @@ function SpendingSections({ month, categoryFilter, ...rest }: SpendingProps) {
             if (categories.isError) void categories.refetch();
           }}
         />
-      </section>
+      </SectionCard>
     );
 
   const all = expenses.data;
@@ -436,27 +428,22 @@ function SpendingSections({ month, categoryFilter, ...rest }: SpendingProps) {
 function RefundTiles({ month, expenses }: { month: string; expenses: Schemas["Expense"][] }) {
   const t = refundTotals(expenses);
   return (
-    <section className="tiles" aria-label="Refunds this month">
-      <div className="tile">
-        <span className="tile__label">Refunds this month</span>
-        <span className={t.refundCents < 0 ? "tile__value tile__value--refund" : "tile__value"}>{formatCents(t.refundCents)}</span>
-        <span className="tile__sub">
-          {t.refundCount === 0 ? "No refunds" : `${plural(t.refundCount, "refund", "refunds")} · ${count.format(t.linkedCount)} linked to an expense`}
-        </span>
-      </div>
-      <div className="tile">
-        <span className="tile__label">Spent before refunds</span>
-        <span className="tile__value">{formatCents(t.beforeCents)}</span>
-        <span className="tile__sub">Every expense logged in {monthName(month)}</span>
-      </div>
-      <div className="tile">
-        <span className="tile__label">Spent after refunds</span>
-        <span className="tile__value">{formatCents(t.afterCents)}</span>
-        <span className="tile__sub">What Summary and Trends show</span>
-      </div>
+    <section className="flex flex-wrap gap-4" aria-label="Refunds this month">
+      <StatTile
+        label="Refunds this month"
+        value={formatCents(t.refundCents)}
+        tone={t.refundCents < 0 ? "refund" : "default"}
+        sub={t.refundCount === 0 ? "No refunds" : `${plural(t.refundCount, "refund", "refunds")} · ${count.format(t.linkedCount)} linked to an expense`}
+      />
+      <StatTile label="Spent before refunds" value={formatCents(t.beforeCents)} sub={`Every expense logged in ${monthName(month)}`} />
+      <StatTile label="Spent after refunds" value={formatCents(t.afterCents)} sub="What Summary and Trends show" />
     </section>
   );
 }
+
+/** The category rows' columns: name, bar, total, share. */
+const catGrid =
+  "grid w-full grid-cols-[minmax(96px,180px)_minmax(60px,1fr)_minmax(96px,auto)_84px] items-center gap-x-4 px-2.5 max-sm:grid-cols-[minmax(0,1fr)_auto_64px] max-sm:[&>[data-bar]]:hidden";
 
 function CategorySection({
   totals,
@@ -471,20 +458,20 @@ function CategorySection({
 }) {
   const max = Math.max(0, ...totals.map((t) => t.totalCents));
   return (
-    <section className="card tx" aria-labelledby="tx-cat-h">
-      <div className="tx__head">
-        <h2 id="tx-cat-h">Spending by category</h2>
-        {totals.length > 0 && <p className="tx__desc">Choose a category to filter the expense list.</p>}
-      </div>
+    <SectionCard
+      id="tx-cat-h"
+      title="Spending by category"
+      description={totals.length > 0 ? "Choose a category to filter the expense list." : undefined}
+    >
       {totals.length === 0 ? (
-        <p className="tx__status">Nothing spent this month yet.</p>
+        <p className={statusLine}>Nothing spent this month yet.</p>
       ) : (
-        <div className="cat-rows">
-          <div className="cat-row cat-row--head" aria-hidden="true">
+        <div className="flex flex-col gap-0.5 px-3.5">
+          <div className={cn(catGrid, "min-h-7 text-xs font-semibold tracking-[0.05em] text-muted-foreground uppercase")} aria-hidden="true">
             <span>Category</span>
-            <span />
-            <span className="num">Total</span>
-            <span className="num">% of spend</span>
+            <span data-bar />
+            <span className="text-right">Total</span>
+            <span className="text-right">% of spend</span>
           </div>
           {totals.map(({ category, totalCents: cents }) => {
             const on = category.id === selected;
@@ -493,32 +480,37 @@ function CategorySection({
               <button
                 key={category.id}
                 type="button"
-                className={on ? "cat-row is-on" : "cat-row"}
+                data-slot="category-row"
+                className={cn(
+                  catGrid,
+                  "min-h-11 cursor-pointer rounded-md border border-solid border-transparent bg-transparent text-left text-sm text-foreground outline-none hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/35",
+                  on && "border-ring bg-selected text-selected-foreground hover:bg-selected",
+                )}
                 aria-pressed={on}
                 aria-label={`${category.name}, ${formatCents(cents)}, ${share === "—" ? "no share" : `${share} of spending`}`}
                 onClick={() => onFilter(on ? null : category.id)}
               >
-                <span className="cat-row__name">{category.name}</span>
-                <span className="bar-track" aria-hidden="true">
+                <span className="truncate font-semibold">{category.name}</span>
+                <span data-bar className="block h-2.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
                   <span
-                    className={category.is_saving ? "bar-fill bar-fill--saving" : "bar-fill"}
+                    className={cn("block h-full rounded-full", category.is_saving ? "bg-saving-bar" : "bg-spent")}
                     style={{ width: `${barPercent(cents, max)}%` }}
                   />
                 </span>
-                <span className="num">{formatCents(cents)}</span>
-                <span className="num cat-row__share">{share}</span>
+                <span className="text-right font-semibold whitespace-nowrap tabular-nums">{formatCents(cents)}</span>
+                <span className="text-right font-medium whitespace-nowrap text-muted-foreground tabular-nums">{share}</span>
               </button>
             );
           })}
-          <div className="cat-row cat-row--total">
+          <div className={cn(catGrid, "mt-1 min-h-11 [border-top:1px_solid_var(--color-border)] font-bold")}>
             <span>Total spent</span>
-            <span />
-            <span className="num">{formatCents(totalCents)}</span>
-            <span className="num">{totalCents > 0 ? "100%" : "—"}</span>
+            <span data-bar />
+            <span className="text-right whitespace-nowrap tabular-nums">{formatCents(totalCents)}</span>
+            <span className="text-right whitespace-nowrap tabular-nums">{totalCents > 0 ? "100%" : "—"}</span>
           </div>
         </div>
       )}
-    </section>
+    </SectionCard>
   );
 }
 
@@ -576,162 +568,169 @@ function ExpenseSection({
     unlinked: expenses.filter((e) => matchesRefundFilter(e, "unlinked")).length,
   };
 
-  const chip = (id: string | null, name: string, n: number) => {
-    const on = id === selected;
-    return (
-      <button key={id ?? "all"} type="button" className={on ? "chip is-on" : "chip"} aria-pressed={on} onClick={() => onFilter(id)}>
-        {name} <span className="chip__count">{count.format(n)}</span>
-      </button>
-    );
-  };
+  const chip = (key: string, on: boolean, label: string, n: number, onPress: () => void) => (
+    <Toggle
+      key={key}
+      variant="outline"
+      size="sm"
+      className="rounded-full px-3.5"
+      pressed={on}
+      onPressedChange={onPress}
+    >
+      {label} <span className="font-medium opacity-80 tabular-nums">{count.format(n)}</span>
+    </Toggle>
+  );
 
   let body;
   if (expenses.length === 0)
     body = (
-      <p className="tx__status">
+      <p className={statusLine}>
         No expenses logged in {monthName(month)}. <Link to={`/add?month=${month}`}>Add expenses</Link>
       </p>
     );
-  else if (shown.length === 0) body = <p className="tx__status">No expenses match. Try another filter or search.</p>;
+  else if (shown.length === 0) body = <p className={statusLine}>No expenses match. Try another filter or search.</p>;
   else
     body = (
-      <div className="tx-table__scroll">
-        <table className="tx-table tx-table--expenses">
-          <thead>
-            <tr>
-              <th scope="col">Date</th>
-              <th scope="col">Merchant</th>
-              <th scope="col">Category</th>
-              <th scope="col">Note</th>
-              <th scope="col" className="num">Amount</th>
-              <th scope="col" className="tx-table__actions-col">
-                <span className="visually-hidden">Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {shown.map((e) => {
-              const refund = isRefund(e);
-              const category = categories.get(e.category_id);
-              const original = refund ? originalOf(e) : undefined;
-              const tag = refund ? refundTag(e, original) : null;
-              const status = originalStatus(e);
-              const anchor = expenseAnchor(e.id);
-              const isTarget = anchor === target;
-              const rowClass =
-                [refund && "is-refund", !e.confirmed && "is-unconfirmed", isTarget && "is-target"].filter(Boolean).join(" ") ||
-                undefined;
-              const amountClass = ["num tx-table__amount", refund && "is-refund", status?.full && "is-struck"]
-                .filter(Boolean)
-                .join(" ");
-              const name = `${refund ? "refund" : "expense"} ${e.merchant.name}, ${formatShortDate(e.date)}`;
-              return (
-                <tr key={e.id} id={anchor} tabIndex={isTarget ? -1 : undefined} className={rowClass}>
-                  <td className="tx-table__date">{formatShortDate(e.date)}</td>
-                  <td>
-                    <div className="tx-table__main">
-                      <strong>{e.merchant.name}</strong>
-                      {refund && <span className={`pill pill--${tag?.kind ?? "refund"}`}>{tag?.label ?? "Refund"}</span>}
-                      {!e.confirmed && <UnconfirmedPill />}
-                    </div>
-                    {original && (
-                      <p className="tx-refund-for">
-                        <LinkIcon />
-                        <span>
-                          Refund for{" "}
-                          <Link to={{ pathname: "/transactions", search: `?month=${monthOf(original.date)}`, hash: expenseAnchor(original.id) }}>
-                            {describeOriginal(original)}
-                          </Link>
-                        </span>
-                      </p>
+      <Table aria-label="Expenses" className="min-w-[760px]">
+        <TableHeader>
+          <TableRow>
+            <TableHead scope="col" className="pl-6">Date</TableHead>
+            <TableHead scope="col">Merchant</TableHead>
+            <TableHead scope="col">Category</TableHead>
+            <TableHead scope="col">Note</TableHead>
+            <TableHead scope="col" numeric>Amount</TableHead>
+            <TableHead scope="col" className="w-[104px] pr-6">
+              <span className="sr-only">Actions</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {shown.map((e) => {
+            const refund = isRefund(e);
+            const category = categories.get(e.category_id);
+            const original = refund ? originalOf(e) : undefined;
+            const tag = refund ? refundTag(e, original) : null;
+            const status = originalStatus(e);
+            const anchor = expenseAnchor(e.id);
+            const isTarget = anchor === target;
+            const name = `${refund ? "refund" : "expense"} ${e.merchant.name}, ${formatShortDate(e.date)}`;
+            return (
+              <TableRow
+                key={e.id}
+                id={anchor}
+                tabIndex={isTarget ? -1 : undefined}
+                // Unconfirmed wins the tint: it is the state that needs action. A refund keeps its badge and green amount.
+                variant={!e.confirmed ? "unconfirmed" : refund ? "refund" : "default"}
+                data-refund={refund || undefined}
+                data-target={isTarget || undefined}
+                className="outline-none data-[target]:shadow-[inset_0_2px_0_var(--color-ring),inset_0_-2px_0_var(--color-ring)]"
+              >
+                <TableCell data-col="date" className={cn("pl-6", muted)}>{formatShortDate(e.date)}</TableCell>
+                <TableCell className="whitespace-normal">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <strong className="font-semibold">{e.merchant.name}</strong>
+                    {refund && (
+                      <Badge variant={tag ? TAG_VARIANT[tag.kind] : "refund"} data-tag={tag?.kind ?? "refund"}>
+                        {tag?.label ?? "Refund"}
+                      </Badge>
                     )}
-                    {status && <p className="tx-refunded">{status.text}</p>}
-                  </td>
-                  <td>
-                    <span className={category?.is_saving ? "tag tag--saving" : "tag"}>{category?.name ?? "—"}</span>
-                  </td>
-                  <td className="tx-table__note">{e.note ?? <span className="tx__muted">—</span>}</td>
-                  <td className={amountClass}>
-                    {status?.full ? (
-                      <>
-                        <s>{formatCents(e.amount_cents)}</s>
-                        <span className="visually-hidden"> (refunded in full)</span>
-                      </>
-                    ) : (
-                      formatCents(e.amount_cents)
-                    )}
-                  </td>
-                  <td className="tx-table__actions">
-                    <RowActions
-                      name={name}
-                      onEdit={() => onEdit(e)}
-                      onDelete={() => onDelete(e)}
-                      onLink={refund && !e.refunded_expense_id ? () => onLink(e) : undefined}
-                      onConfirm={e.confirmed ? undefined : () => onConfirm(e)}
-                    />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                    {!e.confirmed && <UnconfirmedBadge />}
+                  </div>
+                  {original && (
+                    <p className="mt-1 mb-0 flex items-center gap-1.5 text-xs font-semibold text-refund-text">
+                      <LinkIcon aria-hidden="true" className="size-3.5 flex-none" />
+                      <span>
+                        Refund for{" "}
+                        <Link
+                          // data-slot: skips the old global link colour (controls.css) so it stays refund green.
+                          data-slot="refund-link"
+                          className="text-inherit underline"
+                          to={{ pathname: "/transactions", search: `?month=${monthOf(original.date)}`, hash: expenseAnchor(original.id) }}
+                        >
+                          {describeOriginal(original)}
+                        </Link>
+                      </span>
+                    </p>
+                  )}
+                  {status && <p className="mt-1 mb-0 text-xs font-semibold text-muted-foreground">{status.text}</p>}
+                </TableCell>
+                <TableCell>
+                  <Badge variant={category?.is_saving ? "saving" : "secondary"}>{category?.name ?? "—"}</Badge>
+                </TableCell>
+                <TableCell className={muted}>{e.note ?? "—"}</TableCell>
+                <TableCell
+                  numeric
+                  data-col="amount"
+                  className={cn("font-bold", refund && "text-refund-text", status?.full && "text-muted-foreground")}
+                >
+                  {status?.full ? (
+                    <>
+                      <s>{formatCents(e.amount_cents)}</s>
+                      <span className="sr-only"> (refunded in full)</span>
+                    </>
+                  ) : (
+                    formatCents(e.amount_cents)
+                  )}
+                </TableCell>
+                <TableCell className="pr-6 text-right">
+                  <RowActions
+                    name={name}
+                    onEdit={() => onEdit(e)}
+                    onDelete={() => onDelete(e)}
+                    onLink={refund && !e.refunded_expense_id ? () => onLink(e) : undefined}
+                    onConfirm={e.confirmed ? undefined : () => onConfirm(e)}
+                  />
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
     );
 
   return (
-    <section className="card tx" aria-labelledby="tx-exp-h">
-      <div className="tx__head tx__head--expenses">
-        <div>
-          <h2 id="tx-exp-h">
-            Expenses <span className="tx__count">· {plural(expenses.length, "entry", "entries")}</span>
-          </h2>
-          {refundCounts.refunds > 0 && (
-            <p className="tx__desc">
-              Refunds are negative amounts. They lower spending in their category for the month they’re logged, even when the
-              purchase was in an earlier month.
-            </p>
-          )}
-        </div>
-        <label className="tx-search">
-          <SearchIcon />
-          <span className="visually-hidden">Search merchants and notes</span>
-          <input type="search" placeholder="Search merchant or note" value={search} onChange={(e) => onSearch(e.target.value)} />
+    <SectionCard
+      id="tx-exp-h"
+      title={
+        <>
+          Expenses <span className="font-medium text-muted-foreground">· {plural(expenses.length, "entry", "entries")}</span>
+        </>
+      }
+      description={
+        refundCounts.refunds > 0
+          ? "Refunds are negative amounts. They lower spending in their category for the month they’re logged, even when the purchase was in an earlier month."
+          : undefined
+      }
+      action={
+        <label className="relative block w-full max-w-[300px]">
+          <SearchIcon aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <span className="sr-only">Search merchants and notes</span>
+          <Input type="search" className="pl-9" placeholder="Search merchant or note" value={search} onChange={(e) => onSearch(e.target.value)} />
         </label>
-      </div>
+      }
+    >
       {expenses.length > 0 && (
-        <div className="tx__filters">
-          <div role="group" aria-label="Filter by refund" className="tx__chips">
-            {REFUND_FILTERS.map(({ value, label }) => {
-              const on = value === refundFilter;
-              const n = value === null ? expenses.length : refundCounts[value];
-              return (
-                <button
-                  key={label}
-                  type="button"
-                  className={on ? "chip is-on" : "chip"}
-                  aria-pressed={on}
-                  onClick={() => onRefundFilter(value)}
-                >
-                  {label} <span className="chip__count">{count.format(n)}</span>
-                </button>
-              );
-            })}
+        <div className="flex flex-col gap-3 px-6">
+          <div role="group" aria-label="Filter by refund" className="flex flex-wrap gap-2">
+            {REFUND_FILTERS.map(({ value, label }) =>
+              chip(label, value === refundFilter, label, value === null ? expenses.length : refundCounts[value], () => onRefundFilter(value)),
+            )}
           </div>
-          <div role="group" aria-label="Filter by category" className="tx__chips">
-            {chip(null, "All categories", expenses.length)}
-            {totals.map((t) => chip(t.category.id, t.category.name, t.count))}
+          <div role="group" aria-label="Filter by category" className="flex flex-wrap gap-2">
+            {chip("all", selected === null, "All categories", expenses.length, () => onFilter(null))}
+            {totals.map((t) => chip(t.category.id, t.category.id === selected, t.category.name, t.count, () => onFilter(t.category.id)))}
           </div>
         </div>
       )}
       {body}
       {expenses.length > 0 && (
-        <p role="status" className="tx__footer">
+        <p role="status" className="m-0 [border-top:1px_solid_var(--color-border)] px-6 pt-3.5 text-[13px] text-muted-foreground tabular-nums">
           {filtered
             ? `Showing ${count.format(shown.length)} of ${plural(expenses.length, "expense", "expenses")} · ${formatCents(sumCents(shown.map((e) => e.amount_cents)))}`
             : `${plural(expenses.length, "expense", "expenses")} · ${formatCents(sumCents(expenses.map((e) => e.amount_cents)))}`}
         </p>
       )}
-    </section>
+    </SectionCard>
   );
 }
 

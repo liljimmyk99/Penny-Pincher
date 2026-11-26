@@ -199,6 +199,12 @@ function holdNextPatch(backend: ReturnType<typeof fakeBackend>) {
 const patches = (backend: ReturnType<typeof fakeBackend>) =>
   backend.calls.filter((c) => c.method === "PATCH").map((c) => c.body);
 
+/** Opens a shadcn Select (Radix) and picks an option by name. */
+async function pick(user: ReturnType<typeof userEvent.setup>, trigger: HTMLElement, option: string) {
+  await user.click(trigger);
+  await user.click(await screen.findByRole("option", { name: option }));
+}
+
 describe("Templates", () => {
   it("lists templates and shows the first one's items, grouped, with totals", async () => {
     renderPage();
@@ -286,7 +292,7 @@ describe("Templates", () => {
     const amount = within(group("Housing")).getByRole("textbox", { name: "Amount, Rent" });
     await user.clear(amount);
     await user.type(amount, "1250");
-    await user.selectOptions(within(group("Housing")).getByRole("combobox", { name: "Category, Rent" }), "Housing");
+    await pick(user, within(group("Housing")).getByRole("combobox", { name: "Category, Rent" }), "Housing");
     await user.click(document.body);
     await waitFor(() =>
       expect(lastCall(backend, "PATCH")).toEqual({
@@ -377,12 +383,28 @@ describe("Templates", () => {
   it("moves an item to another category", async () => {
     const { backend, user } = renderPage();
     await loaded();
-    await user.selectOptions(within(group("Housing")).getByRole("combobox", { name: "Category, Rent" }), "Other");
+    await pick(user, within(group("Housing")).getByRole("combobox", { name: "Category, Rent" }), "Other");
     await user.tab();
     await user.click(document.body);
     await waitFor(() => expect(lastCall(backend, "PATCH")?.body).toEqual({ category_id: "9" }));
     expect(await within(group("Other")).findByRole("textbox", { name: "Amount, Rent" })).toBeInTheDocument();
     expect(within(group("Housing")).getByText(/No items/)).toBeInTheDocument();
+  });
+
+  it("doesn't save a row when its Category picker opens, only once focus leaves the row", async () => {
+    const { backend, user } = renderPage();
+    await loaded();
+    const amount = within(group("Housing")).getByRole("textbox", { name: "Amount, Rent" });
+    await user.clear(amount);
+    await user.type(amount, "1250");
+    // The picker's menu is portalled outside the row: opening it isn't leaving the row.
+    await user.click(within(group("Housing")).getByRole("combobox", { name: "Category, Rent" }));
+    await screen.findByRole("listbox");
+    expect(lastCall(backend, "PATCH")).toBeUndefined();
+    await user.click(screen.getByRole("option", { name: "Other" }));
+    expect(lastCall(backend, "PATCH")).toBeUndefined();
+    await user.click(document.body);
+    await waitFor(() => expect(lastCall(backend, "PATCH")?.body).toEqual({ amount_cents: 125000, category_id: "9" }));
   });
 
   it("removes an item", async () => {

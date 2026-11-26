@@ -8,7 +8,9 @@ import { Slot } from "radix-ui"
  * - Badges are 6px radius (rounded-sm), 12px/600 with tabular numerals.
  * - Our domain variants live here so every screen draws them the same way:
  *   `refund` (refund tags), `unconfirmed` (template copies not yet confirmed),
- *   `saving` (Saving's badge) and `income`. Colours come from tokens only.
+ *   `saving` (Saving's badge), `income`, and `selected` (the picked-option fill,
+ *   for "From <Month>" refund tags and the Suggested match, #176). Colours come
+ *   from tokens only.
  * - `destructive` uses the danger-alert tokens, like inline errors.
  */
 const badgeVariants = cva(
@@ -26,6 +28,7 @@ const badgeVariants = cva(
         unconfirmed: "bg-unconfirmed-pill text-unconfirmed-text",
         saving: "bg-selected text-saving",
         income: "bg-success-alert text-income",
+        selected: "bg-selected text-selected-foreground",
       },
     },
     defaultVariants: {

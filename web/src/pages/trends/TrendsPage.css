@@ -277,10 +277,3 @@
   }
 }
 
-.cattrends__panel {
-  padding-top: 4px;
-}
-
-.yearly__row.is-selected {
-  background: var(--color-selected-bg);
-}

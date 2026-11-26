@@ -1,5 +1,6 @@
 import type { FormEvent, ReactNode } from "react";
-import { AlertIcon } from "../../components/icons";
+import { ErrorAlert } from "../../components/LoadError";
+import { FieldError, FieldLabel } from "../../components/ui/field";
 import { Button } from "../../components/ui/button";
 import {
   Dialog,
@@ -47,7 +48,7 @@ export function EditDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <form
-          className="edit-form"
+          className="flex flex-col gap-4"
           noValidate
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
@@ -55,12 +56,7 @@ export function EditDialog({
           }}
         >
           {children}
-          {alert && (
-            <p role="alert" className="alert alert--danger">
-              <AlertIcon width={18} height={18} />
-              {alert}
-            </p>
-          )}
+          {alert && <ErrorAlert>{alert}</ErrorAlert>}
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline" type="button" disabled={pending}>
@@ -77,7 +73,21 @@ export function EditDialog({
   );
 }
 
-/** A labelled form field with its error, wired with aria-describedby. */
+/** The two-column grid of an editor's fields (one column at phone width). */
+export function FieldGrid({ children }: { children: ReactNode }) {
+  return <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">{children}</div>;
+}
+
+/** "optional" after a field label. */
+export function Optional() {
+  return <span className="font-normal text-muted-foreground">optional</span>;
+}
+
+/**
+ * A labelled form field with its error (shadcn Field parts, #176). The caller
+ * gives the control `id` and wires it with `invalidProps(id, error)`, so the
+ * error is `${id}-err` and the editors can focus the first invalid field by id.
+ */
 export function FormField({
   id,
   label,
@@ -92,16 +102,10 @@ export function FormField({
   children: ReactNode;
 }) {
   return (
-    <div className={wide ? "edit-form__field edit-form__field--wide" : "edit-form__field"}>
-      <label htmlFor={id} className="field-label">
-        {label}
-      </label>
+    <div data-slot="field" data-invalid={error ? true : undefined} className={wide ? "col-span-full flex flex-col gap-1.5" : "flex flex-col gap-1.5"}>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
       {children}
-      {error && (
-        <p id={`${id}-err`} className="edit-form__error">
-          {error}
-        </p>
-      )}
+      {error && <FieldError id={`${id}-err`}>{error}</FieldError>}
     </div>
   );
 }

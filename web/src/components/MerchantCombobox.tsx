@@ -148,6 +148,9 @@ export function MerchantCombobox({
             id={id}
             ref={inputRef}
             className={className}
+            // Styled as the shadcn Input when given its classes (inputClassName); the
+            // old .cell-input (Add entries, until #175) still relies on the base rules.
+            data-slot={className.includes("cell-input") ? undefined : "input"}
             type="text"
             role="combobox"
             aria-label={label}

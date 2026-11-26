@@ -6,7 +6,7 @@ import { monthOf, todayIn } from "../support/dates";
 const today = () => todayIn(undefined);
 const categoriesTable = (page: Page) => page.getByRole("table", { name: "Expense categories" });
 const sourcesTable = (page: Page) => page.getByRole("table", { name: "Income sources" });
-const names = (table: ReturnType<typeof categoriesTable>) => table.locator("tbody .manage-table__label").evaluateAll(
+const names = (table: ReturnType<typeof categoriesTable>) => table.locator("tbody [data-slot=manage-name]").evaluateAll(
   (els) => els.map((el) => el.firstChild?.textContent?.trim() ?? ""),
 );
 

@@ -107,10 +107,10 @@ const openMonth = async (page: Page, month: string) => {
 };
 const offer = (page: Page, monthName: string) => page.getByRole("region", { name: `Start ${monthName} from your template?` });
 const banner = (page: Page) => page.getByRole("region", { name: "Unconfirmed items" });
-const expenseRows = (page: Page) => page.locator("table.tx-table--expenses tbody tr");
+const expenseRows = (page: Page) => page.getByRole("table", { name: "Expenses" }).locator("tbody tr");
 const expenseRow = (page: Page, merchant: string) =>
   expenseRows(page).filter({ has: page.getByRole("button", { name: new RegExp(`^Edit expense ${merchant},`) }) });
-const footer = (page: Page) => page.locator(".tx__footer");
+const footer = (page: Page) => page.getByRole("region", { name: /^Expenses/ }).getByRole("status");
 
 /** Picks "Test Month" when the new-month offer shows a template picker. */
 async function pickInOffer(page: Page, monthName: string, template = "Test Month") {
@@ -152,7 +152,8 @@ async function addExpenseItem(page: Page, item: (typeof EXPENSE_ITEMS)[number]) 
 async function addIncomeItem(page: Page, item: (typeof INCOME_ITEMS)[number]) {
   await page.getByRole("button", { name: "Add income" }).click();
   const draft = page.getByRole("group", { name: "New income item" });
-  await draft.getByLabel("Source, new income").selectOption({ label: "Job A" });
+  await draft.getByRole("combobox", { name: "Source, new income" }).click();
+  await page.getByRole("option", { name: "Job A" }).click();
   await draft.getByLabel("Label, new income").fill(item.label);
   await draft.getByLabel("Day of month, new income").fill(String(item.day));
   await draft.getByLabel("Gross, new income").fill((item.gross / 100).toFixed(2));
@@ -177,7 +178,7 @@ test("AT-1 create Test Month with every fixture item; the totals match", async (
   const tiles = page.getByRole("group", { name: "Template totals" });
   await expect(tiles).toContainText("Net income$3,600.00");
   await expect(tiles).toContainText("Planned spending$2,110.50");
-  await expect(page.locator(".tpl-group__totals")).toContainText("gross $5,000.00 · taxable $4,600.00 · net $3,600.00");
+  await expect(page.getByText(/^All sources: gross/)).toContainText("gross $5,000.00 · taxable $4,600.00 · net $3,600.00");
 
   const [t] = (await tpl.list(api)).filter((x) => x.name === "Test Month");
   const saved = await tpl.get(api, t.id);
@@ -297,14 +298,14 @@ test("AT-8 Copy creates 8 entries on the fixture dates; totals equal the templat
 test("AT-9 copied rows are tinted and pilled; the banner offers Confirm all and Undo", async ({ signedIn: page, api }) => {
   await buildTestMonth(api);
   await copyFromOffer(page, "2027-03", "March");
-  const unconfirmed = page.locator("tr.is-unconfirmed");
+  const unconfirmed = page.locator("tr[data-variant=unconfirmed]");
   await expect(unconfirmed).toHaveCount(8);
-  await expect(page.locator(".pill-unconfirmed").filter({ hasText: "Unconfirmed · from template" })).toHaveCount(8);
+  await expect(page.locator("[data-slot=badge][data-variant=unconfirmed]").filter({ hasText: "Unconfirmed · from template" })).toHaveCount(8);
   // The tint is on the row's cells. Confirm one row to get a plain row to compare with.
   const cellBg = (row: ReturnType<typeof expenseRow>) => row.locator("td").first().evaluate((el) => getComputedStyle(el).backgroundColor);
   const tinted = await cellBg(expenseRow(page, "Gym"));
   await expenseRow(page, "Rent").getByRole("button", { name: /^Confirm expense Rent/ }).click();
-  await expect(expenseRow(page, "Rent")).not.toHaveClass(/is-unconfirmed/);
+  await expect(expenseRow(page, "Rent")).not.toHaveAttribute("data-variant", "unconfirmed");
   expect(tinted).not.toBe(await cellBg(expenseRow(page, "Rent")));
   await expect(unconfirmed).toHaveCount(7);
   await expect(banner(page)).toContainText("7 items copied from “Test Month”");
@@ -344,8 +345,8 @@ test.describe("AT-12 applying in a time zone whose day differs from UTC's", () =
     await buildTestMonth(api);
     await copyFromOffer(page, "2027-04", "April");
     await expectFixtureDates(api, "2027-04");
-    await expect(expenseRow(page, "Card payment").locator(".tx-table__date")).toHaveText("Apr 30");
-    await expect(expenseRow(page, "Rent").locator(".tx-table__date")).toHaveText("Apr 1");
+    await expect(expenseRow(page, "Card payment").locator("[data-col=date]")).toHaveText("Apr 30");
+    await expect(expenseRow(page, "Rent").locator("[data-col=date]")).toHaveText("Apr 1");
   });
 });
 
@@ -362,8 +363,8 @@ test("AT-13 editing Electric to $92.10 confirms it; the total rises by $6.60", a
   await expect(dialog).toBeHidden();
 
   const electric = expenseRow(page, "Electric");
-  await expect(electric).not.toHaveClass(/is-unconfirmed/);
-  await expect(electric.locator(".pill-unconfirmed")).toHaveCount(0);
+  await expect(electric).not.toHaveAttribute("data-variant", "unconfirmed");
+  await expect(electric.locator("[data-slot=badge][data-variant=unconfirmed]")).toHaveCount(0);
   await expect(footer(page)).toHaveText("6 expenses · $2,117.10");
   const saved = (await monthEntries(api, "2027-04")).expenses.find((e) => e.merchant.name === "Electric")!;
   expect(saved).toMatchObject({ amount_cents: 9210, confirmed: true });
@@ -391,12 +392,12 @@ test("AT-15 Confirm all as-is leaves nothing unconfirmed, and Undo then removes 
   await copyFromOffer(page, "2027-07", "July");
   // The per-row Confirm button, on one row, first.
   await expenseRow(page, "Rent").getByRole("button", { name: /^Confirm expense Rent/ }).click();
-  await expect(expenseRow(page, "Rent")).not.toHaveClass(/is-unconfirmed/);
+  await expect(expenseRow(page, "Rent")).not.toHaveAttribute("data-variant", "unconfirmed");
 
   await banner(page).getByRole("button", { name: "Confirm all as-is" }).click();
   await expect(page.getByRole("region", { name: /^Notifications/ }).getByText("Confirmed 7 items in July")).toBeVisible();
   await expect(banner(page)).toHaveCount(0);
-  await expect(page.locator("tr.is-unconfirmed")).toHaveCount(0);
+  await expect(page.locator("tr[data-variant=unconfirmed]")).toHaveCount(0);
   const { all } = await monthEntries(api, "2027-07");
   expect(all.every((e) => e.confirmed)).toBe(true);
 
@@ -477,7 +478,7 @@ test("AT-18 + AT-19 a reset unlinks (keeps) a refund elsewhere; Undo right after
   // The refund still counts in June, unlinked.
   await openMonth(page, "2027-06");
   const row = expenseRows(page).filter({ has: page.getByRole("button", { name: /^Edit refund Test Shop/ }) });
-  await expect(row.locator(".pill")).toHaveText("Not linked");
+  await expect(row.locator("[data-tag]")).toHaveText("Not linked");
   await expect(page.getByRole("region", { name: "Refunds this month" })).toContainText("−$40.00");
 });
 
@@ -588,8 +589,8 @@ test.describe("AT-24 dark mode", () => {
     expect(await contrast(), "colour-contrast on Templates").toEqual([]);
 
     await copyFromOffer(page, "2027-03", "March");
-    await expect(page.locator("tr.is-unconfirmed")).toHaveCount(8);
+    await expect(page.locator("tr[data-variant=unconfirmed]")).toHaveCount(8);
     await testInfo.attach("dark unconfirmed month", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
-    expect(await contrast(".month-banner", "tr.is-unconfirmed"), "colour-contrast on the banner and unconfirmed rows").toEqual([]);
+    expect(await contrast(".month-banner", "tr[data-variant=unconfirmed]"), "colour-contrast on the banner and unconfirmed rows").toEqual([]);
   });
 });

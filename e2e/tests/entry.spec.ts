@@ -151,7 +151,7 @@ test("amounts round-trip as exact cents through save, reload and edit", async ({
   await page.reload();
   for (const [i, c] of cases.entries()) {
     const row = page.getByRole("row").filter({ hasText: `Amount Check ${i + 1}` });
-    await expect(row.locator(".tx-table__amount")).toHaveText(c.shown);
+    await expect(row.locator("[data-col=amount]")).toHaveText(c.shown);
     // Edit: the field shows the same value; typing what was first typed saves the same cents.
     await row.getByRole("button", { name: /^Edit expense/ }).click();
     const dialog = page.getByRole("dialog", { name: "Edit expense" });
@@ -161,7 +161,7 @@ test("amounts round-trip as exact cents through save, reload and edit", async ({
     await dialog.getByLabel("Note").fill(`edited ${i + 1}`); // forces a real PATCH
     await dialog.getByRole("button", { name: "Save changes" }).click();
     await expect(dialog).toBeHidden();
-    await expect(row.locator(".tx-table__amount")).toHaveText(c.shown);
+    await expect(row.locator("[data-col=amount]")).toHaveText(c.shown);
   }
   expect(await byMerchant()).toEqual(new Map(cases.map((c, i) => [`Amount Check ${i + 1}`, c.cents])));
 });
@@ -188,7 +188,7 @@ test.describe("dates in a time zone whose day differs from UTC's", () => {
     expect(saved1?.date).toBe(localToday);
     await page.goto(`/transactions?month=${monthOf(localToday)}`);
     const row = page.getByRole("row").filter({ hasText: "Late Night Diner" });
-    await expect(row.locator(".tx-table__date")).toHaveText(
+    await expect(row.locator("[data-col=date]")).toHaveText(
       new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: timezoneId }).format(new Date()),
     );
   });

@@ -1,6 +1,9 @@
 import { useId, useState } from "react";
 import { errorMessage } from "../../api";
-import { AlertIcon, PlusIcon } from "../../components/icons";
+import { AlertCircleIcon, PlusIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface Props {
   /** Visible field label, e.g. "New category name". */
@@ -38,19 +41,16 @@ export function AddForm({ label, placeholder, action, onAdd }: Props) {
 
   return (
     <form
-      className="add-row"
+      className="flex flex-wrap items-end gap-3 px-6"
       onSubmit={(e) => {
         e.preventDefault();
         void submit();
       }}
     >
-      <div className="add-row__field">
-        <label className="field-label" htmlFor={id}>
-          {label}
-        </label>
-        <input
+      <div className="flex min-w-[220px] flex-1 flex-col gap-1.5 sm:max-w-[360px]">
+        <Label htmlFor={id}>{label}</Label>
+        <Input
           id={id}
-          className="field"
           type="text"
           value={name}
           maxLength={100}
@@ -63,13 +63,13 @@ export function AddForm({ label, placeholder, action, onAdd }: Props) {
           }}
         />
       </div>
-      <button type="submit" className="btn btn--primary" disabled={pending}>
-        <PlusIcon />
+      <Button type="submit" disabled={pending}>
+        <PlusIcon aria-hidden="true" />
         {action}
-      </button>
+      </Button>
       {error && (
-        <p id={`${id}-error`} role="alert" className="add-row__error">
-          <AlertIcon width={16} height={16} />
+        <p id={`${id}-error`} role="alert" className="m-0 flex basis-full items-center gap-1.5 text-[13px] font-medium text-danger-alert-foreground">
+          <AlertCircleIcon aria-hidden="true" className="size-4" />
           {error}
         </p>
       )}

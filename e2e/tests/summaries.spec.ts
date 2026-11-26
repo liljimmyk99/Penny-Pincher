@@ -76,8 +76,8 @@ async function openYearly(page: Page, year: number) {
 }
 
 const tile = (page: Page, label: string) =>
-  page.locator(".tile").filter({ has: page.locator(".tile__label", { hasText: new RegExp(`^${label}$`) }) });
-const tileValue = (page: Page, label: string) => tile(page, label).locator(".tile__value");
+  page.locator(":is(.tile, [data-slot=stat-tile])").filter({ has: page.locator(":is(.tile__label, [data-slot=stat-tile-label])", { hasText: new RegExp(`^${label}$`) }) });
+const tileValue = (page: Page, label: string) => tile(page, label).locator(":is(.tile__value, [data-slot=stat-tile-value])");
 
 async function expectTiles(page: Page, m: { net: string; spent: string; saved: string; left: string }) {
   await expect(tileValue(page, "Net income")).toHaveText(m.net);
@@ -276,7 +276,7 @@ test("RB-2 deleting the refund updates Summary without a reload", async ({ signe
   await page.evaluate(() => ((window as unknown as { __e2e: number }).__e2e = 1));
 
   await reviewInTransactions(page);
-  const refundRow = page.locator("table.tx-table--expenses tbody tr").filter({ hasText: "−$40.00" });
+  const refundRow = page.getByRole("table", { name: "Expenses" }).locator("tbody tr").filter({ hasText: "−$40.00" });
   await refundRow.getByRole("button", { name: /^Delete/ }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: /^Delete/ }).click();
   await expect(refundRow).toHaveCount(0);
@@ -303,7 +303,7 @@ test("RB-3 editing an amount updates Summary without a reload", async ({ signedI
 
   await reviewInTransactions(page);
   await page
-    .locator("table.tx-table--expenses tbody tr")
+    .getByRole("table", { name: "Expenses" }).locator("tbody tr")
     .filter({ has: page.getByRole("button", { name: /^Edit expense Takeout,/ }) })
     .getByRole("button", { name: /^Edit expense/ })
     .click();
@@ -320,9 +320,9 @@ test("RB-3 editing an amount updates Summary without a reload", async ({ signedI
 /* ---- C. Yearly view ---------------------------------------------------- */
 
 const yearlyRow = (page: Page, month: string) =>
-  page.locator(".yearly__table tbody tr").filter({ has: page.getByRole("rowheader", { name: month, exact: true }) });
+  page.getByRole("table", { name: "Month by month" }).locator("tbody tr").filter({ has: page.getByRole("rowheader", { name: month, exact: true }) });
 const yearlyFoot = (page: Page, label: string) =>
-  page.locator(".yearly__table tfoot tr").filter({ has: page.getByRole("rowheader", { name: label, exact: true }) });
+  page.getByRole("table", { name: "Month by month" }).locator("tfoot tr").filter({ has: page.getByRole("rowheader", { name: label, exact: true }) });
 
 test("YS-1, YS-2, YS-3 2027 tiles, averages and month table", async ({ signedIn: page, api }) => {
   await seedGoldenMonth(api);
@@ -335,10 +335,10 @@ test("YS-1, YS-2, YS-3 2027 tiles, averages and month table", async ({ signedIn:
   await expect(tileValue(page, "Left over")).toHaveText("$4,080.00");
 
   // YS-2: divided by the 3 months with entries, not 12 (12 would give $476.67 for Spent).
-  await expect(tile(page, "Net income").locator(".tile__sub")).toContainText("$3,266.67 / month");
-  await expect(tile(page, "Spent").locator(".tile__sub")).toContainText("$1,906.67 / month");
-  await expect(tile(page, "Saved & invested").locator(".tile__sub")).toContainText("$333.33 / month");
-  await expect(tile(page, "Left over").locator(".tile__sub")).toContainText("$1,360.00 / month");
+  await expect(tile(page, "Net income").locator(":is(.tile__sub, [data-slot=stat-tile-sub])")).toContainText("$3,266.67 / month");
+  await expect(tile(page, "Spent").locator(":is(.tile__sub, [data-slot=stat-tile-sub])")).toContainText("$1,906.67 / month");
+  await expect(tile(page, "Saved & invested").locator(":is(.tile__sub, [data-slot=stat-tile-sub])")).toContainText("$333.33 / month");
+  await expect(tile(page, "Left over").locator(":is(.tile__sub, [data-slot=stat-tile-sub])")).toContainText("$1,360.00 / month");
   await expect(page.locator("main")).not.toContainText("$476.67");
 
   // YS-3
@@ -350,7 +350,7 @@ test("YS-1, YS-2, YS-3 2027 tiles, averages and month table", async ({ signedIn:
 
   // Months with no entries are listed as quiet rows, not left out (a doc open question).
   await expect(yearlyRow(page, "April").locator("td")).toHaveText(["—", "—", "—"]);
-  await expect(page.locator(".yearly__table tbody tr")).toHaveCount(12);
+  await expect(page.getByRole("table", { name: "Month by month" }).locator("tbody tr")).toHaveCount(12);
 });
 
 test("YS-4, YS-5, YS-10 category averages, paired bars and their text alternatives", async ({ signedIn: page, api }) => {
@@ -413,7 +413,7 @@ test("YS-7, YS-8 2026 has one month; 2030 has none", async ({ signedIn: page, ap
   await expect(page.getByRole("group", { name: "2026 totals" })).toBeVisible();
   await expect(tileValue(page, "Net income")).toHaveText("$3,600.00");
   await expect(yearlyFoot(page, "Monthly average").locator("td")).toHaveText(["$3,600.00", "$1,900.00", "$1,700.00"]);
-  await expect(tile(page, "Saved & invested").locator(".tile__sub")).toContainText("$400.00 / month");
+  await expect(tile(page, "Saved & invested").locator(":is(.tile__sub, [data-slot=stat-tile-sub])")).toContainText("$400.00 / month");
 
   // YS-8
   await openYearly(page, 2030);
