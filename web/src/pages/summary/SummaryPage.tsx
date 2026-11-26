@@ -14,10 +14,12 @@ import { StatTile, TileRow } from "@/components/StatTile";
 import { LoadError } from "@/components/LoadError";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "../../lib/toast";
 import { formatMonth, monthName, monthOf, todayISO } from "../../lib/dates";
 import { changeWords } from "../../lib/change";
 import { formatCents } from "../../lib/money";
+import { formatTaxRate } from "../../lib/taxRate";
 import { useMonthParam } from "../../lib/useMonthParam";
 import { cn } from "@/lib/utils";
 import { NewMonthOffer } from "../months/NewMonthOffer";
@@ -135,9 +137,7 @@ function SummaryBody({ month, data }: { month: string; data: Summary }) {
         />
       </TileRow>
 
-      <SectionCard title="Income" description="Select a source to see its entries.">
-        <IncomeList month={month} data={data} onOpen={setOpenSource} />
-      </SectionCard>
+      <IncomeSection month={month} data={data} onOpen={setOpenSource} />
 
       <SpendingPanel month={month} data={data} />
 
@@ -171,37 +171,74 @@ function EmptyPanel({ children, to, action }: { children: ReactNode; to: string;
 const rowButton =
   "w-full cursor-pointer rounded-md border-0 bg-transparent px-2 text-left text-foreground [font:inherit] hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/35 focus-visible:outline-none";
 
-function IncomeList({ month, data, onOpen }: { month: string; data: Summary; onOpen: (id: string) => void }) {
+type IncomeTotals = Schemas["IncomeTotals"];
+
+/** The §6.10 income rows: gross, gross taxable, net and the derived tax rate (blank when gross taxable is 0). */
+const INCOME_ROWS: { label: string; value: (t: IncomeTotals) => string; className?: string }[] = [
+  { label: "Gross", value: (t) => formatCents(t.gross_cents) },
+  { label: "Gross taxable", value: (t) => formatCents(t.gross_taxable_cents) },
+  { label: "Net", value: (t) => formatCents(t.net_cents), className: "font-semibold text-income" },
+  { label: "Tax rate", value: (t) => formatTaxRate(t.gross_taxable_cents, t.net_cents) },
+];
+
+/**
+ * Income per source as the V2 canvas draws it: one column per source with
+ * entries, then "All sources combined", and rows Gross / Gross taxable / Net /
+ * Tax rate (root AGENTS.md §6.10). A source's header opens its entries (§6.4).
+ */
+function IncomeSection({ month, data, onOpen }: { month: string; data: Summary; onOpen: (id: string) => void }) {
   const { sources, combined } = data.income;
   const used = sources.filter((s) => s.entry_count > 0);
   if (used.length === 0)
     return (
-      <EmptyPanel to={`/add?month=${month}`} action="Add income">
-        No income logged in {monthName(month)}. Add paychecks and one-off jobs to see where your money comes from.
-      </EmptyPanel>
+      <SectionCard title="Income">
+        <EmptyPanel to={`/add?month=${month}`} action="Add income">
+          No income logged in {monthName(month)}. Add paychecks and one-off jobs to see where your money comes from.
+        </EmptyPanel>
+      </SectionCard>
     );
   return (
-    <ul className="m-0 list-none p-0">
-      {used.map((s) => (
-        <li key={s.income_source_id}>
-          <button
-            type="button"
-            className={cn(rowButton, "grid min-h-11 grid-cols-[1fr_auto_auto] items-center gap-4 py-1")}
-            aria-haspopup="dialog"
-            aria-label={`${s.name}, ${plural(s.entry_count, "entry", "entries")}, ${formatCents(s.net_cents)} net`}
-            onClick={() => onOpen(s.income_source_id)}
-          >
-            <span className="font-semibold">{s.name}</span>{" "}
-            <span className="text-[13px] text-muted-foreground" aria-hidden="true">{plural(s.entry_count, "entry", "entries")}</span>{" "}
-            <span className="min-w-24 text-right font-semibold text-income tabular-nums" aria-hidden="true">{formatCents(s.net_cents)}</span>
-          </button>
-        </li>
-      ))}
-      <li className="mt-1.5 flex justify-between gap-4 border-t border-border px-2 pt-3 pb-1 font-semibold">
-        <span>All sources combined</span>
-        <span className="min-w-24 text-right text-income tabular-nums">{formatCents(combined.net_cents)}</span>
-      </li>
-    </ul>
+    <SectionCard flush id="summary-income-h" title="Income" description="Select a source to see its entries.">
+      <Table aria-labelledby="summary-income-h" className="min-w-[420px]">
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead scope="col" className="pl-6">
+              <span className="sr-only">Figure</span>
+            </TableHead>
+            {used.map((s) => (
+              <TableHead key={s.income_source_id} scope="col" numeric className="h-auto py-1">
+                <button
+                  type="button"
+                  className={cn(rowButton, "inline-flex min-h-11 w-auto flex-col items-end justify-center py-1 text-right")}
+                  aria-haspopup="dialog"
+                  aria-label={`${s.name}, ${plural(s.entry_count, "entry", "entries")}`}
+                  onClick={() => onOpen(s.income_source_id)}
+                >
+                  <span className="font-semibold">{s.name}</span>
+                  <span className="text-xs font-normal text-muted-foreground">{plural(s.entry_count, "entry", "entries")}</span>
+                </button>
+              </TableHead>
+            ))}
+            <TableHead scope="col" numeric className="pr-6 text-foreground">
+              All sources combined
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {INCOME_ROWS.map((row) => (
+            <TableRow key={row.label} className="hover:bg-transparent">
+              <TableHead scope="row" className="pl-6 text-foreground">{row.label}</TableHead>
+              {used.map((s) => (
+                <TableCell key={s.income_source_id} numeric className={cn("px-4", row.className)}>
+                  {row.value(s)}
+                </TableCell>
+              ))}
+              <TableCell numeric className={cn("pr-6 font-semibold", row.className)}>{row.value(combined)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </SectionCard>
   );
 }
 

@@ -208,9 +208,28 @@ describe("SummaryPage", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  it("shows gross, gross taxable, net and tax rate per source and all sources combined", async () => {
+    renderPage(filledSummary());
+    const income = await screen.findByRole("table", { name: "Income" });
+    const headers = within(income).getAllByRole("columnheader");
+    // Only sources with entries get a column; "Other" has none this month.
+    expect(headers.map((h) => h.textContent)).toEqual(["Figure", "Employer A1 entry", "Side job1 entry", "All sources combined"]);
+    const rows = within(income).getAllByRole("row").slice(1);
+    expect(rows.map((r) => r.textContent)).toEqual([
+      "Gross$3,000.00$500.00$3,500.00",
+      "Gross taxable$2,800.00$0.00$2,800.00",
+      "Net$2,100.00$500.00$2,600.00",
+      // (gross taxable − net) ÷ gross taxable; blank for Side job, whose gross taxable is 0.
+      "Tax rate25.0%—7.1%",
+    ]);
+    // Each source header opens its entries, named by its visible text in order.
+    for (const name of ["Employer A, 1 entry", "Side job, 1 entry"])
+      expect(within(income).getByRole("button", { name })).toHaveAttribute("aria-haspopup", "dialog");
+  });
+
   it("opens a source's entries in a modal, with tax rate and all sources combined", async () => {
     const { user } = renderPage(filledSummary());
-    await user.click(await screen.findByRole("button", { name: /^Employer A, 1 entry, \$2,100.00 net/ }));
+    await user.click(await screen.findByRole("button", { name: "Employer A, 1 entry" }));
 
     const dialog = await screen.findByRole("dialog", { name: "Employer A" });
     await within(dialog).findByRole("cell", { name: "Paycheck" });
