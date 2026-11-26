@@ -14,9 +14,13 @@ export function AddEntriesPage() {
 
   return (
     <Page title="Add entries" eyebrow="Log spending & income" actions={<MonthSwitcher month={month} onChange={setMonth} />}>
-      <div className="grid items-start gap-6 min-[1181px]:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
-        <ExpenseBatch month={month} />
-        <IncomeForm month={month} />
+      {/* Side by side only when the batch table fits beside the income card, so its Note
+          column is never cut off (#179). A container query, as the sidebar may be collapsed. */}
+      <div className="@container">
+        <div className="grid items-start gap-6 @[1080px]:grid-cols-[minmax(720px,2.2fr)_minmax(320px,1fr)]">
+          <ExpenseBatch month={month} />
+          <IncomeForm month={month} />
+        </div>
       </div>
     </Page>
   );

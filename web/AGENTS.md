@@ -197,6 +197,7 @@ Shown in two ways, from the same form (design canvas: Change password):
 - Income entries take source, gross, gross taxable and net.
 - An "Add refund" action creates a refund and can link it to an original expense.
 - As built (`src/pages/add`):
+  - **Layout:** the Expenses and Income cards sit side by side only when the page content is at least 1080px wide (a container query, so a collapsed sidebar counts), so the batch table (720px minimum) never cuts off its Note column. Narrower, they stack (#179).
   - One table does both jobs: a single row is the quick entry, "Add row" makes it a batch. Every save goes through `POST /v1/expenses/batch` (all or nothing; item errors are shown on their rows). Blank rows are skipped.
   - **Enter** moves to the next row, adding one at the end; **⌘/Ctrl+Enter** saves all. New rows copy the previous row's date.
   - Merchant is an ARIA combobox over `GET /v1/merchants?q=`. Picking (or typing) a known merchant prefills the category from its latest expense, unless the user already chose one. Nothing is highlighted until an arrow key, so Enter on a typed name still moves to the next row. A name with no exact match (trimmed, case-insensitive: `sameMerchantName` / `exactMerchant` in `src/api/entries.ts`, the only place that matches) gets a last "Create “name”" option.
