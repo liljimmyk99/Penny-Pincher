@@ -1,0 +1,73 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "web",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5173",
+        "--strictPort"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "web-alt",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "web",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5174",
+        "--strictPort"
+      ],
+      "port": 5174
+    },
+    {
+      "name": "api-171",
+      "runtimeExecutable": "/usr/bin/env",
+      "runtimeArgs": [
+        "PORT=8081",
+        "DB_PATH=/private/tmp/claude-501/-Users-jimmykane--claude-spares-spare-nnDQUz/7ae02c8a-96c0-485d-8435-f06962d97d34/scratchpad/preview/app.db",
+        "/private/tmp/claude-501/-Users-jimmykane--claude-spares-spare-nnDQUz/7ae02c8a-96c0-485d-8435-f06962d97d34/scratchpad/preview/api"
+      ],
+      "port": 8081
+    },
+    {
+      "name": "web-171",
+      "runtimeExecutable": "web/node_modules/.bin/vite",
+      "runtimeArgs": [
+        "--config",
+        "/private/tmp/claude-501/-Users-jimmykane--claude-spares-spare-nnDQUz/7ae02c8a-96c0-485d-8435-f06962d97d34/scratchpad/preview/vite.config.mts"
+      ],
+      "port": 5175
+    },
+    {
+      "name": "api-175",
+      "runtimeExecutable": "/usr/bin/env",
+      "runtimeArgs": [
+        "PORT=8082",
+        "DB_PATH=/private/tmp/claude-501/-Users-jimmykane-Developer-Penny-Pincher/2b801afc-14d0-45d1-9a18-d06a2b6f4391/scratchpad/preview/app.db",
+        "/private/tmp/claude-501/-Users-jimmykane-Developer-Penny-Pincher/2b801afc-14d0-45d1-9a18-d06a2b6f4391/scratchpad/preview/api"
+      ],
+      "port": 8082
+    },
+    {
+      "name": "web-175",
+      "runtimeExecutable": "web/node_modules/.bin/vite",
+      "runtimeArgs": [
+        "--config",
+        "/private/tmp/claude-501/-Users-jimmykane-Developer-Penny-Pincher/2b801afc-14d0-45d1-9a18-d06a2b6f4391/scratchpad/preview/vite.config.mts"
+      ],
+      "port": 5176
+    }
+  ]
+}
