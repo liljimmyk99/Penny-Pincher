@@ -214,11 +214,11 @@ test("several income entries in one month, including a one-off under Other", asy
   await addIncome("Main Job", "Paycheck", "2000", "1800", "1500.25");
   await addIncome("Other", "One-off job", "300", "0", "300");
 
-  const soFar = income.locator(".so-far");
+  const soFar = income.getByRole("region", { name: /so far · net$/ });
   await expect(soFar).toContainText("Main Job · 2 entries");
   await expect(soFar).toContainText("$3,000.50");
   await expect(soFar).toContainText("Other · 1 entry");
-  await expect(soFar.locator(".so-far__row--total")).toContainText("$3,300.50");
+  await expect(soFar.locator("dl > div").filter({ hasText: "Total" })).toContainText("$3,300.50");
 
   const entries = await api.income(monthOf(today()));
   expect(entries.map((e) => e.net_cents).sort((a, b) => a - b)).toEqual([30000, 150025, 150025]);
