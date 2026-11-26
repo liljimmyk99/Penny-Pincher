@@ -1,4 +1,7 @@
-import { useId } from "react";
+import { FormField } from "@/components/FormField";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { MIN_PASSWORD_LENGTH } from "../../auth/ChangePasswordForm";
 import { generatePassword } from "./generatePassword";
 
@@ -11,37 +14,33 @@ interface Props {
 
 /** A visible, monospace password field with a Generate button, for admins setting a password for someone else. */
 export function PasswordField({ label, value, onChange, error }: Props) {
-  const id = useId();
-  const hint = `${id}-hint`;
-  const err = `${id}-err`;
   return (
-    <div>
-      <label className="field-label" htmlFor={id}>
-        {label}
-      </label>
-      <div className="admin-users__pw">
-        <input
-          id={id}
-          className="field admin-users__mono"
-          value={value}
-          autoComplete="off"
-          spellCheck={false}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={error ? `${hint} ${err}` : hint}
-          onChange={(e) => onChange(e.target.value)}
-        />
-        <button type="button" className="btn btn--ghost" onClick={() => onChange(generatePassword())}>
-          Generate
-        </button>
-      </div>
-      <p id={hint} className="admin__desc">
-        At least {MIN_PASSWORD_LENGTH} characters.
-      </p>
-      {error && (
-        <p id={err} className="admin-users__error">
-          {error}
-        </p>
+    <FormField label={label} description={`At least ${MIN_PASSWORD_LENGTH} characters.`} error={error}>
+      {(control) => (
+        <div className="flex gap-2">
+          <Input
+            {...control}
+            className="min-w-0 flex-1 font-mono"
+            value={value}
+            autoComplete="off"
+            spellCheck={false}
+            onChange={(e) => onChange(e.target.value)}
+          />
+          <Button type="button" variant="outline" onClick={() => onChange(generatePassword())}>
+            Generate
+          </Button>
+        </div>
       )}
-    </div>
+    </FormField>
+  );
+}
+
+/** "Ask them to choose their own password", on by default in both dialogs. */
+export function MustChangeCheckbox({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) {
+  return (
+    <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium">
+      <Checkbox checked={checked} onCheckedChange={(v) => onChange(v === true)} />
+      Ask them to choose their own password
+    </label>
   );
 }

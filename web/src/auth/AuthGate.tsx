@@ -1,10 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
+import { Button } from "@/components/ui/button";
 import { errorMessage, isSessionError, useMe, ApiError } from "../api";
 import { useSession, useSessionState } from "./context";
 import { ChangePasswordScreen } from "./ChangePasswordScreen";
 import { SignInScreen } from "./SignInScreen";
-import { Splash, StatusScreen } from "./StatusScreen";
+import { Splash, StatusActions, StatusMessage, StatusScreen } from "./StatusScreen";
 
 /**
  * Renders the app only for a signed-in user: the sign-in screen when signed
@@ -45,16 +46,15 @@ function MeFailed({ error, retry }: { error: unknown; retry: () => void }) {
   const [signingOut, setSigningOut] = useState(false);
   return (
     <StatusScreen>
-      <p className="status-screen__message" role="alert">
-        {errorMessage(error)}
-      </p>
-      <div className="status-screen__actions">
-        <button type="button" className="btn btn--primary" onClick={retry}>
+      <StatusMessage role="alert">{errorMessage(error)}</StatusMessage>
+      <StatusActions>
+        <Button type="button" onClick={retry}>
           Try again
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className="btn btn--ghost"
+          variant="ghost"
+          className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
           disabled={signingOut}
           onClick={() => {
             setSigningOut(true);
@@ -62,8 +62,8 @@ function MeFailed({ error, retry }: { error: unknown; retry: () => void }) {
           }}
         >
           Sign out
-        </button>
-      </div>
+        </Button>
+      </StatusActions>
     </StatusScreen>
   );
 }

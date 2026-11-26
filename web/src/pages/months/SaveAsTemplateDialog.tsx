@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import { Input } from "@/components/ui/input";
 import { ApiError, errorMessage, useMonthMutations, type Schemas } from "../../api";
 import { formatMonth, monthName } from "../../lib/dates";
 import { EditDialog, FormField } from "../transactions/EditDialog";
@@ -55,9 +56,8 @@ export function SaveAsTemplateDialog({
       submitLabel="Save template"
     >
       <FormField id={id} label="Template name" error={fieldError} wide>
-        <input
+        <Input
           id={id}
-          className="field"
           value={name}
           maxLength={100}
           onChange={(e) => setName(e.target.value)}

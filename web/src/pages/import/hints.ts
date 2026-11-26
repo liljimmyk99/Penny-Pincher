@@ -43,3 +43,6 @@ export function uploadErrorText(err: unknown): string {
   return errorMessage(err);
 }
 
+
+/** What the file pickers accept: the import template's format. */
+export const XLSX_ACCEPT = ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";

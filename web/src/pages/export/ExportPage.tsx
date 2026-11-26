@@ -1,6 +1,12 @@
-import { useId, useState } from "react";
+import { CircleAlert, Download } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { FormField } from "@/components/FormField";
+import { Segmented } from "@/components/Segmented";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { errorMessage, useExportData, type ExportFormat } from "../../api";
-import { AlertIcon, DownloadIcon } from "../../components/icons";
 import { toast } from "../../lib/toast";
 import { Page } from "../Page";
 
@@ -11,7 +17,6 @@ const FORMATS: { value: ExportFormat; label: string; hint: string }[] = [
 
 /** Export data (root §6.13): pick a format and an optional date range, then download. */
 export function ExportPage() {
-  const id = useId();
   const exporter = useExportData();
   const [format, setFormat] = useState<ExportFormat>("xlsx");
   const [from, setFrom] = useState("");
@@ -22,66 +27,62 @@ export function ExportPage() {
     exporter.mutate({ format, from, to }, { onSuccess: (name) => toast(`Downloaded ${name}`) });
   }
 
+  const chosen = FORMATS.find((f) => f.value === format) ?? FORMATS[0];
+
   return (
     <Page title="Export data">
-      <form
-        className="card"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!badRange) download();
-        }}
-      >
-        <fieldset>
-          <legend className="field-label">Format</legend>
-          {FORMATS.map((f) => (
-            <label key={f.value} style={{ display: "block", margin: "8px 0" }}>
-              <input
-                type="radio"
-                name={`${id}-format`}
-                value={f.value}
-                checked={format === f.value}
-                onChange={() => setFormat(f.value)}
-              />{" "}
-              {f.label}
-              <span style={{ display: "block", marginLeft: 24, opacity: 0.7 }}>{f.hint}</span>
-            </label>
-          ))}
-        </fieldset>
-
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", margin: "16px 0" }}>
-          <div>
-            <label className="field-label" htmlFor={`${id}-from`}>
-              From (optional)
-            </label>
-            <input id={`${id}-from`} className="field" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+      <Card className="max-w-[640px] px-6">
+        <form
+          className="flex flex-col gap-5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!badRange) download();
+          }}
+        >
+          <div className="flex flex-col gap-1.5">
+            <span aria-hidden="true" className="text-sm font-medium">
+              Format
+            </span>
+            <Segmented
+              label="Format"
+              value={format}
+              options={FORMATS}
+              onChange={setFormat}
+              className="self-start"
+            />
+            <p className="m-0 text-[13px] text-muted-foreground">{chosen.hint}</p>
           </div>
-          <div>
-            <label className="field-label" htmlFor={`${id}-to`}>
-              To (optional)
-            </label>
-            <input id={`${id}-to`} className="field" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+
+          <div className="flex flex-wrap gap-4">
+            <FormField label="From (optional)" className="w-auto min-w-[180px] flex-1" invalid={badRange}>
+              {(control) => <Input {...control} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />}
+            </FormField>
+            <FormField label="To (optional)" className="w-auto min-w-[180px] flex-1" invalid={badRange}>
+              {(control) => <Input {...control} type="date" value={to} onChange={(e) => setTo(e.target.value)} />}
+            </FormField>
           </div>
-        </div>
-        <p>Leave both dates empty to export everything. Amounts are in integer cents, plus a formatted dollars column.</p>
-
-        {badRange && (
-          <p className="alert alert--danger" role="alert">
-            <AlertIcon width={18} height={18} />
-            “From” must be on or before “To”.
+          <p className="m-0 text-sm text-muted-foreground">
+            Leave both dates empty to export everything. Amounts are in integer cents, plus a formatted dollars column.
           </p>
-        )}
-        {exporter.isError && (
-          <p className="alert alert--danger" role="alert">
-            <AlertIcon width={18} height={18} />
-            {errorMessage(exporter.error)}
-          </p>
-        )}
 
-        <button type="submit" className="btn btn--primary" disabled={exporter.isPending || badRange}>
-          <DownloadIcon width={16} height={16} />
-          {exporter.isPending ? "Preparing…" : "Download"}
-        </button>
-      </form>
+          {badRange && <ErrorAlert>“From” must be on or before “To”.</ErrorAlert>}
+          {exporter.isError && <ErrorAlert>{errorMessage(exporter.error)}</ErrorAlert>}
+
+          <Button type="submit" className="self-start" disabled={exporter.isPending || badRange}>
+            <Download aria-hidden="true" />
+            {exporter.isPending ? "Preparing…" : "Download"}
+          </Button>
+        </form>
+      </Card>
     </Page>
+  );
+}
+
+function ErrorAlert({ children }: { children: ReactNode }) {
+  return (
+    <Alert variant="destructive">
+      <CircleAlert aria-hidden="true" />
+      <AlertDescription>{children}</AlertDescription>
+    </Alert>
   );
 }

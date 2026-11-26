@@ -1,9 +1,14 @@
 import { useState } from "react";
 import { Link } from "react-router";
+import { SectionCard } from "@/components/SectionCard";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 import { errorMessage, useImportMutations, useImportProgress, type ImportRecord } from "../../api";
 import { DeleteDialog } from "../../components/DeleteDialog";
 import { formatMonth } from "../../lib/dates";
 import { timeLeft } from "./hints";
+import { Footer } from "./parts";
 
 export function ImportingStage({ record }: { record: ImportRecord }) {
   const live = useImportProgress(record.id, true);
@@ -17,33 +22,35 @@ export function ImportingStage({ record }: { record: ImportRecord }) {
   const month = p?.current_month ? formatMonth(p.current_month) : null;
   const left = timeLeft(p?.eta_seconds);
 
+  const valueText = `${percent}%, ${done} of ${total} entries${month ? `, ${month}` : ""}`;
+
   return (
-    <section className="card import-card" aria-labelledby="import-running-h">
-      <h2 id="import-running-h" className="import-card__title">
-        Importing {record.file_name}
-      </h2>
-      <p className="import-percent">{percent}%</p>
-      <div
-        className="import-bar"
-        role="progressbar"
+    <SectionCard title={`Importing ${record.file_name}`} contentClassName="flex flex-col gap-4">
+      <p className="m-0 text-5xl leading-none font-bold tracking-[-0.03em] tabular-nums" aria-hidden="true">
+        {percent}%
+      </p>
+      <Progress
+        value={percent}
         aria-label="Import progress"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={percent}
-        aria-valuetext={`${percent}%, ${done} of ${total} entries${month ? `, ${month}` : ""}`}
-      >
-        <div className="import-bar__fill" style={{ width: `${percent}%` }} />
-      </div>
-      <p className="import-muted">
+        getValueLabel={() => valueText}
+        className="h-3.5"
+      />
+      <p className="m-0 text-sm text-muted-foreground tabular-nums">
         {done} of {total} entries{month ? ` · ${month}` : ""} · {left}
       </p>
 
       {p && p.years.length > 0 && (
-        <ul className="import-years">
+        <ul aria-label="Progress by year" className="m-0 flex list-none flex-col gap-2.5 p-0">
           {p.years.map((y) => (
-            <li key={y.year}>
-              <span>{y.year}</span>
-              <span>
+            <li key={y.year} className="grid grid-cols-[4rem_1fr_auto] items-center gap-3 text-sm tabular-nums">
+              <span className="font-semibold">{y.year}</span>
+              <span aria-hidden="true" className="block h-2 overflow-hidden rounded-full bg-muted">
+                <span
+                  className={cn("block h-full rounded-full bg-primary", y.rows_done >= y.rows_total && "bg-income")}
+                  style={{ width: `${y.rows_total > 0 ? Math.min(100, (y.rows_done / y.rows_total) * 100) : 0}%` }}
+                />
+              </span>
+              <span className="text-muted-foreground">
                 {y.rows_done} / {y.rows_total}
               </span>
             </li>
@@ -51,15 +58,15 @@ export function ImportingStage({ record }: { record: ImportRecord }) {
         </ul>
       )}
 
-      <p className="import-muted">You can leave this page. Months fill in as the import runs.</p>
-      <div className="import-footer">
-        <Link to="/summary" className="btn btn--ghost">
-          Go to Summary while it runs
-        </Link>
-        <button type="button" className="btn btn--ghost" onClick={() => setConfirming(true)}>
+      <p className="m-0 text-sm text-muted-foreground">You can leave this page. Months fill in as the import runs.</p>
+      <Footer>
+        <Button asChild variant="outline">
+          <Link to="/summary">Go to Summary while it runs</Link>
+        </Button>
+        <Button type="button" variant="outline" onClick={() => setConfirming(true)}>
           Cancel import
-        </button>
-      </div>
+        </Button>
+      </Footer>
 
       <DeleteDialog
         open={confirming}
@@ -72,6 +79,6 @@ export function ImportingStage({ record }: { record: ImportRecord }) {
         onConfirm={() => cancel.mutate(record.id, { onSuccess: () => setConfirming(false) })}
         onCancel={() => setConfirming(false)}
       />
-    </section>
+    </SectionCard>
   );
 }

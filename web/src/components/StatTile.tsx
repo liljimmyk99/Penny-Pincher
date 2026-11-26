@@ -8,6 +8,8 @@ const toneClass = {
   saving: "text-saving",
   refund: "text-refund-text",
   muted: "text-muted-foreground",
+  /** Something to fix (rows with problems): the "worse" orange. */
+  worse: "text-worse",
 } as const;
 
 export type StatTileTone = keyof typeof toneClass;

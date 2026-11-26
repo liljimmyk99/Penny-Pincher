@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { errorMessage, useTemplates, type Schemas } from "../../api";
-import { AlertIcon } from "../../components/icons";
+import { LoadError } from "@/components/LoadError";
+import { StatusLine } from "@/components/StatusLine";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { monthName } from "../../lib/dates";
 import { defaultTemplate, plural } from "./preview";
 import { useApplyTemplate } from "./useApplyTemplate";
@@ -15,7 +17,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog";
-import "./months.css";
 
 /**
  * "Apply a template…" for a month that may already have data: pick a
@@ -51,44 +52,41 @@ export function ApplyTemplateDialog({
               Every item is copied into {name} on its day of the month, unconfirmed until you check it.
             </DialogDescription>
           </DialogHeader>
-          {templates.isPending && <p className="new-month__status">Loading your templates…</p>}
-          {templates.isError && (
-            <p role="alert" className="alert alert--danger">
-              <AlertIcon width={18} height={18} />
-              Couldn’t load your templates. {errorMessage(templates.error)}
-            </p>
-          )}
+          {templates.isPending && <StatusLine>Loading your templates…</StatusLine>}
+          {templates.isError && <LoadError message={`Couldn’t load your templates. ${errorMessage(templates.error)}`} />}
           {templates.isSuccess && list.length === 0 && (
-            <p className="new-month__status">
-              You have no templates yet. <Link to="/templates">Build a template month</Link> first.
-            </p>
+            <StatusLine>
+              You have no templates yet.{" "}
+              <Link to="/templates" className="text-link hover:text-link-hover">
+                Build a template month
+              </Link>{" "}
+              first.
+            </StatusLine>
           )}
           {list.length > 0 && (
-            <div role="radiogroup" aria-label="Template" className="apply-pick">
-              {list.map((t) => {
-                const on = t.id === chosen?.id;
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    className={on ? "apply-pick__opt is-on" : "apply-pick__opt"}
-                    onClick={() => setPicked(t.id)}
-                  >
-                    <span className="apply-pick__name">{t.name}</span>
-                    <span className="apply-pick__count">{plural(items(t), "item", "items")}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <ToggleGroup
+              type="single"
+              orientation="vertical"
+              aria-label="Template"
+              value={chosen?.id ?? ""}
+              onValueChange={(v) => v && setPicked(v)}
+              spacing={2}
+              className="w-full flex-col items-stretch"
+            >
+              {list.map((t) => (
+                <ToggleGroupItem
+                  key={t.id}
+                  value={t.id}
+                  variant="outline"
+                  className="h-auto min-h-11 w-full justify-between gap-3 rounded-md px-3.5 py-2 text-left data-[state=on]:border-ring data-[state=on]:bg-selected data-[state=on]:text-selected-foreground"
+                >
+                  <span className="font-semibold">{t.name}</span>
+                  <span className="text-[13px] font-normal text-muted-foreground">{plural(items(t), "item", "items")}</span>
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
           )}
-          {flow.error && (
-            <p role="alert" className="alert alert--danger">
-              <AlertIcon width={18} height={18} />
-              {flow.error}
-            </p>
-          )}
+          {flow.error && <LoadError message={flow.error} />}
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline" type="button" disabled={flow.pending}>

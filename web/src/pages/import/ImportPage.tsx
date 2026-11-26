@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { errorMessage, useImport, useImports } from "../../api";
-import { AlertIcon } from "../../components/icons";
+import { LoadError } from "@/components/LoadError";
+import { StatusLine } from "@/components/StatusLine";
 import { Page } from "../Page";
 import { FinishedStage } from "./FinishedStage";
 import { ImportHistory } from "./ImportHistory";
@@ -8,7 +9,6 @@ import { ImportingStage } from "./ImportingStage";
 import { ReviewStage } from "./ReviewStage";
 import { StepIndicator } from "./StepIndicator";
 import { UploadStage } from "./UploadStage";
-import "./ImportPage.css";
 
 /**
  * Import past years from Excel (root §6.14). The stage follows the server's
@@ -32,14 +32,9 @@ export function ImportPage() {
   let body;
   if (currentId === undefined || (currentId !== null && !record)) {
     body = current.isError ? (
-      <p role="alert" className="alert alert--danger">
-        <AlertIcon width={18} height={18} />
-        {errorMessage(current.error)}
-      </p>
+      <LoadError message={errorMessage(current.error)} onRetry={() => void current.refetch()} />
     ) : (
-      <p className="import-muted" role="status">
-        Loading…
-      </p>
+      <StatusLine>Loading…</StatusLine>
     );
   } else if (record?.status === "review") {
     step = 2;

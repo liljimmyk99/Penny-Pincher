@@ -1,8 +1,12 @@
-import { useId, useState, type FormEvent, type ReactNode } from "react";
+import { Check, CircleAlert, Eye, EyeOff } from "lucide-react";
+import { useState, type FormEvent, type ReactNode } from "react";
+import { FormField } from "@/components/FormField";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { ApiError, errorMessage, fieldErrors } from "../api";
-import { AlertIcon, CheckIcon, EyeIcon, EyeOffIcon } from "../components/icons";
 import { useSession } from "./context";
-import "./ChangePasswordForm.css";
 
 export const MIN_PASSWORD_LENGTH = 12;
 
@@ -21,7 +25,6 @@ export function ChangePasswordForm({
   onChanged: () => void;
 }) {
   const session = useSession();
-  const ids = useId();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [repeat, setRepeat] = useState("");
@@ -66,69 +69,67 @@ export function ChangePasswordForm({
     autoComplete: string,
     error?: string,
   ) => (
-    <div className="signin__field">
-      <label className="field-label" htmlFor={`${ids}-${key}`}>
-        {label}
-      </label>
-      <div className="signin__password">
-        <input
-          id={`${ids}-${key}`}
-          className="field"
-          type={show ? "text" : "password"}
-          autoComplete={autoComplete}
-          value={value}
-          onChange={(e) => set(e.target.value)}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={error ? `${ids}-${key}-err` : undefined}
-        />
-        {key === "next" && (
-          <button
-            type="button"
-            className="signin__toggle"
-            aria-label={show ? "Hide passwords" : "Show passwords"}
-            aria-pressed={show}
-            onClick={() => setShow((v) => !v)}
-          >
-            {show ? <EyeOffIcon /> : <EyeIcon />}
-          </button>
-        )}
-      </div>
-      {error && (
-        <p id={`${ids}-${key}-err`} className="pw-form__error">
-          {error}
-        </p>
+    <FormField label={label} error={error}>
+      {(control) => (
+        <div className="relative">
+          <Input
+            {...control}
+            className={key === "next" ? "pr-12" : undefined}
+            type={show ? "text" : "password"}
+            autoComplete={autoComplete}
+            value={value}
+            onChange={(e) => set(e.target.value)}
+          />
+          {key === "next" && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="absolute top-1 right-1 text-muted-foreground [&_svg:not([class*='size-'])]:size-[18px]"
+              aria-label={show ? "Hide passwords" : "Show passwords"}
+              aria-pressed={show}
+              onClick={() => setShow((v) => !v)}
+            >
+              {show ? <EyeOff /> : <Eye />}
+            </Button>
+          )}
+        </div>
       )}
-    </div>
+    </FormField>
   );
 
   return (
-    <form className="pw-form" noValidate onSubmit={(e) => void submit(e)}>
+    <form className="flex flex-col gap-4" noValidate onSubmit={(e) => void submit(e)}>
       {alert && (
-        <div className="alert alert--danger" role="alert">
-          <AlertIcon />
-          <span>{alert}</span>
-        </div>
+        <Alert variant="destructive">
+          <CircleAlert aria-hidden="true" />
+          <AlertDescription>{alert}</AlertDescription>
+        </Alert>
       )}
       {input("current", currentLabel, current, setCurrent, "current-password", errors.current)}
       {input("next", "New password", next, setNext, "new-password", errors.next)}
       {input("repeat", "Repeat new password", repeat, setRepeat, "new-password")}
 
-      <ul className="pw-form__checks" aria-label="Password requirements">
+      <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-[13px] text-muted-foreground" aria-label="Password requirements">
         {checks.map((c) => (
-          <li key={c.label} className={c.ok ? "is-met" : undefined}>
-            {c.ok ? <CheckIcon width={16} height={16} /> : <span className="pw-form__dot" aria-hidden="true" />}
+          <li key={c.label} className={cn("flex items-center gap-2", c.ok && "text-refund-text")}>
+            {c.ok ? (
+              <Check aria-hidden="true" className="size-4" />
+            ) : (
+              <span aria-hidden="true" className="mx-px size-3.5 rounded-full border-2 border-current" />
+            )}
             {c.label}
             <span className="sr-only">{c.ok ? " (met)" : " (not met)"}</span>
           </li>
         ))}
       </ul>
-      <p className="pw-form__note">Changing your password signs you out on your other devices.</p>
+      <p className="m-0 text-[13px] text-muted-foreground">Changing your password signs you out on your other devices.</p>
 
-      <div className="pw-form__actions">
+      <div className="flex justify-end gap-2.5">
         {secondary}
-        <button type="submit" className="btn btn--primary" disabled={!ready || busy}>
+        <Button type="submit" disabled={!ready || busy}>
           {busy ? "Saving…" : "Change password"}
-        </button>
+        </Button>
       </div>
     </form>
   );

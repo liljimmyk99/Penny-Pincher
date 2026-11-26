@@ -8,6 +8,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { expect, signIn, test } from "../support/fixtures";
 import { zoneOffUtcDate } from "../support/dates";
+import { pickOption } from "../support/select";
 import { Api, createAccount, type Expense, type IncomeEntry } from "../support/stack";
 
 /* ---- The fixture ------------------------------------------------------- */
@@ -114,8 +115,8 @@ const footer = (page: Page) => page.getByRole("region", { name: /^Expenses/ }).g
 
 /** Picks "Test Month" when the new-month offer shows a template picker. */
 async function pickInOffer(page: Page, monthName: string, template = "Test Month") {
-  const select = offer(page, monthName).getByLabel("Template");
-  if (await select.count()) await select.selectOption({ label: template });
+  const select = offer(page, monthName).getByRole("combobox", { name: "Template" });
+  if (await select.count()) await pickOption(page, select, template);
 }
 
 async function copyFromOffer(page: Page, month: string, monthName: string) {
@@ -591,6 +592,6 @@ test.describe("AT-24 dark mode", () => {
     await copyFromOffer(page, "2027-03", "March");
     await expect(page.locator("tr[data-variant=unconfirmed]")).toHaveCount(8);
     await testInfo.attach("dark unconfirmed month", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
-    expect(await contrast(".month-banner", "tr[data-variant=unconfirmed]"), "colour-contrast on the banner and unconfirmed rows").toEqual([]);
+    expect(await contrast("[data-slot=unconfirmed-banner]", "tr[data-variant=unconfirmed]"), "colour-contrast on the banner and unconfirmed rows").toEqual([]);
   });
 });

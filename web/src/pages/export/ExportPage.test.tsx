@@ -33,7 +33,7 @@ describe("ExportPage", () => {
     const { urls, user } = setup(
       new Response("zip", { headers: { "Content-Disposition": 'attachment; filename="export.zip"' } }),
     );
-    await user.click(screen.getByLabelText(/CSV/));
+    await user.click(screen.getByRole("radio", { name: /CSV/ }));
     await user.type(screen.getByLabelText(/From/), "2026-01-01");
     await user.click(screen.getByRole("button", { name: "Download" }));
     expect(await screen.findByText("Downloaded export.zip")).toBeInTheDocument();

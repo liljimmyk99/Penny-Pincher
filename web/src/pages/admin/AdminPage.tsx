@@ -1,4 +1,15 @@
+import { Download } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
+import { LoadError } from "@/components/LoadError";
+import { SectionCard } from "@/components/SectionCard";
+import { StatusLine } from "@/components/StatusLine";
+import { edgeColumns } from "@/components/tableStyles";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import {
   errorMessage,
   useAdminStatus,
@@ -7,18 +18,22 @@ import {
   useStartBackup,
   type Schemas,
 } from "../../api";
-import { AlertIcon, DownloadIcon } from "../../components/icons";
 import { toast } from "../../lib/toast";
 import { Page } from "../Page";
 import { UsersSection } from "./UsersSection";
 import { formatBytes, formatDateTime, formatUptime } from "./format";
-import "./AdminPage.css";
 
 const KIND_LABEL: Record<Schemas["Backup"]["kind"], string> = {
   weekly: "Weekly",
   monthly: "Monthly",
   manual: "Manual",
 };
+
+const STATUS_BADGE = {
+  succeeded: "income",
+  failed: "destructive",
+  running: "secondary",
+} as const satisfies Record<Schemas["Backup"]["status"], string>;
 
 /**
  * Admin dashboard: app status, backups and the Users tab (root §6.12).
@@ -30,58 +45,41 @@ export function AdminPage() {
       title="Admin dashboard"
       eyebrow="Admin"
     >
-      <div role="tablist" aria-label="Admin sections" className="admin__tabs">
-        {(
-          [
-            ["status", "Status & backups"],
-            ["users", "Users"],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            id={`admin-tab-${id}`}
-            aria-selected={tab === id}
-            aria-controls="admin-panel"
-            className={`admin__tab${tab === id ? " is-active" : ""}`}
-            onClick={() => setTab(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <div role="tabpanel" id="admin-panel" aria-labelledby={`admin-tab-${tab}`}>
-        {tab === "status" ? (
-          <>
-            <StatusTiles />
-            <BackupsSection />
-          </>
-        ) : (
+      <Tabs value={tab} onValueChange={(v) => setTab(v === "users" ? "users" : "status")} className="gap-6">
+        <TabsList
+          variant="line"
+          aria-label="Admin sections"
+          className="w-full justify-start border-x-0 border-t-0 border-b border-solid border-border"
+        >
+          <TabsTrigger value="status" className="flex-none px-4">
+            Status &amp; backups
+          </TabsTrigger>
+          <TabsTrigger value="users" className="flex-none px-4">
+            Users
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="status" className="flex flex-col gap-6">
+          <StatusTiles />
+          <BackupsSection />
+        </TabsContent>
+        <TabsContent value="users">
           <UsersSection />
-        )}
-      </div>
+        </TabsContent>
+      </Tabs>
     </Page>
   );
 }
 
 function StatusTiles() {
   const status = useAdminStatus();
-  if (status.isPending) return <p className="admin__status">Loading status…</p>;
-  if (status.isError) {
-    return (
-      <p className="alert alert--danger" role="alert">
-        <AlertIcon width={18} height={18} />
-        {errorMessage(status.error)}
-      </p>
-    );
-  }
+  if (status.isPending) return <StatusLine>Loading status…</StatusLine>;
+  if (status.isError) return <LoadError message={errorMessage(status.error)} onRetry={() => void status.refetch()} />;
   const s = status.data;
   const last = s.backups.last_run;
   const nextRun = [s.backups.next_weekly_at, s.backups.next_monthly_at].sort()[0];
 
   return (
-    <section aria-label="App status" className="admin__tiles">
+    <section aria-label="App status" className="flex flex-wrap gap-4">
       <Tile title="API server" tone="ok" value="Running">
         <Line label="Version" value={s.version} />
         <Line label="Uptime" value={formatUptime(s.uptime_seconds)} />
@@ -121,19 +119,32 @@ function Tile({
   children: ReactNode;
 }) {
   return (
-    <div className="card admin-tile">
-      <h2 className="eyebrow">{title}</h2>
-      <p className={`admin-tile__value${tone ? ` admin-tile__value--${tone}` : ""}`}>{value}</p>
-      <dl className="admin-tile__lines">{children}</dl>
-    </div>
+    <Card className="min-w-[220px] flex-1 gap-2 px-5 py-[18px]">
+      <h2 className="m-0 text-xs font-semibold tracking-[0.06em] text-muted-foreground uppercase">{title}</h2>
+      <p
+        className={cn(
+          "m-0 flex items-center gap-2 text-xl leading-tight font-bold tracking-[-0.01em]",
+          tone === "bad" && "text-danger-alert-foreground",
+        )}
+      >
+        {tone && (
+          <span
+            aria-hidden="true"
+            className={cn("size-2.5 flex-none rounded-full", tone === "ok" ? "bg-income" : "bg-destructive")}
+          />
+        )}
+        {value}
+      </p>
+      <dl className="m-0 flex flex-col gap-1 text-[13px]">{children}</dl>
+    </Card>
   );
 }
 
 function Line({ label, value }: { label: string; value: string }) {
   return (
-    <div className="admin-tile__line">
-      <dt>{label}</dt>
-      <dd>{value}</dd>
+    <div className="flex justify-between gap-3">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="m-0 text-right tabular-nums">{value}</dd>
     </div>
   );
 }
@@ -169,78 +180,81 @@ function BackupsSection() {
   const running = start.isPending || backups.data?.some((b) => b.status === "running") === true;
 
   return (
-    <section className="card admin-backups" aria-labelledby="backups-h">
-      <div className="admin-backups__head">
-        <div>
-          <h2 id="backups-h">Backups</h2>
-          <p className="admin__desc">Encrypted snapshots. They can only be opened with the offline private key.</p>
-        </div>
-        <button type="button" className="btn btn--primary btn--sm" disabled={running} onClick={() => void backUpNow()}>
+    <SectionCard
+      title="Backups"
+      description="Encrypted snapshots. They can only be opened with the offline private key."
+      action={
+        <Button type="button" size="sm" disabled={running} onClick={() => void backUpNow()}>
           {running ? "Backing up…" : "Back up now"}
-        </button>
-      </div>
+        </Button>
+      }
+      flush
+    >
       {error && (
-        <p className="alert alert--danger admin-backups__alert" role="alert">
-          <AlertIcon width={18} height={18} />
-          {errorMessage(error)}
-        </p>
+        <div className="px-5">
+          <LoadError message={errorMessage(error)} />
+        </div>
       )}
       {backups.isPending ? (
-        <p className="admin__status">Loading backups…</p>
+        <StatusLine inset>Loading backups…</StatusLine>
       ) : backups.isError ? (
-        <p className="alert alert--danger admin-backups__alert" role="alert">
-          <AlertIcon width={18} height={18} />
-          {errorMessage(backups.error)}
-        </p>
-      ) : backups.data.length === 0 ? (
-        <p className="admin__status">No backups yet.</p>
-      ) : (
-        <div className="admin-backups__scroll">
-          <table className="admin-backups__table">
-            <caption className="visually-hidden">Backup snapshots, newest first</caption>
-            <thead>
-              <tr>
-                <th scope="col">Type</th>
-                <th scope="col">Started</th>
-                <th scope="col">Status</th>
-                <th scope="col">Size</th>
-                <th scope="col">
-                  <span className="visually-hidden">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {backups.data.map((b) => (
-                <tr key={b.id}>
-                  <th scope="row">{KIND_LABEL[b.kind]}</th>
-                  <td>{formatDateTime(b.started_at)}</td>
-                  <td>
-                    <span className={`admin-backups__state admin-backups__state--${b.status}`}>
-                      {statusLabel(b.status)}
-                    </span>
-                    {b.error_message && <span className="admin-backups__reason">{b.error_message}</span>}
-                  </td>
-                  <td>{b.size_bytes === null ? "—" : formatBytes(b.size_bytes)}</td>
-                  <td className="admin-backups__actions">
-                    {b.status === "succeeded" && (
-                      <button
-                        type="button"
-                        className="btn btn--ghost btn--xs"
-                        disabled={download.isPending}
-                        aria-label={`Download ${KIND_LABEL[b.kind].toLowerCase()} backup from ${formatDateTime(b.started_at)}`}
-                        onClick={() => download.mutate(b)}
-                      >
-                        <DownloadIcon width={14} height={14} />
-                        Download
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="px-5">
+          <LoadError message={errorMessage(backups.error)} onRetry={() => void backups.refetch()} />
         </div>
+      ) : backups.data.length === 0 ? (
+        <StatusLine inset>No backups yet.</StatusLine>
+      ) : (
+        <Table className={edgeColumns}>
+          <TableCaption className="sr-only">Backup snapshots, newest first</TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead scope="col">Type</TableHead>
+              <TableHead scope="col">Started</TableHead>
+              <TableHead scope="col">Status</TableHead>
+              <TableHead scope="col" numeric>
+                Size
+              </TableHead>
+              <TableHead scope="col">
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {backups.data.map((b) => (
+              <TableRow key={b.id}>
+                <TableHead scope="row" className="font-semibold text-foreground">
+                  {KIND_LABEL[b.kind]}
+                </TableHead>
+                <TableCell className="tabular-nums">{formatDateTime(b.started_at)}</TableCell>
+                <TableCell>
+                  <span className="flex flex-col items-start gap-1">
+                    <Badge variant={STATUS_BADGE[b.status]}>{statusLabel(b.status)}</Badge>
+                    {b.error_message && (
+                      <span className="text-xs whitespace-normal text-muted-foreground">{b.error_message}</span>
+                    )}
+                  </span>
+                </TableCell>
+                <TableCell numeric>{b.size_bytes === null ? "—" : formatBytes(b.size_bytes)}</TableCell>
+                <TableCell className="text-right">
+                  {b.status === "succeeded" && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={download.isPending}
+                      aria-label={`Download ${KIND_LABEL[b.kind].toLowerCase()} backup from ${formatDateTime(b.started_at)}`}
+                      onClick={() => download.mutate(b)}
+                    >
+                      <Download aria-hidden="true" />
+                      Download
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
-    </section>
+    </SectionCard>
   );
 }

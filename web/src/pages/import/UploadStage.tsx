@@ -1,7 +1,11 @@
+import { Download, Upload } from "lucide-react";
 import { useRef, useState, type DragEvent } from "react";
+import { SectionCard } from "@/components/SectionCard";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { errorMessage, useDownloadImportTemplate, useImportMutations, type ImportRecord } from "../../api";
-import { uploadErrorText } from "./hints";
-import { AlertIcon, DownloadIcon, UploadIcon } from "../../components/icons";
+import { uploadErrorText, XLSX_ACCEPT } from "./hints";
+import { ErrorLine } from "./parts";
 
 export function UploadStage({ onUploaded }: { onUploaded: (record: ImportRecord) => void }) {
   const template = useDownloadImportTemplate();
@@ -19,40 +23,39 @@ export function UploadStage({ onUploaded }: { onUploaded: (record: ImportRecord)
   }
 
   return (
-    <div className="import-grid">
-      <section className="card import-card" aria-labelledby="import-template-h">
-        <h2 id="import-template-h" className="import-card__title">
-          1. Get the template
-        </h2>
-        <div className="import-preview" aria-hidden="true">
-          <span className="import-preview__tab">Expenses</span>
-          <span className="import-preview__tab">Income</span>
-          <p>Date · Category · Merchant · Amount · Note</p>
-          <p>Date · Source · Gross · Gross taxable · Net · Note</p>
+    <div className="grid gap-6 lg:grid-cols-2">
+      <SectionCard title="1. Get the template" contentClassName="flex flex-col gap-4">
+        <div aria-hidden="true" className="overflow-hidden rounded-xl border border-solid border-border bg-card">
+          <div className="flex gap-0.5 border-x-0 border-t-0 border-b border-solid border-border bg-muted/50 px-1.5 pt-1.5">
+            <span className="-mb-px rounded-t-lg border border-b-0 border-solid border-border bg-card px-4 py-2.5 text-[13px] font-semibold">
+              Expenses
+            </span>
+            <span className="px-4 py-2.5 text-[13px] font-semibold text-muted-foreground">Income</span>
+          </div>
+          <div className="flex flex-col gap-1 px-4 py-3 text-[13px] text-muted-foreground">
+            <p className="m-0">Date · Category · Merchant · Amount · Note</p>
+            <p className="m-0">Date · Source · Gross · Gross taxable · Net · Note</p>
+          </div>
         </div>
-        <ul className="import-rules">
+        <ul className="m-0 flex flex-col gap-1.5 pl-5 text-sm">
           <li>The Category and Source dropdowns hold your current categories and income sources.</li>
           <li>One file can hold any number of years.</li>
           <li>Refunds are negative amounts. Amounts are in dollars.</li>
         </ul>
-        {template.isError && (
-          <p role="alert" className="alert alert--danger">
-            <AlertIcon width={18} height={18} />
-            {errorMessage(template.error)}
-          </p>
-        )}
-        <button type="button" className="btn btn--ghost" disabled={template.isPending} onClick={() => template.mutate()}>
-          <DownloadIcon width={16} height={16} />
+        {template.isError && <ErrorLine>{errorMessage(template.error)}</ErrorLine>}
+        <Button type="button" variant="outline" className="self-start" disabled={template.isPending} onClick={() => template.mutate()}>
+          <Download aria-hidden="true" />
           Download template
-        </button>
-      </section>
+        </Button>
+      </SectionCard>
 
-      <section className="card import-card" aria-labelledby="import-upload-h">
-        <h2 id="import-upload-h" className="import-card__title">
-          2. Upload your file
-        </h2>
+      <SectionCard title="2. Upload your file" contentClassName="flex flex-col gap-4">
         <div
-          className={`import-drop${over ? " import-drop--over" : ""}`}
+          data-over={over || undefined}
+          className={cn(
+            "flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-input bg-muted/40 px-6 py-9 text-center transition-colors",
+            over && "border-primary bg-selected",
+          )}
           onDragOver={(e) => {
             e.preventDefault();
             setOver(true);
@@ -60,14 +63,16 @@ export function UploadStage({ onUploaded }: { onUploaded: (record: ImportRecord)
           onDragLeave={() => setOver(false)}
           onDrop={drop}
         >
-          <UploadIcon width={28} height={28} />
-          <p>{upload.isPending ? "Checking your file…" : "Drop your .xlsx file here"}</p>
-          <p className="import-muted">Up to 10 MB. Nothing is saved until you review it.</p>
+          <span aria-hidden="true" className="flex size-14 items-center justify-center rounded-xl bg-selected text-saving">
+            <Upload className="size-[26px]" />
+          </span>
+          <p className="m-0 font-semibold">{upload.isPending ? "Checking your file…" : "Drop your .xlsx file here"}</p>
+          <p className="m-0 text-[13px] text-muted-foreground">Up to 10 MB. Nothing is saved until you review it.</p>
           <input
             ref={input}
             type="file"
-            className="visually-hidden"
-            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            className="sr-only"
+            accept={XLSX_ACCEPT}
             aria-label="Import file"
             tabIndex={-1}
             onChange={(e) => {
@@ -75,17 +80,12 @@ export function UploadStage({ onUploaded }: { onUploaded: (record: ImportRecord)
               e.target.value = "";
             }}
           />
-          <button type="button" className="btn btn--primary" disabled={upload.isPending} onClick={() => input.current?.click()}>
+          <Button type="button" disabled={upload.isPending} onClick={() => input.current?.click()}>
             Choose file
-          </button>
+          </Button>
         </div>
-        {upload.isError && (
-          <p role="alert" className="alert alert--danger">
-            <AlertIcon width={18} height={18} />
-            {uploadErrorText(upload.error)}
-          </p>
-        )}
-      </section>
+        {upload.isError && <ErrorLine>{uploadErrorText(upload.error)}</ErrorLine>}
+      </SectionCard>
     </div>
   );
 }
